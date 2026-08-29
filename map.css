@@ -1,0 +1,141 @@
+/* The map's own chrome: the fixed sites, the governorate names, Leaflet's own
+   furniture restyled to the theme, the RTL popup and the attack pins.
+
+   Split out of style.css on 2026-08-29 when that file passed 500 lines. Loaded
+   AFTER style.css and cards.css, so the phone-width popup cap in style.css -
+   which carries !important because Leaflet writes the width inline from JS -
+   still wins over the base rule here. */
+
+/* Fixed reference sites — a quiet frame of reference, never competing with a claim. */
+.site-icon { pointer-events: none; }
+/* A port, an airfield, a refinery - the shape says which. Filled silhouettes, one
+   flat colour: at 14px an outline turns to mush, and a site is the frame of
+   reference, never a claim competing with the pins. */
+.site-glyph {
+  position: absolute; inset-block-start: 0; inset-inline-start: 0;
+  fill: var(--site-mark);
+  filter: drop-shadow(0 0 2px var(--map-halo));
+}
+.site-label {
+  position: absolute; inset-block-start: 13px; inset-inline: -60px;
+  text-align: center; white-space: nowrap;
+  font-size: 15px; line-height: 1.2; color: var(--site-mark);
+  display: none;
+}
+.show-site-labels .site-label { display: block; }
+
+/* Governorate names — the map's own labelling, Hebrew, never letter-spaced. The
+   halo is legibility on a photographic-dark ground, not decoration. */
+.gov-label { pointer-events: none; }
+.gov-label b {
+  /* Centred on the anchor point WITHOUT growing a box around it: the collision
+     pass in labels.js measures this element, so it has to be the width of the
+     name itself, not of the slot it is centred in. */
+  position: absolute; inset-block-start: -9px; inset-inline: -160px;
+  inline-size: max-content; margin-inline: auto;
+  text-align: center; white-space: nowrap;
+  font-size: 15px; font-weight: 500; line-height: 1.2;
+  letter-spacing: normal; color: var(--gov-label);
+  text-shadow: 0 0 3px var(--map-halo), 0 1px 4px var(--map-halo);
+}
+
+/* Leaflet — restyle to the theme; keep attribution legible (15px floor). */
+.leaflet-container { font: inherit; background: var(--map-bg); }
+.leaflet-popup-content-wrapper, .leaflet-popup-tip {
+  background: var(--surface-2); color: var(--ink);
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.45);
+}
+.leaflet-popup-content-wrapper { border-radius: 10px; }
+
+/* Leaflet writes its popup left-to-right regardless of the page: `text-align:
+   left` on the wrapper, and the close button pinned to the physical right edge.
+   Inherited direction is not enough - it orders the glyphs but leaves every
+   line hugging the wrong edge, so a short line like the verdict badge or the
+   source link lands on the left of a Hebrew card. Direction is stated outright
+   rather than inherited, alignment is flipped, and the close button moves to
+   the physical top-left where an RTL reader looks for it. The extra inline-end
+   margin is the room the button now occupies on that side. */
+.leaflet-popup-content {
+  direction: rtl; text-align: right;
+  margin-block: 12px; margin-inline: 16px 30px;
+  font-size: 15px; line-height: 1.5;
+}
+.leaflet-container a.leaflet-popup-close-button {
+  right: auto; left: 0; padding: 4px 4px 0 4px;
+}
+.pop h4 { font-size: 16px; font-weight: 600; margin-block-end: 3px; }
+.pop .pop-meta { color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+.pop a { color: var(--accent-text); }
+
+/* Several events in one place. The pin carries the count; the popup carries the
+   list, and each row is the only way into an event that shares its coordinate
+   with fifteen others - so the rows are real buttons, reachable by keyboard.
+   The list scrolls inside the bubble (Leaflet's own maxHeight does the rest);
+   thirty-two rows printed out would be taller than the map. */
+/* Leaflet sizes the icon box from iconSize and anchors it by iconAnchor, so the
+   box is always 30px and the mark inside it is centred here - a 24px solo pin in
+   a 30px box would otherwise sit 3px up and to the side of its own coordinate. */
+.cl-pin-wrap {
+  background: none; border: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+/* Every attack pin, one shape, always numbered. The opaque base is the floor the
+   number is read against - a translucent circle over the territory fill is not -
+   and --pin-f paints the verdict on top of it, the same fill the 7px dot used to
+   carry. Hollow and dashed is a claim nobody else reported. */
+.cl-pin {
+  display: flex; align-items: center; justify-content: center;
+  inline-size: 30px; block-size: 30px; border-radius: 50%;
+  background-color: var(--map-bg);
+  box-shadow: inset 0 0 0 999px var(--pin-f, transparent),
+              0 1px 6px rgba(0, 0, 0, 0.5);
+  border: 2px solid var(--pin-c); color: var(--pin-c);
+  font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.cl-pin.hollow { border-style: dashed; }
+/* A lone claim is drawn smaller than a cluster. It still says "1" - that was the
+   instruction - but a board where nearly every pin is a single event should not
+   read as thirty-five equal weights, and the size difference is what makes a
+   cluster stand out at a glance. */
+.cl-pin.solo { inline-size: 24px; block-size: 24px; font-size: 14px; }
+/* WHERE the events happened, which is not the same question as whether anyone
+   else confirmed them - that one is already answered by the fill and the dash.
+   A group whose claims only say "somewhere in this governorate" keeps the exact
+   same circle, so the number reads the same, and takes a detached outer ring.
+   It is the dashed area circle's argument at pin scale: the point is standing in
+   for a region. A hard 1px stroke with a real gap, never a glow (design-law S6).
+   The ring is an absolutely positioned pseudo-element - inside a flex row a plain
+   ::after would become a second flex item and push the number off its centre. */
+.cl-pin.approx { position: relative; }
+.cl-pin.approx::after {
+  content: ""; position: absolute; inset: -7px; border-radius: 50%;
+  border: 1px solid var(--pin-r, transparent);
+  /* Decoration only. A rounded box is hit-tested by its SHAPE, not by whether
+     anything is painted inside it, so without this the ring grows the pin's
+     click target from 30px to 42px - and over Marib the town pin sits 13px from
+     the province pin, well inside that. The pin that draws the ring would have
+     swallowed the press meant for its neighbour, which is the same fault the
+     legend already caused over the enlarge button. */
+  pointer-events: none;
+}
+.cl-note { color: var(--ink-faint); font-size: 14px; margin-block-end: 6px; }
+.cl-list { display: flex; flex-direction: column; gap: 2px; }
+.cl-row {
+  display: grid; grid-template-columns: 8px auto 1fr auto;
+  align-items: center; gap: 8px;
+  inline-size: 100%; min-block-size: 44px; padding: 4px 6px;
+  background: transparent; border: 1px solid transparent; border-radius: 6px;
+  text-align: right; cursor: pointer; font-size: 15px;
+}
+.cl-row:hover { background: var(--surface); }
+.cl-row[aria-current="true"] { background: var(--surface); border-color: var(--line-strong); }
+.cl-dot { inline-size: 8px; block-size: 8px; border-radius: 50%; background: var(--dot-c); }
+.cl-date { color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+.cl-title { color: var(--ink); line-height: 1.35; }
+.cl-v { color: var(--v-c); font-size: 16px; }
+.leaflet-container .leaflet-control-attribution {
+  background: rgba(8, 26, 47, 0.8); color: var(--ink-faint); font-size: 15px;
+}
+.leaflet-control-attribution a { color: var(--ink-muted); }
+.leaflet-bar a { background: var(--surface-2); color: var(--ink); border-color: var(--line-strong); }
+.leaflet-bar a:hover { background: var(--surface); }

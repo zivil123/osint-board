@@ -1,0 +1,405 @@
+/* Tokens — Mountop palette (design-law §3): navy field, silver ramp, one blue. */
+:root {
+  --bg: #081A2F;
+  --surface: #0B2138;
+  --surface-2: #0D2742;
+  --map-bg: #0A1E33;
+  --ink: #E6EDF5;          /* on --bg: 13.9:1 */
+  --ink-muted: #A9BACC;    /* on --bg: 7.6:1 */
+  --ink-faint: #7C8FA3;    /* on --bg: 4.6:1 */
+  --line: rgba(230, 237, 245, 0.10);
+  --line-strong: rgba(230, 237, 245, 0.32);
+  --accent: #2E6BFF;
+  --accent-text: #6EA8FF;  /* on --bg: 6.3:1 */
+  --accent-tint: rgba(46, 107, 255, 0.18);
+  --on-accent: #FFFFFF;
+  /* Front category colours — decoration-scoped, not status, not the accent hue. */
+  --f-ships: #5EEAD4;      /* on --bg: 11.4:1 */
+  --f-ships-tint: rgba(94, 234, 212, 0.12);
+  --f-israel: #F49CC4;     /* on --bg: 8.2:1 */
+  --f-israel-tint: rgba(244, 156, 196, 0.12);
+  --f-saudi: #F5C445;      /* on --bg: 10.0:1 */
+  --f-saudi-tint: rgba(245, 196, 69, 0.12);
+  --f-internal: #B7A5F7;   /* on --bg: 7.4:1 */
+  --f-internal-tint: rgba(183, 165, 247, 0.12);
+  /* Verification status — semantic, deliberately outside the front ramp. */
+  --v-confirmed: #4ADE80;  /* on --bg: 11.8:1 */
+  --v-confirmed-tint: rgba(74, 222, 128, 0.12);
+  --v-partial: #FB923C;    /* on --bg: 7.4:1 */
+  --v-partial-tint: rgba(251, 146, 60, 0.12);
+  --v-denied: #F87171;     /* on --bg: 6.4:1 */
+  --v-denied-tint: rgba(248, 113, 113, 0.12);
+  --v-none: #8FA3B8;       /* on --bg: 5.4:1 */
+  --v-none-tint: rgba(143, 163, 184, 0.10);
+  --v-pending: #8FA3B8;
+  --v-pending-tint: rgba(143, 163, 184, 0.10);
+  /* Geography — every decorative hue above is already spoken for, so territory is
+     told apart by LIGHTNESS on the navy field, never by a new colour. */
+  /* Territory is a GROUND layer, so it takes no hue - every hue is spoken for by
+     a front or a status. It gets its step from lightness instead, and the two
+     sides are pushed to OPPOSITE sides of the basemap's own grey: one washes the
+     land lighter, the other darker. A 0.07/0.02 pair was tried first and was
+     invisible on the Esri tiles at every zoom. */
+  --geo-fill-houthi: rgba(233, 240, 248, 0.20);
+  --geo-fill-gov: rgba(6, 20, 36, 0.45);
+  --geo-fill-contested: rgba(233, 240, 248, 0.07);
+  --geo-contested-stroke: rgba(233, 240, 248, 0.38);
+  --geo-district-line: rgba(230, 237, 245, 0.10);
+  --geo-district-w: 0.6;
+  --geo-gov-line: rgba(230, 237, 245, 0.22);
+  --geo-gov-w: 1;
+  --geo-border: #E6EDF5;   /* heaviest line on the map, on purpose */
+  --geo-border-w: 2.5;
+  --geo-control-line: #E6EDF5;
+  --geo-control-w: 2;
+  --geo-control-dash: 6 4;
+  --site-mark: #7C8FA3;
+  /* The Esri canvas draws its own roads and wadis. On a board that carries its own
+     boundaries, control fill and names, that detail reads as scribble, so the tiles
+     are held back to a ground: dark enough to still tell land from sea, faint enough
+     that a road is not a line anybody has to read. */
+  --gov-label: #9FB2C6;    /* quieter than a claim, louder than the basemap */
+  --map-halo: rgba(6, 16, 30, 0.92);
+  --ease-tap: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --wrap-max: 1200px;
+  --gutter: 24px;
+}
+@media (min-width: 1400px) {
+  :root { --wrap-max: 1360px; --gutter: 40px; }
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { color-scheme: dark; }
+html[lang="he"] * { letter-spacing: normal; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Heebo", "Segoe UI", sans-serif;
+  font-size: 16px;
+  line-height: 1.625;
+}
+h1, h2, h3 { text-wrap: balance; }
+p { text-wrap: pretty; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+a { color: var(--accent-text); text-decoration: none; }
+a:hover { text-decoration: underline; }
+button { font: inherit; color: inherit; }
+
+/* Masthead — still centred and bold, now COMPACT: one row of emblem, title,
+   emblem, with the timestamp under it. Ziv, 2026-08-29, looking at this board:
+   "make this section way smaller. Just put the logos next to the header."
+
+   design-law §1 forbids shrinking a masthead and carries five reversals of that
+   idea - every one of them a designer's reasoning, and the law's own escape is
+   that a client correction is undone only by another client correction. This is
+   one, and it is scoped to THIS board. It is not licence to shrink a masthead
+   anywhere else, and "the content needs the room" is still not a reason.
+   Measured: 250px -> 95px, and the map keeps every pixel of it. */
+.mast { text-align: center; padding-block: 12px 10px; padding-inline: var(--gutter); }
+.mast h1 { font-size: 32px; font-weight: 600; line-height: 1.15; }
+/* NO padding and no plate beyond the artwork: each mark is a circle drawn edge
+   to edge in its own square (the PNG carries a 1px margin, measured), so
+   clipping the square at 50% lands the clip exactly on the emblem's outline.
+   Padding was what put a white ring around them. The white inside the circle is
+   the artwork's own ground and stays - a black-on-white emblem cannot be
+   recoloured to suit a dark field. */
+.mast-row {
+  display: flex; align-items: center; justify-content: center;
+  gap: 14px; flex-wrap: nowrap;
+}
+.mast-logo {
+  flex: none; inline-size: 44px; block-size: 44px;
+  border-radius: 50%; object-fit: contain;
+}
+.stamp { color: var(--ink-faint); font-size: 14px; font-variant-numeric: tabular-nums; }
+@media (min-width: 768px) { .mast h1 { font-size: 36px; } }
+/* The emblems stay BESIDE the title at every width - that is the instruction.
+   Both shrink together so the row never wraps on a phone. */
+@media (max-width: 480px) {
+  .mast h1 { font-size: 24px; }
+  .mast-logo { inline-size: 34px; block-size: 34px; }
+  .mast-row { gap: 10px; }
+}
+
+/* Control band — the filters, directly under the masthead. */
+.band {
+  position: sticky; inset-block-start: 0; z-index: 20;
+  background: var(--bg);
+  border-block-end: 1px solid var(--line);
+}
+.band-inner {
+  max-width: var(--wrap-max); margin-inline: auto; padding-inline: var(--gutter);
+  min-height: 56px;   /* intrinsic, and nothing measures it — see the shell below. */
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px;
+  padding-block: 8px;
+}
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  min-height: 44px; padding-inline: 14px;
+  border: 1px solid var(--line-strong); border-radius: 6px;
+  background: transparent; color: var(--ink-muted);
+  font-size: 16px; font-weight: 500; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 7px;
+  transition: background-color 200ms var(--ease-tap), color 200ms var(--ease-tap),
+              border-color 200ms var(--ease-tap), transform 100ms var(--ease-tap);
+}
+.chip:active { transform: scale(0.97); }
+.chip .n { font-variant-numeric: tabular-nums; font-size: 15px; }
+.chip.on { color: var(--chip-c); background: var(--chip-t); border-color: var(--chip-c); }
+/* No auto margin: the bar wraps at narrow widths, and an auto margin strands
+   this group at the far inline-end of its own row with nothing beside it. */
+.dates { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.date-label { color: var(--ink-muted); font-size: 15px; display: inline-flex; align-items: center; gap: 6px; }
+.dates input[type="date"] {
+  min-height: 44px; padding-inline: 10px;
+  background: var(--surface); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 6px;
+  font: inherit; font-size: 15px;
+}
+.clear-btn {
+  min-height: 44px; padding-inline: 14px;
+  background: transparent; border: 1px solid var(--line); border-radius: 6px;
+  color: var(--ink-muted); font-size: 15px; cursor: pointer;
+  transition: color 200ms var(--ease-tap), border-color 200ms var(--ease-tap);
+}
+.clear-btn:hover { color: var(--ink); border-color: var(--line-strong); }
+
+/* Main split — list inline-start (right in RTL), map inline-end. */
+.wrap {
+  max-width: var(--wrap-max); margin-inline: auto; padding-inline: var(--gutter);
+  padding-block: 20px 48px;
+  display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px;
+  align-items: start;
+}
+.list-pane { order: 1; min-width: 0; }
+.map-pane {
+  order: 2;
+  /* Positioned: the legend and the expand button are absolute inside it. */
+  position: relative;
+  border: 1px solid var(--line); border-radius: 12px;
+  overflow: hidden; isolation: isolate;
+  background: var(--surface);
+}
+#map { width: 100%; height: 100%; }
+
+/* Expand — fills the window with the map alone. Physical top-right of the pane:
+   Leaflet's own zoom control sits at the physical top-LEFT (its corner CSS is
+   physical, not logical) and the legend at the bottom, so this corner is free.
+   The word rides beside the mark, because a tooltip is not a label on a phone. */
+.map-expand {
+  position: absolute; z-index: 900;
+  inset-block-start: 10px; inset-inline-start: 10px;   /* RTL -> physical top-right */
+  min-block-size: 44px; padding-inline: 12px;
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--surface-2); color: var(--ink);
+  border: 1px solid var(--line-strong); border-radius: 6px;
+  font-size: 15px; font-weight: 500; cursor: pointer;
+  transition: background-color 200ms var(--ease-tap), border-color 200ms var(--ease-tap);
+}
+.map-expand:hover { background: var(--surface); border-color: var(--ink-faint); }
+.mx-glyph { flex: none; display: block; }
+/* Zoomed: a panel FLOATING over the page, not a takeover. It keeps a margin on
+   every edge and the page stays visible behind it through a flat scrim, which is
+   what makes it read as floating rather than as a different screen. */
+body.map-full .map-pane {
+  position: fixed; z-index: 1000;
+  inset: max(28px, 4vh) max(28px, 4vw);
+  block-size: auto; height: auto;
+  border: 1px solid var(--line-strong); border-radius: 12px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
+}
+/* Flat, never blurred (design-law §6 bans backdrop blur). */
+body.map-full::before {
+  content: ""; position: fixed; inset: 0; z-index: 999;
+  background: rgba(6, 16, 30, 0.72);
+}
+/* On a phone the page behind is a normal scroller and would keep scrolling under
+   the panel. Desktop already has this from the shell. */
+body.map-full { overflow: hidden; }
+
+/* Desktop shell: the page IS the screen. Three grid rows — masthead, band, work
+   — where the first two take what they need and the last takes the rest, so
+   nothing outside the panes ever scrolls and the whole map is on screen at any
+   window height.
+
+   This is what removed --band-h. A height measured from the band and written into
+   a variable that both panes were sized from could feed itself, and its
+   ResizeObserver was measured firing ZERO times in an embedded browser while the
+   band grew from 61px to 115px. An auto row measures itself: nothing to be late. */
+@media (min-width: 901px) {
+  html, body { block-size: 100%; }
+  body { display: grid; grid-template-rows: auto auto 1fr; overflow: hidden; }
+  .wrap {
+    padding-block: 16px;
+    min-block-size: 0; align-items: stretch;
+  }
+  .map-pane, .list-pane { block-size: 100%; min-block-size: 0; }
+  /* The list is its OWN scroller, so a marker click brings a card into view
+     without dragging anything else. Never on a phone — a scroller inside a
+     scroller is a trap. */
+  .list-pane {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-inline-end: 8px;
+  }
+  .list-head {
+    position: sticky; inset-block-start: 0; z-index: 2;
+    background: var(--bg);
+  }
+}
+
+
+/* Legend — collapsible, sits inside the map at the block-start/inline-start corner.
+   Colour never carries meaning alone: every row says in words what it marks. */
+.legend {
+  position: absolute;
+  inset-block-end: 22px; inset-inline-start: 10px;
+  z-index: 900;
+  inline-size: min(250px, calc(100% - 80px));
+  /* Never taller than the pane it floats in, and never as far up as the enlarge
+     button. `100%` is the map pane's own height, so this measures itself and
+     cannot go stale. The 86px is the space it must leave alone: 22px for its own
+     bottom inset, 54px for the button (10px inset + 44px tall) which sits on the
+     same side of the map, and 10px of gap between them.
+     Both faults this prevents were seen on a 720px window. Without any cap the
+     opened legend grew past the pane and its top rows AND its own toggle were
+     clipped away above the map, leaving no way to close it. Capped only to the
+     pane, it still reached the enlarge button and covered it - the button was
+     still there and still clickable in the DOM, but a real press landed on the
+     legend and the map never opened. */
+  max-block-size: calc(100% - 86px);
+  display: flex; flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.lg-toggle {
+  flex: none;
+  inline-size: 100%; min-block-size: 44px;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding-inline: 12px;
+  background: transparent; border: 0; cursor: pointer;
+  font-size: 16px; font-weight: 600;
+}
+.lg-caret { color: var(--ink-faint); transition: transform 200ms var(--ease-tap); }
+.lg-toggle[aria-expanded="false"] .lg-caret { transform: rotate(-90deg); }
+.lg-body {
+  /* No viewport cap any more. A `60vh` cap knew nothing about the pane it sat in
+     and let the legend outgrow it; the flex parent above is bounded by the pane
+     itself, so the body just takes what is left. `min-block-size: 0` is what
+     allows a flex child to shrink below its own content and scroll. */
+  min-block-size: 0; overflow-y: auto; overscroll-behavior: contain;
+  padding-inline: 12px; padding-block: 0 10px;
+  border-block-start: 1px solid var(--line);
+}
+.lg-h {
+  font-size: 15px; font-weight: 600; color: var(--ink-faint);
+  margin-block: 10px 4px;
+}
+.lg-row {
+  display: flex; align-items: center; gap: 8px;
+  min-block-size: 28px;
+  font-size: 15px; line-height: 1.35; color: var(--ink-muted);
+}
+button.lg-row {
+  inline-size: 100%; min-block-size: 44px;
+  background: transparent; border: 0; border-radius: 6px;
+  padding-inline: 4px; cursor: pointer; text-align: start;
+  transition: background-color 200ms var(--ease-tap), color 200ms var(--ease-tap);
+}
+button.lg-row:hover { background: var(--surface-2); }
+/* The on/off state is a WORD, not a shade. */
+button.lg-row::after {
+  content: "מוצג"; margin-inline-start: auto;
+  font-size: 15px; color: var(--ink-faint);
+}
+button.lg-row[aria-pressed="false"] { color: var(--ink-faint); }
+button.lg-row[aria-pressed="false"]::after { content: "מוסתר"; }
+button.lg-row[aria-pressed="false"] .sw { opacity: 0.4; }
+
+.sw { flex: none; position: relative; inline-size: 18px; block-size: 14px; border-radius: 3px; }
+.sw.dot {
+  inline-size: 14px; block-size: 14px; border-radius: 50%;
+  border: 2px solid var(--sw); background: transparent;
+}
+.sw.dot.dash { border-style: dashed; }
+/* The approximate pin at legend size: the dot inside its detached ring. */
+.sw.dot.ring::before {
+  content: ""; position: absolute; inset: -4px; border-radius: 50%;
+  border: 1px solid var(--sw); opacity: 0.55;
+}
+.sw.dot::after {
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  background: var(--sw); opacity: var(--sw-o, 0);
+}
+.sw.fill {
+  border: 1px solid var(--line); background-color: var(--map-bg); overflow: hidden;
+}
+.sw.fill::after {
+  content: ""; position: absolute; inset: 0; background-color: var(--sw-fill);
+}
+.sw.fill.dash { border-style: dashed; border-color: var(--geo-contested-stroke); }
+.sw.line { display: flex; align-items: center; }
+.sw.line::after {
+  content: ""; inline-size: 100%;
+  block-size: var(--sw-w, 1px); background: var(--sw-c, var(--ink-faint));
+}
+.sw.line.dash::after {
+  block-size: 0; background: transparent;
+  border-block-start: var(--sw-w, 2px) dashed var(--sw-c, var(--ink-faint));
+}
+.sw.sites {
+  display: inline-flex; align-items: center; gap: 3px;
+  inline-size: auto; min-inline-size: 44px;
+}
+.sw.sites svg { fill: var(--site-mark); }
+.lg-foot {
+  margin-block-start: 10px; padding-block-start: 8px;
+  border-block-start: 1px solid var(--line);
+  font-size: 15px; line-height: 1.45; color: var(--ink-faint);
+}
+
+/* Phone: one column, map first under the top bar, page scrolls normally. */
+@media (max-width: 900px) {
+  /* Leaflet sizes a popup to a 300px content box. With our margins that is a
+     349px bubble inside a map pane only 325px wide at 375px, so the popup hangs
+     off the LEFT edge of the screen and autoPan cannot rescue what will not fit.
+     The cap needs !important because Leaflet writes that width as an inline
+     style from JS on every open. 114px = the two page gutters plus the popup's
+     own margins and padding. */
+  .leaflet-popup-content { max-inline-size: calc(100vw - 114px) !important; }
+  .wrap { grid-template-columns: minmax(0, 1fr); }
+  /* 48vh was too short for this theatre: the fit is constrained by LATITUDE,
+     so a wide, shallow map zooms out until Yemen is a dot beside India. */
+  /* The band carries every filter, so at 375px it wraps to several rows. Pinned,
+     that would cover the screen it is meant to control - so on a phone it scrolls
+     away with everything else (design-law: a pinned title row and the work below
+     it simply cover each other on a small screen).
+
+     Each .chips group is a flex item, so a group that does not fit takes a whole
+     row of its own however short its chips are: seven chips came out as five
+     rows and pushed the map to 478px down the page. `display: contents` drops
+     the groups out of the layout and lets all seven chips flow in ONE wrap
+     context, and the gap closes to match. Grouping is for the markup; the phone
+     needs the chips to pack. */
+  .band { position: static; }
+  .band-inner { gap: 8px; }
+  .band-inner > .chips { display: contents; }
+  .map-pane { order: 1; height: clamp(320px, 66vh, 560px); }
+  .list-pane { order: 2; }
+  .dates { margin-inline-start: 0; }
+  .legend { inline-size: min(240px, calc(100% - 80px)); }
+  .lg-body { max-block-size: min(30vh, 220px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
