@@ -28,9 +28,32 @@ const KINDS = [
   { key: "ground", he: "לחימה קרקעית" },
 ];
 
+/* "Last week" is the board's opening view (Ziv, 2026-08-29: "show by default the
+   last week"), and it is a CHIP rather than a value quietly typed into the date
+   boxes - so he can see the board is holding something back and let it go with
+   one press, exactly the way the significant-events chip already works.
+
+   Computed ONCE at load and reused everywhere. Derived fresh on each call it
+   would roll over at midnight under an open page, and the chip would silently
+   read as off while still filtering. */
+function isoDay(d) {
+  return d.getFullYear() + "-" +
+    String(d.getMonth() + 1).padStart(2, "0") + "-" +
+    String(d.getDate()).padStart(2, "0");
+}
+/* Local date parts, never toISOString(): that is UTC, and in the evening in
+   Israel it names tomorrow. */
+const WEEK_FROM = (function () {
+  const d = new Date();
+  d.setDate(d.getDate() - 6);   /* today and the six days before it */
+  return isoDay(d);
+})();
+
 const state = {
   fronts: new Set(),
-  from: "",
+  /* Open-ended at the top so an event stamped today is never cut off by a
+     clock or a timezone. */
+  from: WEEK_FROM,
   to: "",
   verifiedOnly: false,
   /* ON by default, and the only filter that is. The board's job is the attacks
@@ -45,8 +68,10 @@ function passesWith(rec, skip) {
   if (skip !== "verified" && state.verifiedOnly && rec.corroboration !== "confirmed") return false;
   if (skip !== "major" && state.majorOnly && rec.severity === "minor") return false;
   if (skip !== "kind" && state.kind && rec.kind !== state.kind) return false;
-  if (state.from && rec.date < state.from) return false;
-  if (state.to && rec.date > state.to) return false;
+  if (skip !== "date") {
+    if (state.from && rec.date < state.from) return false;
+    if (state.to && rec.date > state.to) return false;
+  }
   return true;
 }
 
@@ -129,6 +154,21 @@ function build() {
     });
   });
 
+  addChip("date-chips", {
+    he: "השבוע האחרון",
+    color: "var(--accent-text)",
+    tint: "var(--accent-tint)",
+    isOn: function () { return state.from === WEEK_FROM && !state.to; },
+    toggle: function () {
+      const on = state.from === WEEK_FROM && !state.to;
+      state.from = on ? "" : WEEK_FROM;
+      state.to = "";
+    },
+    count: function () {
+      return countOf("date", function (r) { return r.date >= WEEK_FROM; });
+    },
+  });
+
   addChip("verify-chips", {
     he: "רק מאומתות",
     color: "var(--v-confirmed)",
@@ -142,7 +182,15 @@ function build() {
 }
 
 /* Called from render(), so the numbers and the list can never disagree. */
+function syncDates() {
+  const from = document.getElementById("date-from");
+  const to = document.getElementById("date-to");
+  if (from && from.value !== state.from) from.value = state.from;
+  if (to && to.value !== state.to) to.value = state.to;
+}
+
 function refreshCounts() {
+  syncDates();
   chips.forEach(function (chip) {
     const on = chip.opts.isOn();
     chip.btn.classList.toggle("on", on);
@@ -162,7 +210,11 @@ function emptyMessage() {
   if (kind) bits.push(kind.he + " בלבד");
   if (state.majorOnly) bits.push("אירועים משמעותיים בלבד");
   if (state.verifiedOnly) bits.push("מאומתות בלבד");
-  const dated = state.from || state.to;
+  /* The week is the board's own default, so it is named as a filter rather than
+     described as a range the reader picked. */
+  const week = state.from === WEEK_FROM && !state.to;
+  if (week) bits.push("השבוע האחרון");
+  const dated = !week && (state.from || state.to);
   if (!bits.length) {
     return dated ? "אין תקיפות בטווח התאריכים שנבחר."
                  : "אין תקיפות שמתאימות לסינון הנוכחי.";
@@ -180,12 +232,12 @@ function init() {
      goes back ON, because that is the board as it opens. */
   document.getElementById("clear-filters").addEventListener("click", function () {
     state.fronts.clear();
-    state.from = state.to = "";
+    state.from = WEEK_FROM;
+    state.to = "";
     state.verifiedOnly = false;
     state.kind = "";
     state.majorOnly = true;
-    from.value = to.value = "";
-    render();
+    render();   /* render() syncs the two date boxes from state */
   });
 }
 
