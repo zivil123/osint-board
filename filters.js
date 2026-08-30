@@ -28,37 +28,17 @@ const KINDS = [
   { key: "ground", he: "לחימה קרקעית" },
 ];
 
-/* "Last week" is the board's opening view (Ziv, 2026-08-29: "show by default the
-   last week"), and it is a CHIP rather than a value quietly typed into the date
-   boxes - so he can see the board is holding something back and let it go with
-   one press, exactly the way the significant-events chip already works.
+/* The board opens on EVERYTHING, and no filter is on at load.
 
-   Computed ONCE at load and reused everywhere. Derived fresh on each call it
-   would roll over at midnight under an open page, and the chip would silently
-   read as off while still filtering. */
-function isoDay(d) {
-  return d.getFullYear() + "-" +
-    String(d.getMonth() + 1).padStart(2, "0") + "-" +
-    String(d.getDate()).padStart(2, "0");
-}
-/* Local date parts, never toISOString(): that is UTC, and in the evening in
-   Israel it names tomorrow. */
-const WEEK_FROM = (function () {
-  const d = new Date();
-  d.setDate(d.getDate() - 6);   /* today and the six days before it */
-  return isoDay(d);
-})();
-
+   Two chips used to hold it back - a "significant only" severity filter and a
+   "last week" date filter - and Ziv had both taken out on 2026-08-30: the
+   severity one "doesn't mean anything", and the dates he sets himself in the
+   two boxes. A default that hides rows is a claim the board cannot support. */
 const state = {
   fronts: new Set(),
-  /* Open-ended at the top so an event stamped today is never cut off by a
-     clock or a timezone. */
-  from: WEEK_FROM,
+  from: "",
   to: "",
   verifiedOnly: false,
-  /* ON by default, and the only filter that is. The board's job is the attacks
-     worth looking at; the small stuff is one press away, never deleted. */
-  majorOnly: true,
   kind: "",
 };
 
@@ -66,7 +46,6 @@ const state = {
 function passesWith(rec, skip) {
   if (skip !== "front" && state.fronts.size && !state.fronts.has(rec.front)) return false;
   if (skip !== "verified" && state.verifiedOnly && rec.corroboration !== "confirmed") return false;
-  if (skip !== "major" && state.majorOnly && rec.severity === "minor") return false;
   if (skip !== "kind" && state.kind && rec.kind !== state.kind) return false;
   if (skip !== "date") {
     if (state.from && rec.date < state.from) return false;
@@ -126,19 +105,6 @@ function build() {
     });
   });
 
-  /* What kind of attack. severity is written by scripts/severity.py: sniper
-     fire, small-arms incidents and artillery shelling are minor, on Ziv's
-     instruction - "artillery shelling, I don't care about". */
-  addChip("kind-chips", {
-    he: "משמעותיים בלבד",
-    color: "var(--accent-text)",
-    tint: "var(--accent-tint)",
-    isOn: function () { return state.majorOnly; },
-    toggle: function () { state.majorOnly = !state.majorOnly; },
-    count: function () {
-      return countOf("major", function (r) { return r.severity !== "minor"; });
-    },
-  });
   KINDS.forEach(function (kind) {
     addChip("kind-chips", {
       he: kind.he,
@@ -152,21 +118,6 @@ function build() {
         return countOf("kind", function (r) { return r.kind === kind.key; });
       },
     });
-  });
-
-  addChip("date-chips", {
-    he: "השבוע האחרון",
-    color: "var(--accent-text)",
-    tint: "var(--accent-tint)",
-    isOn: function () { return state.from === WEEK_FROM && !state.to; },
-    toggle: function () {
-      const on = state.from === WEEK_FROM && !state.to;
-      state.from = on ? "" : WEEK_FROM;
-      state.to = "";
-    },
-    count: function () {
-      return countOf("date", function (r) { return r.date >= WEEK_FROM; });
-    },
   });
 
   addChip("verify-chips", {
@@ -208,13 +159,8 @@ function emptyMessage() {
   }
   const kind = KINDS.find(function (k) { return k.key === state.kind; });
   if (kind) bits.push(kind.he + " בלבד");
-  if (state.majorOnly) bits.push("אירועים משמעותיים בלבד");
   if (state.verifiedOnly) bits.push("מאומתות בלבד");
-  /* The week is the board's own default, so it is named as a filter rather than
-     described as a range the reader picked. */
-  const week = state.from === WEEK_FROM && !state.to;
-  if (week) bits.push("השבוע האחרון");
-  const dated = !week && (state.from || state.to);
+  const dated = Boolean(state.from || state.to);
   if (!bits.length) {
     return dated ? "אין תקיפות בטווח התאריכים שנבחר."
                  : "אין תקיפות שמתאימות לסינון הנוכחי.";
@@ -228,15 +174,13 @@ function init() {
   const to = document.getElementById("date-to");
   from.addEventListener("change", function () { state.from = from.value; render(); });
   to.addEventListener("change", function () { state.to = to.value; render(); });
-  /* Clear returns to the DEFAULT, not to nothing: the significant-events chip
-     goes back ON, because that is the board as it opens. */
+  /* No filter is on at load any more, so clear really does mean clear. */
   document.getElementById("clear-filters").addEventListener("click", function () {
     state.fronts.clear();
-    state.from = WEEK_FROM;
+    state.from = "";
     state.to = "";
     state.verifiedOnly = false;
     state.kind = "";
-    state.majorOnly = true;
     render();   /* render() syncs the two date boxes from state */
   });
 }
