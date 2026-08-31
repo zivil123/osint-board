@@ -104,6 +104,25 @@ function frontHe(key) {
 function corrobOf(rec) {
   return CORROB[rec.corroboration] || CORROB.pending;
 }
+/* Which of the two wars this is. The kind has been stamped on every record since
+   2026-08-29 and driven a chip in the band, but no card ever said it - so in the
+   list the only thing separating a ballistic launch from a mortar exchange was
+   knowing what "ארטילריה" means. Ziv, 2026-08-31: "there doesn't seem to be any
+   separation ... between the UAVs and missiles and the ground fighting."
+
+   Same words as the chips, so pressing one and reading a card agree, and NO new
+   hue: every colour on this board is already spoken for by a front or a verdict
+   (design-law §3), and the front badge beside this one is the row's one coloured
+   cell. This badge separates by fill and by the word, which is what the law asks
+   of it anyway - colour never carries meaning alone.
+
+   `other` (9 of 174) means the classifier could not tell, so it says nothing
+   rather than inventing a third category the band has no chip for. */
+function kbadgeHtml(rec) {
+  const kind = KINDS.find((k) => k.key === rec.kind);
+  if (!kind) return "";
+  return '<span class="kbadge">' + esc(kind.he) + "</span>";
+}
 function vbadgeHtml(rec) {
   const v = corrobOf(rec);
   return '<span class="vbadge" style="--v-c: var(--v-' + rec.corroboration +
@@ -210,6 +229,7 @@ function itemHtml(rec) {
     '<div class="item-meta">',
     '<span class="badge" style="--chip-c: var(--f-' + rec.front +
       "); --chip-t: var(--f-" + rec.front + '-tint)">' + esc(frontHe(rec.front)) + "</span>",
+    kbadgeHtml(rec),
     vbadgeHtml(rec),
     statusChipHtml(rec),
     "</div>",

@@ -36,6 +36,18 @@
   border: 1px solid var(--chip-c); border-radius: 6px;
   padding: 1px 9px;
 }
+/* Which of the two wars. It sits beside the front badge and must not compete
+   with it: the front is the row's one COLOURED cell (design-law §3), so this one
+   is told apart by a solid fill and the brightest ink instead of by a hue.
+   The fill is a translucent white rather than a step of the neutral ramp - the
+   active card takes --surface-2 itself, and a chip filled from that ramp
+   disappears the day its container steps to it. The border is the belt. */
+.kbadge {
+  font-size: 15px; font-weight: 500;
+  color: var(--ink); background: rgba(230, 237, 245, 0.09);
+  border: 1px solid var(--line-strong); border-radius: 6px;
+  padding: 1px 9px;
+}
 .item h3 { font-size: 18px; font-weight: 600; line-height: 1.35; margin-block: 6px 4px; }
 .item .he { font-size: 16px; color: var(--ink-muted); margin-block-start: 6px; }
 .item-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-block-start: 8px; }

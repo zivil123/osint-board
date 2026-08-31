@@ -34,11 +34,24 @@
   <div class="stamp" id="stamp"></div>
 </header>
 
+<!-- Every group says what question its chips answer. Ziv, 2026-08-31, on his
+     phone: "there doesn't seem to be any separation between the arenas - the Red
+     Sea, Israel, Saudi Arabia, Yemen - and between the UAVs and missiles and the
+     ground fighting." He was right and the fault was structural: on a phone the
+     three groups were dropped out of layout entirely so all seven chips packed
+     into whatever rows they fitted, an arena chip beside a fighting-type chip
+     with nothing saying they answered different questions. -->
 <nav class="band" id="band" aria-label="סינון">
   <div class="band-inner">
-    <div class="chips" id="front-chips"></div>
-    <div class="chips" id="kind-chips"></div>
-    <div class="chips" id="verify-chips"></div>
+    <div class="chips" id="front-chips" role="group" aria-labelledby="lbl-front">
+      <span class="chips-label" id="lbl-front">חזית</span>
+    </div>
+    <div class="chips" id="kind-chips" role="group" aria-labelledby="lbl-kind">
+      <span class="chips-label" id="lbl-kind">סוג לחימה</span>
+    </div>
+    <div class="chips" id="verify-chips" role="group" aria-labelledby="lbl-verify">
+      <span class="chips-label" id="lbl-verify">אימות עצמאי</span>
+    </div>
     <div class="dates">
       <label class="date-label">מ־<input type="date" id="date-from"></label>
       <label class="date-label">עד <input type="date" id="date-to"></label>

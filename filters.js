@@ -28,19 +28,49 @@ const KINDS = [
   { key: "ground", he: "לחימה קרקעית" },
 ];
 
-/* The board opens on EVERYTHING, and no filter is on at load.
+/* The board opens on THIS WEEK, and Ziv's week starts on a Tuesday.
 
-   Two chips used to hold it back - a "significant only" severity filter and a
-   "last week" date filter - and Ziv had both taken out on 2026-08-30: the
-   severity one "doesn't mean anything", and the dates he sets himself in the
-   two boxes. A default that hides rows is a claim the board cannot support. */
-const state = {
-  fronts: new Set(),
-  from: "",
-  to: "",
-  verifiedOnly: false,
-  kind: "",
-};
+   His instruction, 2026-08-31: "make it by default from last Tuesday, because we
+   count weeks from the last Tuesday." That reverses what he asked for on
+   2026-08-30, when a "last week" chip was taken out because he would rather set
+   the dates himself - and it is his to reverse. No OTHER filter is on at load,
+   and none may be added without him asking for it in as many words.
+
+   Two things keep the narrowed board honest. The two date boxes are filled from
+   this state on every render, so the window is written on screen rather than
+   applied invisibly; and the chip counts are already computed against it, so
+   nothing on the board claims a number the list does not show. */
+const WEEK_STARTS_ON = 2;   /* 0 = Sunday ... 2 = Tuesday */
+
+function isoDay(d) {
+  /* Local parts, never toISOString(): that converts to UTC and in a +03:00 zone
+     it hands back YESTERDAY for anything before 03:00. */
+  return d.getFullYear() + "-" +
+    String(d.getMonth() + 1).padStart(2, "0") + "-" +
+    String(d.getDate()).padStart(2, "0");
+}
+
+/* Computed in the BROWSER, at load, not baked in by build.py. The board is a
+   live page he opens on any day and the pipeline does not run at the moment he
+   looks - so "this week" has to mean the week HE is in, or a board opened on
+   Friday would still be showing the window that was current when it was built. */
+function weekStart() {
+  /* Noon, not midnight: Israel puts its clocks forward at 02:00, so stepping
+     back over that boundary from midnight can land at 23:00 the day before and
+     hand back a date one day early. From noon an hour either way is harmless. */
+  const day = new Date();
+  day.setHours(12, 0, 0, 0);
+  day.setDate(day.getDate() - ((day.getDay() - WEEK_STARTS_ON + 7) % 7));
+  return isoDay(day);
+}
+
+/* The board's resting state, and what `נקה סינון` returns to. Built fresh each
+   time so the Set is never shared. */
+function openingState() {
+  return { fronts: new Set(), from: weekStart(), to: "", verifiedOnly: false, kind: "" };
+}
+
+const state = openingState();
 
 /* skip names the group whose filter is ignored, so a chip can count itself. */
 function passesWith(rec, skip) {
@@ -174,13 +204,18 @@ function init() {
   const to = document.getElementById("date-to");
   from.addEventListener("change", function () { state.from = from.value; render(); });
   to.addEventListener("change", function () { state.to = to.value; render(); });
-  /* No filter is on at load any more, so clear really does mean clear. */
+  /* Clear returns the board to how it OPENED - this week, nothing else on. It
+     is the one tap back to home from anywhere, which matters more now that the
+     board has a resting state again: a default reachable only by reloading the
+     page would be a one-way door. To see the whole file he empties the from-box
+     itself, which is right there with the date in it. */
   document.getElementById("clear-filters").addEventListener("click", function () {
+    const home = openingState();
     state.fronts.clear();
-    state.from = "";
-    state.to = "";
-    state.verifiedOnly = false;
-    state.kind = "";
+    state.from = home.from;
+    state.to = home.to;
+    state.verifiedOnly = home.verifiedOnly;
+    state.kind = home.kind;
     render();   /* render() syncs the two date boxes from state */
   });
 }
