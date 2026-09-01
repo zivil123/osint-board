@@ -60,7 +60,15 @@ function weekStart() {
      hand back a date one day early. From noon an hour either way is harmless. */
   const day = new Date();
   day.setHours(12, 0, 0, 0);
-  day.setDate(day.getDate() - ((day.getDay() - WEEK_STARTS_ON + 7) % 7));
+  /* `|| 7` is the whole rule on the boundary day, and it is not a rounding
+     detail. On a Tuesday the "most recent Tuesday" is TODAY, so the board opened
+     on a window a few hours long and showed nothing at all - seen on Tuesday
+     2026-09-01, the first Tuesday after this shipped. An empty board is a claim
+     of a quiet week, and it is the one thing this default must never say by
+     accident. `last Tuesday` is also what Ziv actually said, and on a Tuesday
+     that means a week ago, not this morning. Every other day is unchanged. */
+  const back = ((day.getDay() - WEEK_STARTS_ON + 7) % 7) || 7;
+  day.setDate(day.getDate() - back);
   return isoDay(day);
 }
 

@@ -387,26 +387,58 @@ button.lg-row[aria-pressed="false"] .sw { opacity: 0.4; }
      away with everything else (design-law: a pinned title row and the work below
      it simply cover each other on a small screen).
 
-     Each group takes a full row of its own, named, with a hairline above the
-     next one. `display: contents` used to drop the groups out of the layout so
-     all seven chips flowed in ONE wrap context - which packed them into three
-     tight rows and was the whole reason Ziv could not tell the arenas from the
-     fighting types on his phone. Packing was never worth what it cost: the
-     three questions the band asks have to survive the wrap, and a group that
-     answers a different question does not belong on the same line. Measured:
-     the band grows 269px -> ~370px, which is one flick of the thumb, and the
-     map keeps every pixel of its own height. */
+     Each group is its own NAMED BOX, and its chips are laid two-up inside it.
+     `display: contents` used to drop the groups out of the layout so all seven
+     chips flowed in ONE wrap context, packed into three tight rows: an arena
+     chip beside a fighting-type chip, with nothing saying they answered
+     different questions. Separating them with a hairline fixed the grouping and
+     left the second half of the fault standing - chips of seven different
+     widths wrapping wherever they landed, so each group ended with an orphan
+     chip and a ragged half-empty row. Ziv, on a photo of his own phone:
+     "this doesn't look organized, the boxes make it look better."
+
+     So: a bordered frame per group with its name sitting ON the frame, the way
+     a fieldset legend does, and every chip on a half-row basis so they line up
+     in two columns instead of packing. The legend costs no height at all, which
+     is why it is drawn there and not on a line of its own - measured, a line
+     each put 78px on a band the map pays for. The frame is unfilled: the label
+     has to mask the border it sits on, and only a transparent frame lets it do
+     that against the band's own colour with no patch showing.
+
+     A chip never SHRINKS below its own text, so when a count reaches three
+     digits and two no longer fit side by side they stack full width instead -
+     still square, never clipped. That is the graceful half of the basis. */
   .band { position: static; }
   .band-inner { gap: 8px; }
   .band-inner > .chips,
-  .band-inner > .dates { flex: 1 0 100%; }
-  /* A group boundary is a different KIND of thing from a wrapped row inside a
-     group (design-law §4), so it is drawn and the wrap is not. */
-  .band-inner > .chips + .chips,
   .band-inner > .dates {
-    border-block-start: 1px solid var(--line);
-    padding-block-start: 7px;
+    flex: 1 0 100%;
+    position: relative;
+    border: 1px solid var(--line); border-radius: 10px;
+    padding: 13px 8px 9px;
   }
+  /* Two up. calc(50% - 4px) is exactly half the row once the 8px gap is taken
+     out, so two fill it and a third cannot follow; a group with an odd chip out
+     grows it to the full width rather than leaving a hole beside it. */
+  .band-inner > .chips > .chip { flex: 1 1 calc(50% - 4px); }
+  /* Without this a chip DOES shrink under its basis: a flex item's automatic
+     minimum is its min-CONTENT, and for a label that can break at a space that
+     is the longest word - so `טילים וכטב"מים 99` squeezed itself into the half
+     row and wrapped onto two lines, 54px tall beside a 44px neighbour. Held on
+     one line the minimum becomes the whole label, so a pair that will not fit
+     takes a row each and grows to the full width instead. */
+  .chip { padding-inline: 10px; white-space: nowrap; }
+  /* On the frame, not inside it: half in the border, masked with the band's own
+     background so the line breaks cleanly around the word. */
+  .chips-label {
+    position: absolute; inset-block-start: -10px; inset-inline-start: 12px;
+    background: var(--bg); padding-inline: 6px; line-height: 1.2;
+  }
+  /* The date boxes are native controls and are never squeezed - they only GROW
+     to fill whatever row they land on, so no ragged gap is left beside them. */
+  .dates .date-label { flex: 1 1 auto; }
+  .date-label input[type="date"] { flex: 1 1 auto; }
+  .clear-btn { flex: 1 1 auto; }
   .map-pane { order: 1; height: clamp(320px, 66vh, 560px); }
   .list-pane { order: 2; }
   .dates { margin-inline-start: 0; }
