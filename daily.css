@@ -1,0 +1,153 @@
+/* The daily brief view (סיכום יומי) — layout and type.
+
+   This view is READ start to finish, not scanned — so the narrative takes a
+   reading scale (nothing in the prose under 17px; design-law §1, the 2026-08-29
+   amendment splitting the two scales), while the event cards it embeds keep the
+   board's own card scale from cards.css untouched.
+
+   Per the shell contract in tabs.js, every rule about what this view hides of
+   the board's furniture lives HERE, not in tabs.css. */
+
+/* Hidden unless the body says view-daily; the board's band and panes go when
+   this view is on — the filter band belongs to the list it filters. */
+body:not(.view-daily) [data-pane="daily"] { display: none; }
+body.view-daily .band { display: none; }
+body.view-daily .wrap { display: none; }
+
+/* On desktop the board is a three-pane shell that never scrolls; a brief is a
+   DOCUMENT. Drop the body back to normal flow and let the page scroll. */
+@media (min-width: 901px) {
+  body.view-daily { display: block; overflow: auto; }
+}
+
+.daily-pane {
+  max-width: 780px;
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+  padding-block: 20px 64px;
+}
+
+/* Day heading and the picker share a row and part on a phone. */
+.day-head {
+  display: flex; flex-wrap: wrap; align-items: center;
+  justify-content: space-between; gap: 12px 18px;
+  margin-block-end: 6px;
+}
+.day-title { font-size: 28px; font-weight: 600; line-height: 1.2; }
+.day-picker { display: flex; align-items: center; gap: 8px; }
+.day-btn {
+  min-height: 44px; padding-inline: 14px;
+  background: transparent; border: 1px solid var(--line-strong);
+  border-radius: 6px; color: var(--ink-muted);
+  font-size: 16px; font-weight: 500; cursor: pointer;
+  transition: color 200ms var(--ease-tap), border-color 200ms var(--ease-tap);
+}
+.day-btn:hover:not(:disabled) { color: var(--ink); border-color: var(--ink-faint); }
+.day-btn:disabled { opacity: 0.45; cursor: default; }
+#day-select, #week-select {
+  min-height: 44px; padding-inline: 10px;
+  background: var(--surface); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 6px;
+  font: inherit; font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The day/week switch. A segmented control, not chips — chips mean filters
+   on this board — and not the tab strip's underline, which means leaving
+   the view. Shows only once weekly records exist (daily.js decides). */
+.mode-switch {
+  display: flex; inline-size: fit-content; margin: 0 auto 16px;
+  border: 1px solid var(--line-strong); border-radius: 8px;
+  overflow: hidden;
+}
+.mode-btn {
+  min-height: 44px; padding-inline: 26px;
+  background: transparent; border: 0; color: var(--ink-muted);
+  font: inherit; font-size: 16px; font-weight: 500; cursor: pointer;
+  transition: color 200ms var(--ease-tap), background 200ms var(--ease-tap);
+}
+.mode-btn + .mode-btn { border-inline-start: 1px solid var(--line-strong); }
+.mode-btn:hover[aria-pressed="false"] { color: var(--ink); }
+.mode-btn[aria-pressed="true"] {
+  background: var(--surface-2); color: var(--ink); font-weight: 600;
+  cursor: default;
+}
+
+/* Days the pipeline wrote from the channels alone, honestly marked. */
+.day-note { color: var(--ink-faint); font-size: 16px; margin-block-end: 4px; }
+
+/* One arena. The group-box vocabulary the phone band already uses: a hairline
+   frame with the name riding ON the border — the frame is transparent because
+   the label masks the border with the page's own background. */
+.arena {
+  position: relative;
+  border: 1px solid var(--line); border-radius: 10px;
+  padding: 20px 16px 14px;
+  margin-block-start: 22px;
+}
+.arena-h {
+  position: absolute; inset-block-start: -15px; inset-inline-start: 12px;
+  display: flex; align-items: center; gap: 10px;
+  background: var(--bg); padding-inline: 6px;
+  font-size: 17px; font-weight: 600; line-height: 1;
+}
+.arena-h .badge, .arena-h .kbadge { font-size: 16px; padding: 3px 11px; }
+.arena-count { color: var(--ink-faint); font-weight: 400; font-size: 16px;
+               font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* The narrative — the whole point of the view, and the biggest thing in it. */
+.arena-text {
+  font-size: 20px; line-height: 1.7; color: var(--ink);
+  margin-block-start: 4px;
+}
+
+/* Development rows — FIRST inside the arena, one row per typed item, the
+   inline bold tag naming its kind (Ziv: "say, this is a strategic
+   development"). Full ink, not the extras' muted voice: the developments
+   are first-class content now, the extras stay quoted reporting. */
+.dv-row { margin-block-start: 12px; }
+.dv-row:first-of-type { margin-block-start: 6px; }
+.dv-text { font-size: 19px; line-height: 1.7; color: var(--ink); }
+.dv-tag { color: var(--ink-muted); font-weight: 600; }
+
+/* The תקיפות heading, shown only when developments or extras sit above it —
+   the extras' own label voice, with room to read as its own block. */
+.cat-label {
+  font-size: 17px; font-weight: 600; color: var(--ink-muted);
+  margin-block-start: 22px;
+}
+.cat-label + .arena-text { margin-block-start: 2px; }
+
+/* The whole-day (or whole-week) quiet line, written by the renderer when
+   every arena is skipped — silence would read as an error. */
+.all-quiet { font-size: 20px; color: var(--ink-muted); margin-block-start: 20px; }
+
+/* Extras: statements, strikes against the Houthis, world reaction. Set off by
+   the same inline rule the card's also-rows use — attributed reporting, not a
+   verdict, so it takes the neutral line colour and never the verdict palette. */
+.x-group { margin-block-start: 18px; }
+.x-label { font-size: 17px; font-weight: 600; color: var(--ink-muted); }
+.x-row {
+  border-inline-start: 3px solid var(--line-strong);
+  padding-inline-start: 10px; margin-block-start: 8px;
+}
+.x-text { font-size: 18px; line-height: 1.65; color: var(--ink-muted); }
+.x-src { color: var(--ink-faint); font-size: 16px; margin-inline-start: 6px;
+         white-space: nowrap; }
+
+/* The day's cards, rendered by the board's own itemHtml — cards.css does the
+   rest. Only the list's seat in the box is decided here. */
+.arena-events { list-style: none; margin-block-start: 10px; }
+.arena-events .item:last-child { border-block-end: none; }
+
+@media (max-width: 480px) {
+  .day-title { font-size: 24px; }
+  .arena-text { font-size: 19px; }
+  /* Three picker controls cannot share 327px honestly: the buttons wrapped
+     their own labels to two lines. Same two-up mechanism as the tabs and the
+     band's chips — the select takes a full row, the two buttons share the
+     next, and nowrap keeps each label one line. */
+  .day-picker { flex-wrap: wrap; inline-size: 100%; }
+  #day-select, #week-select { order: -1; flex: 1 1 100%; }
+  .day-btn { flex: 1 1 calc(50% - 4px); white-space: nowrap; }
+}

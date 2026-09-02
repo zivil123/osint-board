@@ -31,13 +31,32 @@ var MapIcons = (function () {
       '<path d="M6.3 2.2a0.7 0.7 0 1 1 1.4 0 0.7 0.7 0 0 1-1.4 0z" fill="none"/>' +
       '<path d="M7 0.6a1.7 1.7 0 0 0-0.7 3.2v1.1H4.6v1.3h1.7v5.5A4.6 4.6 0 0 1 2.2 8.1H0.8A6 6 0 0 0 7 13.5 6 6 0 0 0 13.2 8.1h-1.4a4.6 4.6 0 0 1-4.1 3.6V6.2h1.7V4.9H7.7V3.8A1.7 1.7 0 0 0 7 0.6zm0 1.2a0.5 0.5 0 1 1 0 1 0.5 0.5 0 0 1 0-1z"/>',
     /* A strait is water, not a facility - it keeps the old lozenge. */
-    strait: '<path d="M7 1.2 12.8 7 7 12.8 1.2 7z"/>'
+    strait: '<path d="M7 1.2 12.8 7 7 12.8 1.2 7z"/>',
+    /* A governance institution - a ministry, a court, the central bank, the aid
+       administration. The classical civic front is the one silhouette that reads
+       as "an institution" at this size; WHICH kind it is, is carried by the word
+       on the card and in the popup, never by a second glyph. Six category glyphs
+       would be six shapes to learn for a distinction the word already makes. */
+    institution:
+      '<path d="M7 0.8 13.2 4.3H0.8z"/>' +
+      '<rect x="0.8" y="4.7" width="12.4" height="1.2" rx="0.3"/>' +
+      '<rect x="2.6" y="6.4" width="1.6" height="4.6"/>' +
+      '<rect x="6.2" y="6.4" width="1.6" height="4.6"/>' +
+      '<rect x="9.8" y="6.4" width="1.6" height="4.6"/>' +
+      '<rect x="0.8" y="11.4" width="12.4" height="1.6" rx="0.4"/>'
   };
 
-  function site(kind) {
+  /* One silhouette under whatever class the caller styles it with. A mark drawn
+     inside a popup is not positioned the way a mark drawn on the map is, so the
+     class cannot be baked in here. */
+  function mark(kind, cls) {
     var path = GLYPH[kind] || GLYPH.strait;
-    return '<svg class="site-glyph" width="14" height="14" viewBox="0 0 14 14" ' +
+    return '<svg class="' + cls + '" width="14" height="14" viewBox="0 0 14 14" ' +
       'aria-hidden="true" focusable="false">' + path + "</svg>";
+  }
+
+  function site(kind) {
+    return mark(kind, "site-glyph");
   }
 
   /* Corroborated claims are drawn solid; unverified ones stay hollow, so the map
@@ -79,7 +98,7 @@ var MapIcons = (function () {
       "; --pin-r: " + rgba(color, 0.8) + '">' + count + "</span>";
   }
 
-  return { site: site, pin: pin, rgba: rgba, fillFor: fillFor };
+  return { site: site, mark: mark, pin: pin, rgba: rgba, fillFor: fillFor };
 })();
 
 window.MapIcons = MapIcons;

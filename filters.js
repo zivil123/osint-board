@@ -13,7 +13,7 @@
 "use strict";
 
 const FRONTS = [
-  { key: "ships",    he: "ספינות" },
+  { key: "ships",    he: "הים האדום" },
   { key: "israel",   he: "ישראל" },
   { key: "saudi",    he: "סעודיה" },
   { key: "internal", he: "בתוך תימן" },

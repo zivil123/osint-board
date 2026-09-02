@@ -477,6 +477,12 @@ var MapView = (function () {
     draw: draw,
     select: select,
     fitTo: fitTo,
+    /* The one shared Leaflet instance, for a second view that draws its own
+       layer on this map (places_map.js). Without it that file had to wrap
+       L.map itself to catch the instance as it was built - which works only if
+       it loads before app.js calls init(), and fails silently otherwise. An
+       accessor costs one line and cannot be got wrong by load order. */
+    instance: function () { return map; },
     home: function () { userMoved = false; if (map) goHome(); },
     onSelect: function (cb) { if (typeof cb === "function") selectHandlers.push(cb); },
     invalidate: function () {

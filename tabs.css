@@ -1,0 +1,55 @@
+/* The view tab strip — sits between the masthead and the filter band.
+
+   Navigation clothes, not chip clothes: the active tab is told by an underline
+   and the accent ink, while the filter chips are bordered boxes. Two different
+   questions ("where am I" vs "what is shown") get two different shapes
+   (design-law: two questions in one band need two SHAPES, not a gap).
+
+   Only the strip lives here, plus the one desktop-shell fix below. What each
+   view hides of the board's furniture lives in that view's own stylesheet. */
+
+.tabs {
+  display: flex; justify-content: center; align-items: stretch;
+  flex-wrap: wrap; gap: 4px;
+  padding-inline: var(--gutter);
+  background: var(--bg);
+  border-block-end: 1px solid var(--line);
+}
+.tab {
+  min-height: 44px; padding-inline: 18px;
+  background: transparent; border: none; cursor: pointer;
+  color: var(--ink-muted); font-size: 16px; font-weight: 500;
+  /* The underline is drawn on every tab and coloured only on the active one, so
+     switching never reflows the strip. */
+  border-block-end: 2px solid transparent;
+  transition: color 200ms var(--ease-tap), border-color 200ms var(--ease-tap);
+}
+.tab:hover { color: var(--ink); }
+.tab[aria-selected="true"] {
+  color: var(--accent-text);
+  border-block-end-color: var(--accent-text);
+}
+
+/* On a phone three tabs cannot share one row honestly — measured at 375px the
+   labels alone are 374px before gaps, so the third always wrapped and sat alone
+   on a ragged second row, which is the exact fault Ziv rejected in the filter
+   band ("this doesn't look organized"). Same mechanism as the band's chips, so
+   there is one vocabulary: two up, and an odd tab grows to the full width
+   instead of leaving a hole. nowrap is load-bearing for the same reason as on
+   the chips — a flex item's automatic minimum is its longest WORD, so without it
+   a tab squeezes under its own label and wraps to two lines. Never a sideways
+   scroll, and never sticky — the strip scrolls away with the masthead. */
+@media (max-width: 900px) {
+  .tabs { gap: 4px 8px; padding-block: 4px 6px; }
+  .tab { flex: 1 1 calc(50% - 8px); white-space: nowrap; }
+}
+
+/* The desktop shell (style.css) is body { grid-template-rows: auto auto 1fr }:
+   masthead, band, work. The strip is a FOURTH direct child of <body>, so the
+   shell needs a fourth row or .wrap lands in an implicit row and the "nothing
+   outside the panes scrolls" contract breaks. Same file-order trick as the rest
+   of the cascade: this loads after style.css, equal specificity, later wins.
+   An auto row measures itself — no JS-measured height, ever (see style.css). */
+@media (min-width: 901px) {
+  body { grid-template-rows: auto auto auto 1fr; }
+}

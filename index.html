@@ -12,9 +12,12 @@
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-<link rel="stylesheet" href="style.css?v=20260830202544-a2f0b198">
-<link rel="stylesheet" href="cards.css?v=20260830202544-a2f0b198">
-<link rel="stylesheet" href="map.css?v=20260830202544-a2f0b198">
+<link rel="stylesheet" href="style.css?v=20260901193335-f1d42af0">
+<link rel="stylesheet" href="cards.css?v=20260901193335-f1d42af0">
+<link rel="stylesheet" href="map.css?v=20260901193335-f1d42af0">
+<link rel="stylesheet" href="tabs.css?v=20260901193335-f1d42af0">
+<link rel="stylesheet" href="daily.css?v=20260901193335-f1d42af0">
+<link rel="stylesheet" href="places.css?v=20260901193335-f1d42af0">
 </head>
 <body>
 
@@ -33,6 +36,20 @@
   </div>
   <div class="stamp" id="stamp"></div>
 </header>
+
+<!-- View tabs. Choosing a view is navigation, so these wear navigation clothes -
+     an underline on the active one - and NOT the chips' bordered boxes: a tab in
+     chip clothes reads as one more filter, which is the exact confusion the
+     grouped band exists to prevent. tabs.js owns the switching; what each view
+     hides of the board's furniture is that view's own stylesheet's business. -->
+<nav class="tabs" role="tablist" aria-label="תצוגות">
+  <button type="button" class="tab" role="tab" data-view="board"
+          aria-selected="true">המפה והרשימה</button>
+  <button type="button" class="tab" role="tab" data-view="daily"
+          aria-selected="false">סיכום יומי</button>
+  <button type="button" class="tab" role="tab" data-view="places"
+          aria-selected="false">מוסדות וכוחות</button>
+</nav>
 
 <!-- Every group says what question its chips answer. Ziv, 2026-08-31, on his
      phone: "there doesn't seem to be any separation between the arenas - the Red
@@ -88,7 +105,7 @@
       <div class="lg-body" id="lg-body">
 
         <h3 class="lg-h">חזיתות</h3>
-        <div class="lg-row"><span class="sw dot" style="--sw: var(--f-ships)"></span>ספינות</div>
+        <div class="lg-row"><span class="sw dot" style="--sw: var(--f-ships)"></span>הים האדום</div>
         <div class="lg-row"><span class="sw dot" style="--sw: var(--f-israel)"></span>ישראל</div>
         <div class="lg-row"><span class="sw dot" style="--sw: var(--f-saudi)"></span>סעודיה</div>
         <div class="lg-row"><span class="sw dot" style="--sw: var(--f-internal)"></span>בתוך תימן</div>
@@ -150,19 +167,45 @@
       <p id="empty-text"></p>
     </div>
   </section>
+
+  <!-- The apparatus view (מוסדות וכוחות). Filled by places.js from DATA.places.
+       It sits INSIDE .wrap and takes the list pane's track, rather than being a
+       body-level pane like the daily brief: .wrap is a two-column grid, so a
+       pane outside it cannot sit beside the map at all, and merely hiding the
+       list pane would leave ONE grid item to auto-place into the 5fr track -
+       squeezing the map into 5/12 of the width with 7/12 left empty. Two items,
+       one of them swapped, keeps the board's proportions exactly as they are.
+       places.css owns which of the two is shown. -->
+  <section class="places-pane" id="places-pane" data-pane="places"
+           role="tabpanel" aria-label="מוסדות וכוחות"></section>
 </main>
+
+<!-- The daily brief view (סיכום יומי). Filled by daily.js from const BRIEF;
+     hidden unless body carries view-daily. A day's narrative per arena, written
+     by the pipeline's Step S - see BRIEF.md. -->
+<section class="daily-pane" id="daily-pane" data-pane="daily" role="tabpanel"
+         aria-label="סיכום יומי"></section>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script src="data.js?v=20260830202544-a2f0b198"></script>
-<script src="geo.js?v=20260830202544-a2f0b198"></script>
-<script src="labels.js?v=20260830202544-a2f0b198"></script>
-<script src="legend.js?v=20260830202544-a2f0b198"></script>
-<script src="icons.js?v=20260830202544-a2f0b198"></script>
-<script src="cluster.js?v=20260830202544-a2f0b198"></script>
-<script src="map.js?v=20260830202544-a2f0b198"></script>
-<script src="expand.js?v=20260830202544-a2f0b198"></script>
-<script src="filters.js?v=20260830202544-a2f0b198"></script>
-<script src="app.js?v=20260830202544-a2f0b198"></script>
+<script src="data.js?v=20260901193335-f1d42af0"></script>
+<script src="brief.js?v=20260901193335-f1d42af0"></script>
+<script src="geo.js?v=20260901193335-f1d42af0"></script>
+<script src="labels.js?v=20260901193335-f1d42af0"></script>
+<script src="legend.js?v=20260901193335-f1d42af0"></script>
+<script src="icons.js?v=20260901193335-f1d42af0"></script>
+<script src="cluster.js?v=20260901193335-f1d42af0"></script>
+<script src="map.js?v=20260901193335-f1d42af0"></script>
+<script src="expand.js?v=20260901193335-f1d42af0"></script>
+<script src="filters.js?v=20260901193335-f1d42af0"></script>
+<script src="app.js?v=20260901193335-f1d42af0"></script>
+<script src="tabs.js?v=20260901193335-f1d42af0"></script>
+<script src="daily.js?v=20260901193335-f1d42af0"></script>
+<!-- After tabs.js on purpose: places.js registers itself with Tabs at load, and
+     a guarded registration that runs first would silently never happen.
+     places_map.js first - it owns the Leaflet layer that places.js reaches for,
+     the same way cluster.js loads ahead of map.js. -->
+<script src="places_map.js?v=20260901193335-f1d42af0"></script>
+<script src="places.js?v=20260901193335-f1d42af0"></script>
 </body>
 </html>
