@@ -12,12 +12,12 @@
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-<link rel="stylesheet" href="style.css?v=20260902092451-d354f71f">
-<link rel="stylesheet" href="cards.css?v=20260902092451-d354f71f">
-<link rel="stylesheet" href="map.css?v=20260902092451-d354f71f">
-<link rel="stylesheet" href="tabs.css?v=20260902092451-d354f71f">
-<link rel="stylesheet" href="daily.css?v=20260902092451-d354f71f">
-<link rel="stylesheet" href="places.css?v=20260902092451-d354f71f">
+<link rel="stylesheet" href="style.css?v=20260905155920-d7a321e2">
+<link rel="stylesheet" href="cards.css?v=20260905155920-d7a321e2">
+<link rel="stylesheet" href="map.css?v=20260905155920-d7a321e2">
+<link rel="stylesheet" href="tabs.css?v=20260905155920-d7a321e2">
+<link rel="stylesheet" href="daily.css?v=20260905155920-d7a321e2">
+<link rel="stylesheet" href="unlock.css?v=20260905155920-d7a321e2">
 </head>
 <body>
 
@@ -47,8 +47,6 @@
           aria-selected="true">המפה והרשימה</button>
   <button type="button" class="tab" role="tab" data-view="daily"
           aria-selected="false">סיכום יומי</button>
-  <button type="button" class="tab" role="tab" data-view="places"
-          aria-selected="false">מוסדות וכוחות</button>
 </nav>
 
 <!-- Every group says what question its chips answer. Ziv, 2026-08-31, on his
@@ -167,17 +165,6 @@
       <p id="empty-text"></p>
     </div>
   </section>
-
-  <!-- The apparatus view (מוסדות וכוחות). Filled by places.js from DATA.places.
-       It sits INSIDE .wrap and takes the list pane's track, rather than being a
-       body-level pane like the daily brief: .wrap is a two-column grid, so a
-       pane outside it cannot sit beside the map at all, and merely hiding the
-       list pane would leave ONE grid item to auto-place into the 5fr track -
-       squeezing the map into 5/12 of the width with 7/12 left empty. Two items,
-       one of them swapped, keeps the board's proportions exactly as they are.
-       places.css owns which of the two is shown. -->
-  <section class="places-pane" id="places-pane" data-pane="places"
-           role="tabpanel" aria-label="מוסדות וכוחות"></section>
 </main>
 
 <!-- The daily brief view (סיכום יומי). Filled by daily.js from const BRIEF;
@@ -188,24 +175,18 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script src="data.js?v=20260902092451-d354f71f"></script>
-<script src="brief.js?v=20260902092451-d354f71f"></script>
-<script src="geo.js?v=20260902092451-d354f71f"></script>
-<script src="labels.js?v=20260902092451-d354f71f"></script>
-<script src="legend.js?v=20260902092451-d354f71f"></script>
-<script src="icons.js?v=20260902092451-d354f71f"></script>
-<script src="cluster.js?v=20260902092451-d354f71f"></script>
-<script src="map.js?v=20260902092451-d354f71f"></script>
-<script src="expand.js?v=20260902092451-d354f71f"></script>
-<script src="filters.js?v=20260902092451-d354f71f"></script>
-<script src="app.js?v=20260902092451-d354f71f"></script>
-<script src="tabs.js?v=20260902092451-d354f71f"></script>
-<script src="daily.js?v=20260902092451-d354f71f"></script>
-<!-- After tabs.js on purpose: places.js registers itself with Tabs at load, and
-     a guarded registration that runs first would silently never happen.
-     places_map.js first - it owns the Leaflet layer that places.js reaches for,
-     the same way cluster.js loads ahead of map.js. -->
-<script src="places_map.js?v=20260902092451-d354f71f"></script>
-<script src="places.js?v=20260902092451-d354f71f"></script>
+<script src="bundle.js?v=20260905155920-d7a321e2"></script>
+<script src="unlock.js?v=20260905155920-d7a321e2"></script>
+<script type="text/plain" data-locked-src="geo.js?v=20260905155920-d7a321e2"></script>
+<script type="text/plain" data-locked-src="labels.js?v=20260905155920-d7a321e2"></script>
+<script type="text/plain" data-locked-src="legend.js?v=20260905155920-d7a321e2"></script>
+<script type="text/plain" data-locked-src="icons.js?v=20260905155920-d7a321e2"></script>
+<script type="text/plain" data-locked-src="cluster.js?v=20260905155920-d7a321e2"></script>
+<script type="text/plain" data-locked-src="map.js?v=20260905155920-d7a321e2"></script>
+<script type="text/plain" data-locked-src="expand.js?v=20260905155920-d7a321e2"></script>
+<script type="text/plain" data-locked-src="filters.js?v=20260905155920-d7a321e2"></script>
+<script type="text/plain" data-locked-src="app.js?v=20260905155920-d7a321e2"></script>
+<script type="text/plain" data-locked-src="tabs.js?v=20260905155920-d7a321e2"></script>
+<script type="text/plain" data-locked-src="daily.js?v=20260905155920-d7a321e2"></script>
 </body>
 </html>
