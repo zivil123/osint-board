@@ -12,12 +12,12 @@
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-<link rel="stylesheet" href="style.css?v=20260905155920-d7a321e2">
-<link rel="stylesheet" href="cards.css?v=20260905155920-d7a321e2">
-<link rel="stylesheet" href="map.css?v=20260905155920-d7a321e2">
-<link rel="stylesheet" href="tabs.css?v=20260905155920-d7a321e2">
-<link rel="stylesheet" href="daily.css?v=20260905155920-d7a321e2">
-<link rel="stylesheet" href="unlock.css?v=20260905155920-d7a321e2">
+<link rel="stylesheet" href="style.css?v=20260906181401-61df0952">
+<link rel="stylesheet" href="cards.css?v=20260906181401-61df0952">
+<link rel="stylesheet" href="map.css?v=20260906181401-61df0952">
+<link rel="stylesheet" href="tabs.css?v=20260906181401-61df0952">
+<link rel="stylesheet" href="daily.css?v=20260906181401-61df0952">
+<link rel="stylesheet" href="unlock.css?v=20260906181401-61df0952">
 </head>
 <body>
 
@@ -46,7 +46,7 @@
   <button type="button" class="tab" role="tab" data-view="board"
           aria-selected="true">המפה והרשימה</button>
   <button type="button" class="tab" role="tab" data-view="daily"
-          aria-selected="false">סיכום יומי</button>
+          aria-selected="false">סיכומים</button>
 </nav>
 
 <!-- Every group says what question its chips answer. Ziv, 2026-08-31, on his
@@ -167,26 +167,26 @@
   </section>
 </main>
 
-<!-- The daily brief view (סיכום יומי). Filled by daily.js from const BRIEF;
+<!-- The brief view (the סיכומים tab: daily and weekly). Filled by daily.js from const BRIEF;
      hidden unless body carries view-daily. A day's narrative per arena, written
      by the pipeline's Step S - see BRIEF.md. -->
 <section class="daily-pane" id="daily-pane" data-pane="daily" role="tabpanel"
-         aria-label="סיכום יומי"></section>
+         aria-label="סיכומים"></section>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script src="bundle.js?v=20260905155920-d7a321e2"></script>
-<script src="unlock.js?v=20260905155920-d7a321e2"></script>
-<script type="text/plain" data-locked-src="geo.js?v=20260905155920-d7a321e2"></script>
-<script type="text/plain" data-locked-src="labels.js?v=20260905155920-d7a321e2"></script>
-<script type="text/plain" data-locked-src="legend.js?v=20260905155920-d7a321e2"></script>
-<script type="text/plain" data-locked-src="icons.js?v=20260905155920-d7a321e2"></script>
-<script type="text/plain" data-locked-src="cluster.js?v=20260905155920-d7a321e2"></script>
-<script type="text/plain" data-locked-src="map.js?v=20260905155920-d7a321e2"></script>
-<script type="text/plain" data-locked-src="expand.js?v=20260905155920-d7a321e2"></script>
-<script type="text/plain" data-locked-src="filters.js?v=20260905155920-d7a321e2"></script>
-<script type="text/plain" data-locked-src="app.js?v=20260905155920-d7a321e2"></script>
-<script type="text/plain" data-locked-src="tabs.js?v=20260905155920-d7a321e2"></script>
-<script type="text/plain" data-locked-src="daily.js?v=20260905155920-d7a321e2"></script>
+<script src="bundle.js?v=20260906181401-61df0952"></script>
+<script src="unlock.js?v=20260906181401-61df0952"></script>
+<script type="text/plain" data-locked-src="geo.js?v=20260906181401-61df0952"></script>
+<script type="text/plain" data-locked-src="labels.js?v=20260906181401-61df0952"></script>
+<script type="text/plain" data-locked-src="legend.js?v=20260906181401-61df0952"></script>
+<script type="text/plain" data-locked-src="icons.js?v=20260906181401-61df0952"></script>
+<script type="text/plain" data-locked-src="cluster.js?v=20260906181401-61df0952"></script>
+<script type="text/plain" data-locked-src="map.js?v=20260906181401-61df0952"></script>
+<script type="text/plain" data-locked-src="expand.js?v=20260906181401-61df0952"></script>
+<script type="text/plain" data-locked-src="filters.js?v=20260906181401-61df0952"></script>
+<script type="text/plain" data-locked-src="app.js?v=20260906181401-61df0952"></script>
+<script type="text/plain" data-locked-src="tabs.js?v=20260906181401-61df0952"></script>
+<script type="text/plain" data-locked-src="daily.js?v=20260906181401-61df0952"></script>
 </body>
 </html>

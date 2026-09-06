@@ -1,47 +1,56 @@
 /* The view tab strip — sits between the masthead and the filter band.
 
-   Navigation clothes, not chip clothes: the active tab is told by an underline
-   and the accent ink, while the filter chips are bordered boxes. Two different
-   questions ("where am I" vs "what is shown") get two different shapes
-   (design-law: two questions in one band need two SHAPES, not a gap).
+   Navigation clothes, not chip clothes: the filter chips are pill-shaped boxes
+   that answer "what is shown"; these answer "where am I". Two different
+   questions get two different shapes (design-law: two questions in one band
+   need two SHAPES, not a gap).
+
+   Folder tabs on a baseline, starting from the right (the RTL start), since
+   2026-09-06 — Ziv: "make a tab bar to the right so it's more clear that it's
+   actually tabs." The earlier version was two centred labels with an accent
+   underline, which read as a heading, not as tabs. Now every tab is a bordered
+   box with rounded top corners standing on the strip's baseline rule; the
+   active one is joined to the page below it (its bottom edge erased, its
+   ground the page's own), which is the one signal every reader knows as "the
+   open tab". Flat and calm: no glow, no gradient, no new hue.
 
    Only the strip lives here, plus the one desktop-shell fix below. What each
    view hides of the board's furniture lives in that view's own stylesheet. */
 
 .tabs {
-  display: flex; justify-content: center; align-items: stretch;
+  display: flex; justify-content: flex-start; align-items: flex-end;
   flex-wrap: wrap; gap: 4px;
-  padding-inline: var(--gutter);
+  padding-inline: var(--gutter); padding-block-start: 6px;
   background: var(--bg);
-  border-block-end: 1px solid var(--line);
+  border-block-end: 1px solid var(--line-strong);
 }
 .tab {
-  min-height: 44px; padding-inline: 18px;
-  background: transparent; border: none; cursor: pointer;
+  min-height: 44px; padding-inline: 20px;
+  background: var(--surface); cursor: pointer;
+  border: 1px solid var(--line-strong);
+  border-block-end: none;
+  border-start-start-radius: 8px; border-start-end-radius: 8px;
+  /* Overlaps the baseline by its own 1px, so the active tab can erase it. */
+  margin-block-end: -1px;
   color: var(--ink-muted); font-size: 16px; font-weight: 500;
-  /* The underline is drawn on every tab and coloured only on the active one, so
-     switching never reflows the strip. */
-  border-block-end: 2px solid transparent;
-  transition: color 200ms var(--ease-tap), border-color 200ms var(--ease-tap);
+  transition: color 200ms var(--ease-tap), background 200ms var(--ease-tap);
 }
 .tab:hover { color: var(--ink); }
 .tab[aria-selected="true"] {
-  color: var(--accent-text);
-  border-block-end-color: var(--accent-text);
+  background: var(--bg);
+  border-block-end: 1px solid var(--bg);
+  color: var(--accent-text); font-weight: 600;
+  cursor: default;
 }
 
-/* On a phone three tabs cannot share one row honestly — measured at 375px the
-   labels alone are 374px before gaps, so the third always wrapped and sat alone
-   on a ragged second row, which is the exact fault Ziv rejected in the filter
-   band ("this doesn't look organized"). Same mechanism as the band's chips, so
-   there is one vocabulary: two up, and an odd tab grows to the full width
-   instead of leaving a hole. nowrap is load-bearing for the same reason as on
-   the chips — a flex item's automatic minimum is its longest WORD, so without it
-   a tab squeezes under its own label and wraps to two lines. Never a sideways
+/* On a phone the tabs share rows two-up — the band's own mechanism, one
+   vocabulary. nowrap is load-bearing for the same reason as on the chips: a
+   flex item's automatic minimum is its longest WORD, so without it a tab
+   squeezes under its own label and wraps to two lines. Never a sideways
    scroll, and never sticky — the strip scrolls away with the masthead. */
 @media (max-width: 900px) {
-  .tabs { gap: 4px 8px; padding-block: 4px 6px; }
-  .tab { flex: 1 1 calc(50% - 8px); white-space: nowrap; }
+  .tabs { gap: 4px 6px; }
+  .tab { flex: 1 1 calc(50% - 6px); white-space: nowrap; }
 }
 
 /* The desktop shell (style.css) is body { grid-template-rows: auto auto 1fr }:
