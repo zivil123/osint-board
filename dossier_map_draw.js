@@ -222,8 +222,18 @@ var DossierMapDraw = (function () {
     (D.gains || []).forEach(function (g) {
       var geom = null;
       if (g.kind === "district" || (g.kind === "island" && mapId !== "overview")) geom = gainPart(G, g);
-      if (geom) { ctx.beginPath(); polyPath(ctx, p, geom); paintShape(ctx, gainStyle(P, u)); }
-      else { var q = p(g.lon, g.lat); ringMark(ctx, q[0], q[1], 7 * u, gainStyle(P, u)); }
+      /* Plain land under the violet, exactly as the legend swatch does, so a
+         gain on Houthi ground and one on government ground are the same
+         colour - measured on the light slide, the see-through wash read as
+         two tones, which is the very separation Ziv asked to remove. */
+      if (geom) {
+        ctx.beginPath(); polyPath(ctx, p, geom);
+        paintShape(ctx, { fill: P.land }); paintShape(ctx, gainStyle(P, u));
+      } else {
+        var q = p(g.lon, g.lat);
+        ringMark(ctx, q[0], q[1], 7 * u, { fill: P.land });
+        ringMark(ctx, q[0], q[1], 7 * u, gainStyle(P, u));
+      }
     });
   }
 
