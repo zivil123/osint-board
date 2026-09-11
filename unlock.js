@@ -61,9 +61,11 @@
     return dec.decode(plain);
   }
 
-  /* The decrypted text is data.js + brief.js verbatim — `const DATA`,
-     `const BRIEF` — run as an inline classic script so those stay the same
-     global bindings every other file reads by bare name. */
+  /* The decrypted text is the LOCKED files verbatim (data.js, brief.js,
+     dossier_data.js — `const DATA`, `const BRIEF`, `const DOSSIER`), run as ONE
+     inline classic script so those stay the same global bindings every other
+     file reads by bare name. One syntax error in any of them kills all three,
+     which is why every emitter writes pure json.dumps output. */
   function runData(text) {
     const s = document.createElement("script");
     s.textContent = text;

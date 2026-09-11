@@ -1,0 +1,173 @@
+/* The dossier view (the רקע ומשמעויות tab) — layout and type.
+
+   A dated DOCUMENT read top to bottom, not a feed and not a worklist, so it
+   takes the READING scale (design-law §1, the 2026-08-29 amendment: body 22px,
+   list rows and card values 20px, secondary lines 18px, h1 42px, h2 30px, and
+   nothing under 17px). The pane is wider than the brief's 780px because it
+   carries two 16:9 maps, and a map at 780px is a postcard.
+
+   Per the shell contract in tabs.js, every rule about what this view hides of
+   the board's furniture lives HERE, not in tabs.css. Same three rules and the
+   same desktop escape as daily.css. */
+
+body:not(.view-dossier) [data-pane="dossier"] { display: none; }
+body.view-dossier .band { display: none; }
+body.view-dossier .wrap { display: none; }
+
+/* The desktop shell never scrolls; a document must. */
+@media (min-width: 901px) {
+  body.view-dossier { display: block; overflow: auto; }
+}
+
+.dossier-pane {
+  max-width: 960px;
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+  padding-block: 20px 64px;
+  font-size: 22px; line-height: 1.6;
+}
+.dossier-pane .empty p { font-size: 20px; }
+
+/* ---- Header block --------------------------------------------------------- */
+.ds-head { margin-block-end: 8px; }
+.ds-title { font-size: 42px; font-weight: 600; line-height: 1.15; }
+.ds-sub { font-size: 22px; line-height: 1.5; color: var(--ink-muted); margin-block-start: 8px; }
+.ds-asof {
+  font-size: 18px; color: var(--ink-faint); margin-block-start: 6px;
+  font-variant-numeric: tabular-nums;
+}
+/* The two download buttons. Equal rank, one row, wrapping on a phone. */
+.ds-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-block-start: 18px; }
+.ds-btn {
+  min-height: 44px; padding-inline: 18px;
+  background: transparent; border: 1px solid var(--line-strong);
+  border-radius: 6px; color: var(--ink);
+  font-size: 18px; font-weight: 500; line-height: 1.2; cursor: pointer;
+  transition: color 200ms var(--ease-tap), border-color 200ms var(--ease-tap),
+              transform 100ms var(--ease-tap);
+}
+.ds-btn:hover:not(:disabled) { border-color: var(--ink-faint); }
+.ds-btn:active:not(:disabled) { transform: scale(0.97); }
+.ds-btn:disabled { opacity: 0.55; cursor: default; }
+/* The status line under the buttons: a rejection's Hebrew message, or the
+   word that the download is not available. Takes no room while empty. */
+.ds-status { font-size: 18px; color: var(--ink-muted); margin-block-start: 10px; }
+.ds-status:empty { display: none; }
+
+/* ---- Sections ------------------------------------------------------------- */
+.ds-section { margin-block-start: 40px; }
+.ds-h2 { font-size: 30px; font-weight: 600; line-height: 1.2; }
+.ds-intro { font-size: 22px; line-height: 1.65; margin-block-start: 10px; }
+
+/* One card shell per item group: a 1px hairline container, 10px radius, no
+   fill and no glow. Items inside it are divided by the row rule (--line-strong),
+   which is the token for a boundary BETWEEN two records (design-law §4). */
+.ds-card {
+  border: 1px solid var(--line); border-radius: 10px;
+  padding-inline: 20px; margin-block-start: 18px;
+}
+.ds-item { padding-block: 18px; border-block-end: 1px solid var(--line-strong); }
+.ds-item:last-child { border-block-end: none; }
+
+/* Background rows: the date as a quiet lead cell, the development beside it. */
+.ds-row {
+  display: grid; grid-template-columns: 7.5rem minmax(0, 1fr);
+  gap: 6px 16px; align-items: baseline;
+}
+.ds-date {
+  font-size: 18px; font-weight: 400; line-height: 1.3;
+  color: var(--ink-faint); font-variant-numeric: tabular-nums;
+}
+.ds-text { font-size: 20px; line-height: 1.6; color: var(--ink); }
+/* The verdict chip and the source links share one meta line under the text. */
+.ds-meta {
+  grid-column: 2; display: flex; flex-wrap: wrap; align-items: center;
+  gap: 8px 14px; margin-block-start: 4px;
+}
+/* The board's own badge and tag shapes (cards.css), lifted to the reading
+   scale: the shape is shared, only the size is this page's. */
+.dossier-pane .badge, .dossier-pane .tag { font-size: 18px; line-height: 1.45; }
+
+/* Importance and meanings: a titled item, the kind tag riding before the title. */
+.ds-h3 {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  font-size: 24px; font-weight: 600; line-height: 1.3;
+}
+.ds-h3 .tag { font-weight: 500; color: var(--ink-muted); }
+.ds-item .ds-text { margin-block-start: 8px; }
+.ds-src { font-size: 18px; line-height: 1.5; color: var(--ink-faint); }
+.ds-src a { white-space: normal; }
+.ds-src .pub { color: var(--ink-faint); }
+.ds-item > .ds-src { margin-block-start: 8px; }
+
+/* ---- The maps ------------------------------------------------------------- */
+.ds-map { margin-block-start: 40px; }
+/* The canvas box holds its 16:9 shape whether or not anything is drawn in it,
+   so the "map unavailable" line has a frame to sit in and the page does not
+   jump when the painter arrives. dossier_map.js sizes the canvas itself;
+   the box only bounds it. */
+.ds-map-box {
+  position: relative; margin-block-start: 14px;
+  aspect-ratio: 16 / 9; inline-size: 100%;
+  border: 1px solid var(--line); border-radius: 10px;
+  overflow: hidden; background: var(--map-bg);
+}
+.ds-canvas { display: block; inline-size: 100%; block-size: 100%; }
+.ds-map-missing {
+  position: absolute; inset: 0; display: flex; align-items: center;
+  justify-content: center; padding: 20px; text-align: center;
+  font-size: 20px; color: var(--ink-muted);
+}
+.ds-caption { font-size: 18px; line-height: 1.5; color: var(--ink-muted); margin-block-start: 10px; }
+/* The map's meaning repeated in HTML under it, with the board's own swatches
+   (.sw from style.css) so the legend and the board agree about what a fill is.
+   The gains layer takes the ground-war violet, derived from the token rather
+   than written as a literal. Colour never carries meaning alone: every row
+   says in words what it marks. */
+.ds-legend {
+  display: flex; flex-wrap: wrap; gap: 8px 22px;
+  margin-block-start: 10px;
+}
+.ds-lg-row {
+  display: inline-flex; align-items: center; gap: 8px;
+  min-block-size: 28px; font-size: 18px; line-height: 1.35; color: var(--ink-muted);
+}
+.ds-legend .sw.fill.gain {
+  --sw-fill: color-mix(in srgb, var(--f-internal) 50%, transparent);
+  border-color: var(--f-internal);
+}
+.ds-legend .sw.fill.gain.dash {
+  --sw-fill: color-mix(in srgb, var(--f-internal) 20%, transparent);
+  border-style: dashed; border-color: var(--f-internal);
+}
+
+/* ---- Sources and the closing line ---------------------------------------- */
+.ds-sources {
+  padding-inline-start: 1.6em; margin-block-start: 14px;
+  font-size: 20px; line-height: 1.6;
+}
+.ds-sources li { padding-block: 6px; }
+.ds-sources li::marker { color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+.ds-sources .pub { color: var(--ink-muted); }
+.ds-sources .when { color: var(--ink-faint); font-size: 18px; font-variant-numeric: tabular-nums; }
+.ds-written {
+  margin-block-start: 40px; padding-block-start: 14px;
+  border-block-start: 1px solid var(--line);
+  font-size: 18px; color: var(--ink-faint); font-variant-numeric: tabular-nums;
+}
+
+/* ---- Phone ---------------------------------------------------------------- */
+@media (max-width: 600px) {
+  /* The date goes above its development; the meta line follows the text. */
+  .ds-row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .ds-meta { grid-column: 1; }
+  .ds-card { padding-inline: 14px; }
+}
+@media (max-width: 480px) {
+  .ds-title { font-size: 34px; }
+  .ds-h2 { font-size: 28px; }
+  .ds-h3 { font-size: 22px; }
+  /* Two up, the band's own mechanism: half a row each, held on one line, and a
+     label that will not fit its half takes the full row instead of wrapping. */
+  .ds-btn { flex: 1 1 calc(50% - 5px); white-space: nowrap; }
+}
