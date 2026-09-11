@@ -102,6 +102,24 @@ var DossierMapDraw = (function () {
     paintShape(ctx, style);
   }
 
+  /* Diagonal hatching: an ACTIVE FIGHTING zone is told apart by texture, not by
+     a new hue - every hue on the board is spoken for by a front or a verdict,
+     and on the light deck its tint sat almost on the government one (Ziv,
+     2026-09-11: "a clearer separation"). One tile of a 45-degree line plus the
+     two corner stubs, so the tiles join without a seam. */
+  function hatch(ctx, color, u) {
+    var n = Math.max(6, Math.round(10 * u)), c = document.createElement("canvas");
+    c.width = c.height = n;
+    var g = c.getContext("2d");
+    g.strokeStyle = color; g.lineWidth = Math.max(1, 1.4 * u); g.lineCap = "square";
+    g.beginPath();
+    g.moveTo(0, n); g.lineTo(n, 0);
+    g.moveTo(-1, 1); g.lineTo(1, -1);
+    g.moveTo(n - 1, n + 1); g.lineTo(n + 1, n - 1);
+    g.stroke();
+    return ctx.createPattern(c, "repeat");
+  }
+
   /* ---- text -------------------------------------------------------------------- */
 
   function setFont(ctx, size, weight) {
@@ -174,8 +192,10 @@ var DossierMapDraw = (function () {
     var zones = G.control_zones;
     fillCollection(ctx, p, zones, { fill: P.gov }, byControl("government"));
     fillCollection(ctx, p, zones, { fill: P.houthi }, byControl("houthi"));
-    fillCollection(ctx, p, zones, { fill: P.contested, stroke: P.contestedStroke,
-      width: Math.max(0.8, 0.8 * u), dash: [3 * u, 3 * u] }, byControl("contested"));
+    fillCollection(ctx, p, zones, { fill: P.contested }, byControl("contested"));
+    fillCollection(ctx, p, zones, { fill: hatch(ctx, P.contestedStroke, u),
+      stroke: P.contestedStroke, width: Math.max(0.8, 0.8 * u), dash: [3 * u, 3 * u] },
+      byControl("contested"));
     fillCollection(ctx, p, G.yem_adm1, { stroke: P.adm1, width: Math.max(0.8, u) });
     fillCollection(ctx, p, G.sau_adm1, { stroke: P.adm1, width: Math.max(0.8, u) });
     landPath(ctx, p, G, false);
@@ -349,7 +369,8 @@ var DossierMapDraw = (function () {
     L.rows = [
       { fill: P.houthi, label: words.houthi },
       { fill: P.gov, label: words.gov },
-      { fill: P.contested, stroke: P.contestedStroke, dash: [3 * u, 3 * u], width: u, label: words.contested },
+      { fill: P.contested, hatch: hatch(ctx, P.contestedStroke, u), stroke: P.contestedStroke,
+        dash: [3 * u, 3 * u], width: u, label: words.contested },
       { gain: gainStyle(P, u), label: words.gained },
       { line: P.control, dash: dashOf(P.controlDash, u), width: P.controlW * u, label: words.front }
     ];
@@ -379,8 +400,9 @@ var DossierMapDraw = (function () {
            would otherwise vanish into the box. */
         ctx.beginPath(); ctx.rect(sx, sy, L.sw, sh);
         paintShape(ctx, { fill: P.land });
+        if (r.hatch) { paintShape(ctx, { fill: r.fill }); paintShape(ctx, { fill: r.hatch }); }
         ctx.beginPath(); ctx.rect(sx, sy, L.sw, sh);
-        paintShape(ctx, r.gain || { fill: r.fill, stroke: r.stroke || P.boxLine,
+        paintShape(ctx, r.gain || { fill: r.hatch ? null : r.fill, stroke: r.stroke || P.boxLine,
           width: r.width || Math.max(1, u), dash: r.dash });
       }
       setFont(ctx, L.size, 500); ctx.textAlign = "right"; ctx.textBaseline = "middle";

@@ -52,8 +52,10 @@ var DossierMap = (function () {
      the map on the board tab. */
   var WORDS = {
     houthi: "שטח בשליטת החות'ים",
-    gov: "שטח בשליטת הממשלה",
-    contested: "שטח במחלוקת",
+    /* The government side's name and the fighting zone's name are Ziv's own
+       words (2026-09-11), here and on the board's legend alike. */
+    gov: "שטח בשליטת הכוחות הלגיטימיים",
+    contested: "שטח לחימה פעיל",
     /* ONE row for every gain, confirmed or not (Ziv, 2026-09-11). Which ones an
        outside source confirmed is said in the text, never by a second style. */
     gained: "נכבש בידי החות'ים (מאומת + משוער)",

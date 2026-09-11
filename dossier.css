@@ -148,6 +148,11 @@ body.view-dossier .wrap { display: none; }
   display: inline-flex; align-items: center; gap: 8px;
   min-block-size: 28px; font-size: 18px; line-height: 1.35; color: var(--ink-muted);
 }
+/* An active fighting zone is hatched on the map, so its swatch is too. */
+.ds-legend .sw.fill.hatch {
+  background-image: repeating-linear-gradient(-45deg,
+    var(--geo-contested-stroke) 0 1.5px, transparent 1.5px 6px);
+}
 .ds-legend .sw.fill.gain {
   --sw-fill: color-mix(in srgb, var(--f-internal) 50%, transparent);
   border-color: var(--f-internal);
