@@ -236,6 +236,38 @@
       { x: M, y: y + 0.35, w: W - 2 * M, h: 0.4 });
   }
 
+  /* ---- slide 2: the Top 5 ------------------------------------------------- */
+
+  /* Ziv's own slide (2026-09-11): five headlines, each "title | one paragraph",
+     all on ONE slide — never a second page. The build caps every item
+     (DOSSIER.md) so the five fit at 12pt by the conservative estimate; this
+     takes the largest size from 16pt down that fits. */
+  function top5Page(pages, T) {
+    const top = DOSSIER.top5;
+    const items = top && Array.isArray(top.items) ? top.items : [];
+    if (!items.length) return;
+    const width = W - 2 * M, avail = BODY_BOTTOM - BODY_TOP;
+    const line = it => (it.title_he || "") + " | " + (it.text_he || "");
+    /* Measured on PowerPoint's render of this slide (2026-09-11): ~120 characters
+       a line at 12pt across the full body, where GLYPH's 0.55 says 98 — so the
+       shared estimate left a sixth of the slide empty at 12pt. 0.5 keeps slack. */
+    const height = p => items.reduce((h, it) => h + (Math.ceil(line(it).length /
+      Math.floor(width * 72 / (p * 0.5))) * p * LINE + 10) / 72, 0);
+    let pt = 16;
+    while (pt > 12 && height(pt) > avail) pt--;
+    pages.push({ draw: (slide, n, total) => {
+      ground(slide, T);
+      heading(slide, T, top.heading_he || "");
+      footer(slide, T, n, total);
+      const runs = items.reduce((acc, it) => acc.concat(para(
+        runsFor(it.title_he, { fontSize: pt, bold: true, color: T.ink })
+          .concat(run(" | ", { fontSize: pt, color: T.muted }))
+          .concat(runsFor(it.text_he, { fontSize: pt, color: T.ink })),
+        { paraSpaceAfter: 10 })), []);
+      box(slide, runs, { x: M, y: BODY_TOP, w: width, h: BODY_BOTTOM - BODY_TOP });
+    } });
+  }
+
   /* ---- prose sections: background, importance, meanings ------------------ */
 
   function bgRuns(item, T) {
@@ -378,6 +410,7 @@
       pptx.title = DOSSIER.title_he || "";
       const pages = [];
       pages.push({ draw: slide => { ground(slide, T); titleSlide(slide, T); } });
+      top5Page(pages, T);
       sectionPages(pages, T, section("background"), bgRuns, bgMeasure, 1, 7);
       wanted.forEach((m, i) => mapPage(pages, T, m, pngs[i]));
       const importance = section("importance"), meanings = section("meanings");

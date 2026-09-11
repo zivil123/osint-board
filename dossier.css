@@ -69,6 +69,12 @@ body.view-dossier .wrap { display: none; }
 .ds-item { padding-block: 18px; border-block-end: 1px solid var(--line-strong); }
 .ds-item:last-child { border-block-end: none; }
 
+/* Top 5: the headline leads its own paragraph, joined by a quiet bar — the
+   format of Ziv's slide. Same reading size as every other item. */
+.ds-item .ds-text.ds-top { margin-block-start: 0; } /* beats `.ds-item .ds-text` below */
+.ds-top strong { font-weight: 600; }
+.ds-top .bar { color: var(--ink-faint); }
+
 /* Background rows: the date as a quiet lead cell, the development beside it. */
 .ds-row {
   display: grid; grid-template-columns: 7.5rem minmax(0, 1fr);
