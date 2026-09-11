@@ -4,7 +4,7 @@
    takes the READING scale (design-law §1, the 2026-08-29 amendment: body 22px,
    list rows and card values 20px, secondary lines 18px, h1 42px, h2 30px, and
    nothing under 17px). The pane is wider than the brief's 780px because it
-   carries two 16:9 maps, and a map at 780px is a postcard.
+   carries two maps, and the maps break out of even this column (below).
 
    Per the shell contract in tabs.js, every rule about what this view hides of
    the board's furniture lives HERE, not in tabs.css. Same three rules and the
@@ -102,13 +102,23 @@ body.view-dossier .wrap { display: none; }
 
 /* ---- The maps ------------------------------------------------------------- */
 .ds-map { margin-block-start: 40px; }
-/* The canvas box holds its 16:9 shape whether or not anything is drawn in it,
-   so the "map unavailable" line has a frame to sit in and the page does not
-   jump when the painter arrives. dossier_map.js sizes the canvas itself;
-   the box only bounds it. */
+/* The maps break OUT of the reading column, up to 1400px, because a map held
+   to 960px read as small with room to spare (Ziv, 2026-09-11: "make
+   everything bigger"). The negative margins stop at zero, so on a narrow
+   screen the map is simply the column. Inside, the box takes its frame's own
+   shape (--ar, written by the view from DossierMap.aspect) and never grows
+   taller than the window, so the whole map is on screen at once. It holds that
+   shape whether or not anything is drawn, so the "map unavailable" line has a
+   frame and the page does not jump; dossier_map.js sizes the canvas itself. */
+.ds-map-wide {
+  margin-block-start: 14px;
+  margin-inline: min(0px, calc(50% - min(700px, 50vw - 24px)));
+}
 .ds-map-box {
-  position: relative; margin-block-start: 14px;
-  aspect-ratio: 16 / 9; inline-size: 100%;
+  position: relative;
+  aspect-ratio: var(--ar, 16 / 9); inline-size: 100%;
+  max-inline-size: calc((100vh - 48px) * var(--ar, 1.7778));
+  margin-inline: auto;
   border: 1px solid var(--line); border-radius: 10px;
   overflow: hidden; background: var(--map-bg);
 }
@@ -135,10 +145,6 @@ body.view-dossier .wrap { display: none; }
 .ds-legend .sw.fill.gain {
   --sw-fill: color-mix(in srgb, var(--f-internal) 50%, transparent);
   border-color: var(--f-internal);
-}
-.ds-legend .sw.fill.gain.dash {
-  --sw-fill: color-mix(in srgb, var(--f-internal) 20%, transparent);
-  border-style: dashed; border-color: var(--f-internal);
 }
 
 /* ---- Sources and the closing line ---------------------------------------- */

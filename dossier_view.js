@@ -45,8 +45,7 @@
     { cls: "sw fill", style: "--sw-fill: var(--geo-fill-houthi)", he: "שטח בשליטת החות'ים" },
     { cls: "sw fill", style: "--sw-fill: var(--geo-fill-gov)", he: "שטח בשליטת הממשלה" },
     { cls: "sw fill dash", style: "--sw-fill: var(--geo-fill-contested)", he: "שטח במחלוקת" },
-    { cls: "sw fill gain", style: "", he: "נכבש בידי החות'ים — סגול מלא" },
-    { cls: "sw fill gain dash", style: "", he: "במחלוקת או טרם אומת — סגול מקווקו" },
+    { cls: "sw fill gain", style: "", he: "נכבש בידי החות'ים (מאומת + משוער)" },
     { cls: "sw line dash", style: "--sw-c: var(--geo-control-line); --sw-w: 2px", he: "קו חזית משוער" },
   ];
   const MISSING_MAP = "המפה אינה זמינה";
@@ -135,15 +134,22 @@
     ).join("") + "</div>";
   }
 
+  /* The frame's own shape (3:2 for the close-up, 16:9 for the overview), so
+     the box has the canvas's shape before anything is drawn in it. */
+  function aspectOf(id) {
+    const a = window.DossierMap && DossierMap.aspect ? DossierMap.aspect(id) : 16 / 9;
+    return a.toFixed(4);
+  }
+
   function mapsHtml() {
     return (DOSSIER.maps || []).map((m) =>
       '<section class="ds-map" data-map="' + esc(m.id) + '">' +
       '<h2 class="ds-h2">' + esc(m.title_he) + "</h2>" +
-      '<div class="ds-map-box">' +
+      '<div class="ds-map-wide"><div class="ds-map-box" style="--ar: ' + aspectOf(m.id) + '">' +
       '<canvas class="ds-canvas" data-map-id="' + esc(m.id) + '" role="img" aria-label="' +
       esc(m.title_he) + '"></canvas>' +
       (window.DossierMap ? "" : '<p class="ds-map-missing">' + MISSING_MAP + "</p>") +
-      "</div>" +
+      "</div></div>" +
       (m.caption_he ? '<p class="ds-caption">' + esc(m.caption_he) + "</p>" : "") +
       legendHtml() +
       "</section>").join("");

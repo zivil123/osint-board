@@ -7,9 +7,10 @@
    NO ES modules - the page runs from file://. One global:
 
      window.DossierMap = {
-       draw(canvas, mapId, theme, cssWidth),      // paints in place, 16:9
+       draw(canvas, mapId, theme, cssWidth),      // paints in place, frame's aspect
        exportPng(mapId, theme, width, height),    // -> PNG data URL
-       frame(mapId, width, height)                // effective lon/lat extents
+       frame(mapId, width, height),               // effective lon/lat extents
+       aspect(mapId)                              // the frame's width / height
      }
 
    mapId is "overview" | "mandab"; theme is "dark" | "light". Pure function of
@@ -23,19 +24,29 @@
 
    Frames are given as a latitude range and a longitude centre; the longitude
    span FOLLOWS from the canvas aspect through an equirectangular projection
-   with a cos(mid-latitude) correction, so a 16:9 canvas of any size shows the
-   same picture and a non-16:9 export still shows the whole latitude range.
-   Measured at 16:9: overview lon 41.13-55.17 / lat 12.0-19.6; mandab lon
-   39.79-46.01 / lat 12.25-15.65. The overview's floor is 12.0 and not lower so
-   Socotra sits wholly under the legend box instead of peeking out beside it. */
+   with a cos(mid-latitude) correction, so any canvas shows the whole latitude
+   range and only more or less longitude. Each frame has its own shape on
+   screen: the overview 16:9 (lon 41.13-55.17 / lat 12.0-19.6; the floor is
+   12.0 so Socotra sits wholly under the legend box), the close-up 3:2 (lon
+   41.34-45.36 / lat 12.32-14.92). The slide export is always 16:9, so there
+   the close-up gains longitude on both sides (40.97-45.73) and nothing in the
+   middle moves. The close-up was cut to that on Ziv's ask (2026-09-11):
+   Hodeidah at the top, the facing African shore on the left, Aden on the
+   right. The first cut reached 15.65N and 46.01E and read as a small map in a
+   lot of ground the story never touches. */
 "use strict";
 
 var DossierMap = (function () {
   var BASE_W = 1280;                 /* the CSS width every size is written for */
   var FRAMES = {
-    overview: { lat: [12.0, 19.6], lonMid: 48.15 },
-    mandab:   { lat: [12.25, 15.65], lonMid: 42.9 }
+    overview: { lat: [12.0, 19.6], lonMid: 48.15, aspect: 16 / 9, legend: "bottom" },
+    /* The legend sits TOP-right here: bottom-right is Aden. */
+    mandab:   { lat: [12.32, 14.92], lonMid: 43.35, aspect: 3 / 2, legend: "top" }
   };
+  /* Text grows with the canvas (u = W / BASE_W) and then by this factor: a
+     little on screen, half again on a slide, which is read from across a room
+     and is nothing but this picture. */
+  var TEXT_SCREEN = 1.15, TEXT_SLIDE = 1.5;
   var OPPOSITE = { e: "w", w: "e", n: "s", s: "n" };
   /* The board's own legend words, so the painted legend matches the one under
      the map on the board tab. */
@@ -43,11 +54,11 @@ var DossierMap = (function () {
     houthi: "שטח בשליטת החות'ים",
     gov: "שטח בשליטת הממשלה",
     contested: "שטח במחלוקת",
-    captured: "נכבש בידי החות'ים (אומת)",
-    claimed: "במחלוקת או לפי טענה בלבד",
+    /* ONE row for every gain, confirmed or not (Ziv, 2026-09-11). Which ones an
+       outside source confirmed is said in the text, never by a second style. */
+    gained: "נכבש בידי החות'ים (מאומת + משוער)",
     front: "קו חזית משוער",
     lane: "נתיב שיט",
-    asOf: "קווי שליטה נכון ל־",
     noData: "אין נתוני מפה להצגה"
   };
   /* The light deck has no tokens on the board (dark is the board's only theme),
@@ -135,7 +146,7 @@ var DossierMap = (function () {
 
   /* ---- the picture ----------------------------------------------------------- */
 
-  function paint(ctx, mapId, theme, W, H) {
+  function paint(ctx, mapId, theme, W, H, ts) {
     var R = painters(), P = palette(theme), G = geo(), D = dossier(), u = W / BASE_W;
     var map = D && (D.maps || []).filter(function (m) { return m.id === mapId; })[0];
     ctx.direction = "rtl";
@@ -144,11 +155,11 @@ var DossierMap = (function () {
       R.text(ctx, P, WORDS.noData, W / 2, H / 2, { size: Math.max(20, 22 * u), weight: 600, halo: 0 });
       return;
     }
-    var p = projector(FRAMES[mapId], W, H);
+    var F = FRAMES[mapId], p = projector(F, W, H);
     /* 17px is the reading floor on screen; everything grows with the canvas
        and nothing shrinks below it, so a narrow canvas drops tier-2 labels
        instead of shrinking them. */
-    var size = Math.max(17, 17 * u), titleSize = Math.max(20, 22 * u);
+    var size = Math.max(17, 17 * u * ts), titleSize = Math.max(20, 22 * u * ts);
     R.ground(ctx, p, P, u, W, H, G);
     R.gains(ctx, p, P, u, D, G, mapId);
     /* Labels: the dossier's own first (they are the point of the map), then the
@@ -157,14 +168,16 @@ var DossierMap = (function () {
        is not a gain gets a small dot, so the name is anchored to something. */
     var gainKeys = {};
     (D.gains || []).forEach(function (g) { gainKeys[g.place_key] = true; });
-    /* Under 800px the legend box (17px rows, seven of them) would cover a
+    /* Under 800px the legend box (17px rows, six of them) would cover a
        third of the map and squeeze the strait's name off the close-up
        (measured at 700px), so it is left to the HTML legend the view prints
        under the canvas; the export is always wider and always carries it. */
-    var legend = W >= 800
-      ? R.legendLayout(ctx, P, u, W, H, map, G, !!(map.lanes && map.lanes.length), WORDS) : null;
     var title = map.title_he || "", titleW = R.width(ctx, title, titleSize, 600);
-    var taken = [{ x0: W - 28 * u - titleW, y0: 0, x1: W, y1: 16 * u + titleSize * 1.3 }];
+    var titleBottom = 16 * u + titleSize * 1.3;
+    var legend = W >= 800
+      ? R.legendLayout(ctx, P, u, W, H, !!(map.lanes && map.lanes.length), WORDS,
+          { size: size, top: F.legend === "top" ? titleBottom + 10 * u : null }) : null;
+    var taken = [{ x0: W - 28 * u - titleW, y0: 0, x1: W, y1: titleBottom }];
     if (legend) taken.push(legend.box);
     /* A label keeps its authored side while that side is free; when two names
        would overprint (measured at 600px: Perim over Aden) it tries the other
@@ -174,24 +187,28 @@ var DossierMap = (function () {
     (map.labels || []).forEach(function (l) {
       if ((W < 700 && l.tier === 2) || !p.inside(l.lon, l.lat, 0)) return;
       var q = p(l.lon, l.lat), isGain = !!gainKeys[l.place], spec = null;
-      [l.anchor, OPPOSITE[l.anchor], "n", "s", "e", "w"].some(function (a) {
+      /* Anchor "c" names a country: centred on its point, no dot, in the
+         quieter governorate ink, and dropped rather than moved or cut. */
+      var quiet = l.anchor === "c";
+      (quiet ? ["c"] : [l.anchor, OPPOSITE[l.anchor], "n", "s", "e", "w"]).some(function (a) {
         var s = R.place(ctx, l.he, q[0], q[1], a, size, (isGain ? 7 : 3) * u, u, W, H);
-        var free = !taken.some(function (t) { return R.overlaps(s.box, t); });
+        var b = s.box, free = !taken.some(function (t) { return R.overlaps(b, t); }) &&
+          (!quiet || (b.x0 >= 0 && b.x1 <= W && b.y0 >= 0 && b.y1 <= H));
         if (free) spec = s;
         return free;
       });
       if (!spec) return;
-      if (!isGain) R.ringMark(ctx, q[0], q[1], 3 * u, { fill: P.muted });
+      if (!isGain && !quiet) R.ringMark(ctx, q[0], q[1], 3 * u, { fill: P.muted });
       taken.push(spec.box);
-      labels.push({ pt: q, spec: spec });
+      labels.push({ pt: q, spec: spec, quiet: quiet });
     });
     var points = labels.map(function (l) { return { q: l.pt, he: l.spec.str }; });
     R.lanes(ctx, p, P, u, W, H, map.lanes, size, taken, legend && legend.box);
     if (mapId === "overview") R.govLabels(ctx, p, P, u, G, size, taken, points);
     labels.forEach(function (l) {
       var s = l.spec;
-      R.text(ctx, P, s.str, s.x, s.y, { size: s.size, weight: 600, halo: 3 * u,
-        align: s.align, baseline: s.baseline });
+      R.text(ctx, P, s.str, s.x, s.y, { size: s.size, weight: l.quiet ? 500 : 600,
+        halo: 3 * u, align: s.align, baseline: s.baseline, color: l.quiet ? P.govLabel : null });
     });
     R.text(ctx, P, title, W - 16 * u, 16 * u, { size: titleSize, weight: 600,
       halo: 4 * u, align: "right", baseline: "top" });
@@ -213,14 +230,16 @@ var DossierMap = (function () {
     }, function () { pending = []; });
   }
 
+  function aspect(mapId) { return FRAMES[mapId] ? FRAMES[mapId].aspect : 16 / 9; }
+
   function draw(canvas, mapId, theme, cssWidth) {
-    var W = Math.max(1, Math.round(cssWidth)), H = Math.round(W * 9 / 16);
+    var W = Math.max(1, Math.round(cssWidth)), H = Math.round(W / aspect(mapId));
     var dpr = window.devicePixelRatio || 1;
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
     canvas.style.width = W + "px"; canvas.style.height = H + "px";
     var ctx = canvas.getContext("2d");
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    paint(ctx, mapId, theme, W, H);
+    paint(ctx, mapId, theme, W, H, TEXT_SCREEN);
     if (!fontReady()) {
       pending = pending.filter(function (a) { return a.canvas !== canvas; });
       pending.push({ canvas: canvas, mapId: mapId, theme: theme, cssWidth: cssWidth });
@@ -231,16 +250,16 @@ var DossierMap = (function () {
   function exportPng(mapId, theme, width, height) {
     var c = document.createElement("canvas");
     c.width = Math.round(width); c.height = Math.round(height);
-    paint(c.getContext("2d"), mapId, theme, c.width, c.height);
+    paint(c.getContext("2d"), mapId, theme, c.width, c.height, TEXT_SLIDE);
     return c.toDataURL("image/png");
   }
 
   function frame(mapId, width, height) {
     if (!FRAMES[mapId]) return null;
-    return projector(FRAMES[mapId], width || BASE_W, height || BASE_W * 9 / 16).extent;
+    return projector(FRAMES[mapId], width || BASE_W, height || BASE_W / aspect(mapId)).extent;
   }
 
-  return { draw: draw, exportPng: exportPng, frame: frame };
+  return { draw: draw, exportPng: exportPng, frame: frame, aspect: aspect };
 })();
 
 window.DossierMap = DossierMap;

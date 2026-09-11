@@ -104,10 +104,6 @@ var DossierMapDraw = (function () {
 
   /* ---- text -------------------------------------------------------------------- */
 
-  function fmtDate(iso) {
-    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ""));
-    return m ? (+m[3]) + "." + (+m[2]) + "." + m[1] : "";
-  }
   function setFont(ctx, size, weight) {
     ctx.font = (weight || 500) + " " + size + "px " + FONT;
   }
@@ -129,12 +125,15 @@ var DossierMapDraw = (function () {
   function overlaps(a, b) {
     return !(a.x1 < b.x0 || b.x1 < a.x0 || a.y1 < b.y0 || b.y1 < a.y0);
   }
-  /* Where a label sits relative to its point: anchor e/w/n/s names the side.
+  /* Where a label sits relative to its point: anchor e/w/n/s names the side
+     and c centres it on the point (a country name, never flipped).
      A name that would run off the canvas on its authored side flips to the
      other side - at 600px the Perim name, anchored west, was cut at the edge. */
   function place(ctx, str, x, y, anchor, size, r, u, W, H) {
     var w = width(ctx, str, size, 500), h = size * 1.25, g = r + 5 * u;
     var side = function (a) {
+      if (a === "c") return { x: x, y: y, align: "center", baseline: "middle",
+                              box: { x0: x - w / 2, y0: y - h / 2, x1: x + w / 2, y1: y + h / 2 } };
       if (a === "w") return { x: x - g, y: y, align: "right", baseline: "middle",
                               box: { x0: x - g - w, y0: y - h / 2, x1: x - g, y1: y + h / 2 } };
       if (a === "n") return { x: x, y: y - g, align: "center", baseline: "bottom",
@@ -145,29 +144,31 @@ var DossierMapDraw = (function () {
                box: { x0: x + g, y0: y - h / 2, x1: x + g + w, y1: y + h / 2 } };
     };
     var o = side(anchor), b = o.box;
+    if (anchor === "c") { o.str = str; o.size = size; return o; }
     if (b.x0 < 0) o = side("e"); else if (b.x1 > W) o = side("w");
     else if (b.y0 < 0) o = side("s"); else if (b.y1 > H) o = side("n");
     o.str = str; o.size = size;
     return o;
   }
-  function wrap(ctx, str, maxW, size) {
-    var words = String(str).split(/\s+/), lines = [], line = "";
-    words.forEach(function (w) {
-      var probe = line ? line + " " + w : w;
-      if (line && width(ctx, probe, size, 500) > maxW) { lines.push(line); line = w; }
-      else line = probe;
-    });
-    if (line) lines.push(line);
-    return lines;
-  }
 
   /* ---- ground: sea, land, territory, boundaries, front line ------------------- */
 
-  function ground(ctx, p, P, u, W, H, G) {
-    ctx.fillStyle = P.sea; ctx.fillRect(0, 0, W, H);
+  /* The coastline: Saudi Arabia, Yemen and the African shore of the strait
+     (Eritrea, Djibouti, Ethiopia - `afr_adm0`). Africa is plain land and a
+     coastline only, no territory fill: it is there so the strait reads as a
+     strait and its narrowness can be seen, and nobody on it is party to the map.
+     Its outline is a hairline, not the border stroke: the coast already shows
+     by the land/sea step, and geoBoundaries' Eritrea and Ethiopia do not share
+     one border line, so the full stroke drew that border twice (measured). */
+  function landPath(ctx, p, G, shore) {
     ctx.beginPath();
     polyPath(ctx, p, G.sau_adm0.features[0].geometry);
     polyPath(ctx, p, G.yem_adm0.features[0].geometry);
+    if (shore) eachFeature(G.afr_adm0, function (f) { polyPath(ctx, p, f.geometry); });
+  }
+  function ground(ctx, p, P, u, W, H, G) {
+    ctx.fillStyle = P.sea; ctx.fillRect(0, 0, W, H);
+    landPath(ctx, p, G, true);
     paintShape(ctx, { fill: P.land });
     var byControl = function (c) { return function (f) { return f.properties.control === c; }; };
     var zones = G.control_zones;
@@ -177,10 +178,11 @@ var DossierMapDraw = (function () {
       width: Math.max(0.8, 0.8 * u), dash: [3 * u, 3 * u] }, byControl("contested"));
     fillCollection(ctx, p, G.yem_adm1, { stroke: P.adm1, width: Math.max(0.8, u) });
     fillCollection(ctx, p, G.sau_adm1, { stroke: P.adm1, width: Math.max(0.8, u) });
-    ctx.beginPath();
-    polyPath(ctx, p, G.sau_adm0.features[0].geometry);
-    polyPath(ctx, p, G.yem_adm0.features[0].geometry);
+    landPath(ctx, p, G, false);
     paintShape(ctx, { stroke: P.border, width: P.borderW * u });
+    ctx.beginPath();
+    eachFeature(G.afr_adm0, function (f) { polyPath(ctx, p, f.geometry); });
+    paintShape(ctx, { stroke: P.adm1, width: Math.max(0.8, u) });
     strokeLines(ctx, p, G.control_line, { stroke: P.control, width: P.controlW * u,
       dash: dashOf(P.controlDash, u) });
   }
@@ -195,18 +197,19 @@ var DossierMapDraw = (function () {
     }
     return adm2Index[id] || null;
   }
-  function gainStyle(P, u, status) {
-    var captured = status === "captured";
-    return { fill: alpha(P.violetFill, captured ? 0.5 : 0.2), stroke: P.violet,
-             width: 2 * u, dash: captured ? [] : [5 * u, 4 * u] };
+  /* ONE style for every gain, whatever its status: Ziv asked for captured and
+     contested to read as one, "נכבש בידי החות'ים (מאומת + משוער)" (2026-09-11).
+     The status still travels in the data and the text says which were
+     confirmed; the map no longer draws the difference. */
+  function gainStyle(P, u) {
+    return { fill: alpha(P.violetFill, 0.5), stroke: P.violet, width: 2 * u, dash: [] };
   }
   /* A district and an island BOTH paint only `coordinates[part_index]` of their
      ADM2 feature, never the whole district: the islands live inside mainland
      districts (Perim in Dhubab, Hanish and Zuqar in Al Khukhah), so a whole
      district would colour an island with its mainland's status. `kind` decides
      only the overview treatment - there an island is five pixels and takes a
-     ring mark like a port or a town. Contested shapes go down first, so a
-     captured one is never under a contested wash. */
+     ring mark like a port or a town. */
   function gainPart(G, g) {
     var f = g.district_id ? district(G, g.district_id) : null;
     if (!f || typeof g.part_index !== "number") return null;
@@ -216,14 +219,11 @@ var DossierMapDraw = (function () {
     return part ? { type: "Polygon", coordinates: part } : null;
   }
   function gains(ctx, p, P, u, D, G, mapId) {
-    var list = (D.gains || []).slice().sort(function (a, b) {
-      return (a.status === "captured" ? 1 : 0) - (b.status === "captured" ? 1 : 0);
-    });
-    list.forEach(function (g) {
+    (D.gains || []).forEach(function (g) {
       var geom = null;
       if (g.kind === "district" || (g.kind === "island" && mapId !== "overview")) geom = gainPart(G, g);
-      if (geom) { ctx.beginPath(); polyPath(ctx, p, geom); paintShape(ctx, gainStyle(P, u, g.status)); }
-      else { var q = p(g.lon, g.lat); ringMark(ctx, q[0], q[1], 7 * u, gainStyle(P, u, g.status)); }
+      if (geom) { ctx.beginPath(); polyPath(ctx, p, geom); paintShape(ctx, gainStyle(P, u)); }
+      else { var q = p(g.lon, g.lat); ringMark(ctx, q[0], q[1], 7 * u, gainStyle(P, u)); }
     });
   }
 
@@ -327,38 +327,39 @@ var DossierMapDraw = (function () {
 
   /* MEASURED before any label is placed, so its box counts as taken ground for
      the governorate names and the lane name, and PAINTED last so it sits over
-     everything. Bottom-start corner: bottom-right in RTL. */
-  function legendLayout(ctx, P, u, W, H, map, G, hasLanes, words) {
-    var L = { size: Math.max(17, 17 * u), pad: 12 * u, sw: 26 * u, gap: 9 * u };
-    L.rowH = L.size * 1.55; L.lineH = L.size * 1.4;
+     everything. Right-hand (RTL start) corner: at the bottom, or at the top
+     when the frame says so (`opt.top`, the line under the painted title) - the
+     close-up's bottom-right is Aden. A key and nothing else: the strait-width
+     notes that once sat under it were "not relevant" (Ziv, 2026-09-11), and
+     the build now refuses a map note. Everything scales with the row text. */
+  function legendLayout(ctx, P, u, W, H, hasLanes, words, opt) {
+    var k = opt.size / 17;
+    var L = { size: opt.size, k: k, pad: 12 * k, sw: 26 * k, gap: 9 * k };
+    L.rowH = L.size * 1.55;
     L.rows = [
       { fill: P.houthi, label: words.houthi },
       { fill: P.gov, label: words.gov },
       { fill: P.contested, stroke: P.contestedStroke, dash: [3 * u, 3 * u], width: u, label: words.contested },
-      { gain: gainStyle(P, u, "captured"), label: words.captured },
-      { gain: gainStyle(P, u, "contested"), label: words.claimed },
+      { gain: gainStyle(P, u), label: words.gained },
       { line: P.control, dash: dashOf(P.controlDash, u), width: P.controlW * u, label: words.front }
     ];
     if (hasLanes) L.rows.push({ line: P.lane, dash: [8 * u, 6 * u], width: 2 * u, label: words.lane });
-    var notes = (map.notes_he || []).slice();
-    if (G.control_as_of) notes.push(words.asOf + fmtDate(G.control_as_of));
     var textW = Math.max.apply(null, L.rows.map(function (r) { return width(ctx, r.label, L.size, 500); }));
     L.w = Math.min(W * 0.44, Math.max(textW + L.sw + L.gap, 220 * u) + 2 * L.pad);
-    L.lines = [];
-    notes.forEach(function (n) { L.lines = L.lines.concat(wrap(ctx, n, L.w - 2 * L.pad, L.size)); });
-    L.h = 2 * L.pad + L.rows.length * L.rowH + (L.lines.length ? 6 * u + L.lines.length * L.lineH : 0);
-    L.x1 = W - 14 * u; L.y0 = H - 14 * u - L.h; L.x0 = L.x1 - L.w;
+    L.h = 2 * L.pad + L.rows.length * L.rowH;
+    L.x1 = W - 14 * u; L.x0 = L.x1 - L.w;
+    L.y0 = opt.top != null ? opt.top : H - 14 * u - L.h;
     L.box = { x0: L.x0, y0: L.y0, x1: L.x1, y1: L.y0 + L.h };
     return L;
   }
   function paintLegend(ctx, P, u, L) {
     ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(L.x0, L.y0, L.w, L.h, 10 * u);
+    if (ctx.roundRect) ctx.roundRect(L.x0, L.y0, L.w, L.h, 10 * L.k);
     else ctx.rect(L.x0, L.y0, L.w, L.h);
     paintShape(ctx, { fill: P.box, stroke: P.boxLine, width: Math.max(1, u) });
-    var y = L.y0 + L.pad;
+    var y = L.y0 + L.pad, sh = 16 * L.k;
     L.rows.forEach(function (r) {
-      var cy = y + L.rowH / 2, sx = L.x1 - L.pad - L.sw, sy = cy - 8 * u;
+      var cy = y + L.rowH / 2, sx = L.x1 - L.pad - L.sw, sy = cy - sh / 2;
       if (r.line) {
         ctx.beginPath(); ctx.moveTo(sx, cy); ctx.lineTo(sx + L.sw, cy);
         paintShape(ctx, { stroke: r.line, width: r.width, dash: r.dash });
@@ -366,21 +367,15 @@ var DossierMapDraw = (function () {
         /* Land under the fill, so the swatch is the colour the map shows; a
            hairline edge, because the government wash is a dark step that
            would otherwise vanish into the box. */
-        ctx.beginPath(); ctx.rect(sx, sy, L.sw, 16 * u);
+        ctx.beginPath(); ctx.rect(sx, sy, L.sw, sh);
         paintShape(ctx, { fill: P.land });
-        ctx.beginPath(); ctx.rect(sx, sy, L.sw, 16 * u);
+        ctx.beginPath(); ctx.rect(sx, sy, L.sw, sh);
         paintShape(ctx, r.gain || { fill: r.fill, stroke: r.stroke || P.boxLine,
           width: r.width || Math.max(1, u), dash: r.dash });
       }
       setFont(ctx, L.size, 500); ctx.textAlign = "right"; ctx.textBaseline = "middle";
       ctx.fillStyle = P.ink; ctx.fillText(r.label, sx - L.gap, cy);
       y += L.rowH;
-    });
-    y += 6 * u;
-    L.lines.forEach(function (line) {
-      setFont(ctx, L.size, 500); ctx.textAlign = "right"; ctx.textBaseline = "middle";
-      ctx.fillStyle = P.muted; ctx.fillText(line, L.x1 - L.pad, y + L.lineH / 2);
-      y += L.lineH;
     });
   }
 

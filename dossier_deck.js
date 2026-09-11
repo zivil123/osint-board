@@ -298,23 +298,20 @@
 
   /* ---- map slides --------------------------------------------------------- */
 
+  /* A map slide is the map, edge to edge: the picture carries its own title
+     and legend, so a heading bar, caption and footer would only shrink it
+     (Ziv, 2026-09-11: "make everything bigger"). Only a failed export falls
+     back to a titled slide saying so. */
   function mapPage(pages, T, map, png) {
-    pages.push({ draw: (slide, n, total) => {
+    pages.push({ draw: (slide) => {
       ground(slide, T);
-      heading(slide, T, map.title_he || "");
-      footer(slide, T, n, total);
-      const top = 1.12, capH = 0.34;
-      const h = H - 0.42 - 0.1 - capH - top, w = h * 16 / 9, x = (W - w) / 2;
       if (png) {
-        slide.addImage({ data: png.replace(/^data:/, ""), x: x, y: top, w: w, h: h });
-      } else {
-        slide.addShape("rect", { x: x, y: top, w: w, h: h,
-          fill: { color: T.bg }, line: { color: T.line, width: 1 } });
-        box(slide, [run(NO_MAP, { fontSize: 20, color: T.muted, align: "center" })],
-          { x: x, y: top + h / 2 - 0.25, w: w, h: 0.5 }, { align: "center" });
+        slide.addImage({ data: png.replace(/^data:/, ""), x: 0, y: 0, w: W, h: H });
+        return;
       }
-      box(slide, runsFor(map.caption_he, { fontSize: 16, color: T.muted, align: "center" }),
-        { x: M, y: top + h + 0.08, w: W - 2 * M, h: capH }, { align: "center" });
+      heading(slide, T, map.title_he || "");
+      box(slide, [run(NO_MAP, { fontSize: 20, color: T.muted, align: "center" })],
+        { x: M, y: H / 2 - 0.25, w: W - 2 * M, h: 0.5 }, { align: "center" });
     } });
   }
 
