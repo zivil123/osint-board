@@ -76,6 +76,27 @@ body.view-daily .wrap { display: none; }
 /* Days the pipeline wrote from the channels alone, honestly marked. */
 .day-note { color: var(--ink-faint); font-size: 16px; margin-block-end: 4px; }
 
+/* A day still running (partial: true) — the one thing that must be read before
+   the narrative, so it sits above it in words and not in a hover.
+   It is a STATE and never an action: no cursor, no hover, no transition, and
+   the chip's own words say what it is, so nothing here depends on being seen.
+   No new hue is available — every colour on this board is spoken for by a front
+   or a verdict — so it borrows the kbadge's answer to exactly that problem: a
+   translucent white fill and the brightest ink, told apart by fill rather than
+   by colour. Flat: no glow, no gradient, no motion (design-law §6). */
+.day-partial {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
+  margin-block-end: 6px;
+}
+.day-partial-chip {
+  flex: none; cursor: default;
+  font-size: 16px; font-weight: 500; line-height: 1.4;
+  color: var(--ink); background: rgba(230, 237, 245, 0.09);
+  border: 1px solid var(--line-strong); border-radius: 6px;
+  padding: 3px 11px;
+}
+.day-partial-note { font-size: 16px; color: var(--ink-muted); }
+
 /* One arena. The group-box vocabulary the phone band already uses: a hairline
    frame with the name riding ON the border — the frame is transparent because
    the label masks the border with the page's own background. */

@@ -72,6 +72,7 @@
   --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
   --wrap-max: 1200px;
   --gutter: 24px;
+  --rail-w: 160px;         /* desktop view rail; a constant, never measured */
 }
 @media (min-width: 1400px) {
   :root { --wrap-max: 1360px; --gutter: 40px; }
@@ -199,6 +200,9 @@ button { font: inherit; color: inherit; }
   background: var(--surface);
 }
 #map { width: 100%; height: 100%; }
+/* The ACTIVE FIGHTING zone is told apart by TEXTURE, never a new hue: map.js draws
+   those zones solid on a pane of their own, and this cuts it into 45-degree stripes. */
+.leaflet-geoHatch-pane canvas { mask-image: repeating-linear-gradient(-45deg, #000 0 1.4px, transparent 1.4px 7px); }
 
 /* Expand — fills the window with the map alone. Physical top-right of the pane:
    Leaflet's own zoom control sits at the physical top-LEFT (its corner CSS is
@@ -264,8 +268,30 @@ body.map-full { overflow: hidden; }
     position: sticky; inset-block-start: 0; z-index: 2;
     background: var(--bg);
   }
-}
 
+  /* View rail — the tab strip as a full-height column at the inline-start (in RTL,
+     the right) edge; reasoning in index.html. FIXED, not a grid column, because the
+     document views drop <body> out of grid. Width is a CSS constant, never measured;
+     dossier.css reads it so its map breakout clears the rail, in one formula there. */
+  html body { padding-inline-start: var(--rail-w); grid-template-rows: auto auto 1fr; }
+  nav.tabs {
+    position: fixed; z-index: 30; inset-block: 0; inset-inline-start: 0;
+    inline-size: var(--rail-w); flex-direction: column; align-items: stretch;
+    flex-wrap: nowrap; gap: 4px; padding: 14px 8px; background: var(--surface);
+    border-block-end: 0; border-inline-end: 1px solid var(--line);
+  }
+  nav.tabs .tab {
+    position: relative; inline-size: 100%; padding-inline: 14px 12px;
+    text-align: start; white-space: nowrap; font-size: 17px; font-weight: 500;
+    background: transparent; border: 0; border-radius: 6px; margin-block-end: 0;
+  }
+  nav.tabs .tab:hover { background: var(--surface-2); color: var(--ink); }
+  nav.tabs .tab[aria-selected="true"] { background: var(--accent-tint); color: var(--accent-text); font-weight: 600; }
+  nav.tabs .tab[aria-selected="true"]::before {
+    content: ""; position: absolute; inset-inline-start: 0; inline-size: 3px;
+    inset-block-start: calc(50% - 9px); block-size: 18px; border-radius: 2px; background: var(--accent);
+  }
+}
 
 /* Legend — collapsible, sits inside the map at the block-start/inline-start corner.
    Colour never carries meaning alone: every row says in words what it marks. */
@@ -357,7 +383,7 @@ button.lg-row[aria-pressed="false"] .sw { opacity: 0.4; }
 .sw.fill::after {
   content: ""; position: absolute; inset: 0; background-color: var(--sw-fill);
 }
-.sw.fill.dash { border-style: dashed; border-color: var(--geo-contested-stroke); }
+.sw.fill.dash { border-style: dashed; border-color: var(--geo-contested-stroke); background-image: repeating-linear-gradient(-45deg, var(--geo-contested-stroke) 0 1.5px, transparent 1.5px 6px); }
 .sw.fill.dotted { border-style: dotted; border-color: var(--geo-gain-line); }
 /* One line per area that changed hands: the name, and when it fell. */
 .lg-gain {

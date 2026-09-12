@@ -52,8 +52,6 @@
   const LRM = "\u200E";
   const VERDICT = { confirmed: "אומת בדיווחים בין-לאומיים", partial: "אימות חלקי",
                     none: "דיווח שלא נמצא לו אימות עצמאי", claim: "טענה" };
-  const KIND = { shipping: "ספנות", saudi: "סעודיה", israel: "ישראל",
-                 yemen: "תימן", iran: "איראן", watch: "למעקב" };
   const LIGHT = { bg: "FBFDFF", ink: "0B2138", muted: "3F5670", accent: "1D4ED8",
                   violet: "5B4BC4", line: "D6DEE8" };
   const DARK_FALLBACK = { bg: "081A2F", ink: "E6EDF5", muted: "A9BACC",
@@ -281,7 +279,7 @@
     });
   }
 
-  /* ---- prose sections: background, importance, meanings ------------------ */
+  /* ---- prose sections: background, importance ----------------------------- */
 
   function bgRuns(item, T) {
     const v = VERDICT[item.verdict];
@@ -297,15 +295,12 @@
   }
 
   function itemRuns(item, T) {
-    const kind = KIND[item.kind];
-    const head = (kind ? [run(kind + " · ", { fontSize: 16, color: T.muted })] : [])
-      .concat(runsFor(item.title_he, { fontSize: 20, bold: true, color: T.ink }));
-    return para(head, { paraSpaceAfter: 2 }).concat(
+    return para(runsFor(item.title_he, { fontSize: 20, bold: true, color: T.ink }),
+                { paraSpaceAfter: 2 }).concat(
       para(runsFor(item.text_he, { fontSize: 18, color: T.ink }), { paraSpaceAfter: 12 }));
   }
   function itemMeasure(width) {
-    return item => tall((KIND[item.kind] ? KIND[item.kind] + " · " : "") +
-                        (item.title_he || ""), width, 20, 2) +
+    return item => tall(item.title_he || "", width, 20, 2) +
                    tall(item.text_he || "", width, 18, 12);
   }
 
@@ -414,16 +409,16 @@
       pptx.title = DOSSIER.title_he || "";
       const pages = [];
       /* Order, since 2026-09-12: title · Top 5 · map · map · background ·
-         importance · meanings · sources — the maps moved up off Ziv's ask,
-         "so they are not buried behind everything else". */
+         importance · sources — the maps moved up off Ziv's ask, "so they are not
+         buried behind everything else", and the meanings section came off the tab
+         the same day, so its slides are gone from here too. */
       pages.push({ draw: slide => { ground(slide, T); titleSlide(slide, T); } });
       top5Pages(pages, T);
       wanted.forEach((m, i) => mapPage(pages, T, m, pngs[i]));
       sectionPages(pages, T, section("background"), bgRuns, bgMeasure, 1, 7);
-      const importance = section("importance"), meanings = section("meanings");
+      const importance = section("importance");
       const twoUp = s => (s && s.items && s.items.length > 4 ? 2 : 1);
       sectionPages(pages, T, importance, itemRuns, itemMeasure, twoUp(importance), 8);
-      sectionPages(pages, T, meanings, itemRuns, itemMeasure, twoUp(meanings), 8);
       sourcePages(pages, T);
       pages.forEach((p, i) => p.draw(pptx.addSlide(), i + 1, pages.length));
       META.slides = pages.length; return pptx;

@@ -30,7 +30,6 @@ var MapView = (function () {
   var attackLayer = null;
   var areaLayer = null;
   var siteLayer = null;
-  var govLabelLayer = null;
   var groupByRecId = new Map();
   /* The popup on screen, if any. Leaflet keeps its own reference private and the
      pane can change size under an OPEN popup - the enlarge button alone gives it
@@ -48,6 +47,7 @@ var MapView = (function () {
      geography and the fixed sites. */
   var PANE_Z = {
     geoFill: 351,
+    geoHatch: 351,   /* the fighting texture: the fill's own z, created after it */
     geoDistrict: 352,
     geoGov: 353,
     geoBorder: 354,
@@ -254,12 +254,11 @@ var MapView = (function () {
     });
   }
 
-  /* Territory is told apart by lightness, never by a new hue — all eight
-     decorative hues are already spoken for by fronts and verification.
-     A true diagonal hatch is awkward on a canvas renderer (Leaflet exposes no
-     pattern hook), so "contested" uses the agreed fallback: the mid fill plus a
-     faint dashed outline. This is the ONE stroke on the fill layer, and since the
-     zones are dissolved it draws once around a pocket, not once per district. */
+  /* Territory is told apart by lightness, never by a new hue — every hue is spoken
+     for by a front or a verdict. Lightness alone could not carry the ACTIVE
+     FIGHTING zone (rgb 25,45,65 against government 9,25,44 at the default view), so
+     it keeps this tint and takes a 45-degree HATCH on top, added below. The dash is
+     the ONE stroke on the fill layer; the zones are dissolved, so it draws once. */
   function territoryStyle(feature) {
     var control = (feature && feature.properties && feature.properties.control) || "";
     if (control === "contested") {
@@ -290,6 +289,15 @@ var MapView = (function () {
     var territory = addGeo(geo.control_zones || geo.yem_adm2, "geoFill",
       territoryStyle);
     if (territory) geoLayers.territory = territory.addTo(map);
+    /* The fighting zone AGAIN, solid on its own canvas, which style.css cuts into
+       45-degree stripes with a mask - the dossier maps' own texture. Leaflet has no
+       fill-pattern option, but it redraws that canvas on every pan and zoom, so a
+       mask on it rides the shape and cannot go stale. */
+    var fight = addGeo(geo.control_zones, "geoHatch", function (f) {
+      return { stroke: false, fillColor: S.contestedStroke, fillOpacity: 1,
+        fill: !!f.properties && f.properties.control === "contested" };
+    });
+    if (fight) geoLayers.fighting = fight.addTo(map);
 
     /* Built, but NOT added: 333 sub-district outlines inside the governorates
        turn the country into a mesh, and the shape a reader orients by is the
@@ -464,8 +472,7 @@ var MapView = (function () {
     buildGeography();
     HOME_BOUNDS = computeHome();
     goHome();
-    govLabelLayer = MapLabels.build({ map: map, geo: geoData(),
-      pane: "geoLabel" });
+    MapLabels.build({ map: map, geo: geoData(), pane: "geoLabel" });
     buildSites();
     updateLabels();
     map.on("zoomend moveend", updateLabels);
@@ -479,13 +486,6 @@ var MapView = (function () {
     draw: draw,
     select: select,
     fitTo: fitTo,
-    /* The one shared Leaflet instance, for a second view that draws its own
-       layer on this map (places_map.js). Without it that file had to wrap
-       L.map itself to catch the instance as it was built - which works only if
-       it loads before app.js calls init(), and fails silently otherwise. An
-       accessor costs one line and cannot be got wrong by load order. */
-    instance: function () { return map; },
-    home: function () { userMoved = false; if (map) goHome(); },
     onSelect: function (cb) { if (typeof cb === "function") selectHandlers.push(cb); },
     invalidate: function () {
       if (!map) return;

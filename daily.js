@@ -44,6 +44,25 @@
     return ltr(n) + " אירועים";
   }
 
+  /* A day the pipeline wrote while it was still running carries partial:true
+     (brief_prep.py, 2026-09-12 — briefs used to stop at yesterday precisely so
+     a half day could never read as a quiet one; the flag is that protection in
+     its new shape). So the state is SAID, in words, above the narrative and on
+     the picker's own option — never left to a hover. A finished day carries no
+     flag at all, and then nothing below is written. */
+  const PARTIAL_CHIP_HE = "היום טרם הסתיים";
+  const PARTIAL_NOTE_HE = "הסיכום נכתב במהלך היום ויעודכן בריצת העדכון הבאה.";
+  const PARTIAL_TAG_HE = " · טרם הסתיים";   /* the picker's short form */
+
+  function isPartial(rec) { return !!(rec && rec.partial); }
+
+  function partialHtml(rec) {
+    if (!isPartial(rec)) return "";
+    return '<p class="day-partial">' +
+      '<span class="day-partial-chip">' + PARTIAL_CHIP_HE + "</span>" +
+      '<span class="day-partial-note">' + PARTIAL_NOTE_HE + "</span></p>";
+  }
+
   function weekdayHe(iso) {
     const [y, m, d] = String(iso).split("-").map(Number);
     return new Intl.DateTimeFormat("he-IL", { weekday: "long" })
@@ -255,6 +274,7 @@
       '<button type="button" class="day-btn" id="day-next"' +
       (dayIndex <= 0 ? " disabled" : "") + ">היום הבא</button>" +
       "</div></div>" +
+      partialHtml(day) +
       (day.checked_web === false
         ? '<p class="day-note">ליום זה לא נבדקו מקורות מעבר לערוצים שהלוח עוקב אחריהם.</p>'
         : "") +
@@ -267,7 +287,8 @@
       const [y, m, dd] = d.date.split("-");
       const option = document.createElement("option");
       option.value = String(i);
-      option.textContent = Number(dd) + "." + Number(m) + "." + y;
+      option.textContent = Number(dd) + "." + Number(m) + "." + y +
+        (isPartial(d) ? PARTIAL_TAG_HE : "");
       option.selected = i === dayIndex;
       select.appendChild(option);
     });

@@ -38,15 +38,28 @@
 
 var DossierMap = (function () {
   var BASE_W = 1280;                 /* the CSS width every size is written for */
+  /* `gov` is how much larger than a town name the GOVERNORATE names are drawn.
+     On the close-up they are the first thing the eye should land on - Ziv,
+     2026-09-12: "put the name large, the name of the counties that the Houthis
+     are going into". The overview keeps 1: he named the close-up only, and its
+     frame holds twenty governorates rather than seven. */
   var FRAMES = {
-    overview: { lat: [12.0, 19.6], lonMid: 48.15, aspect: 16 / 9, legend: "bottom" },
+    overview: { lat: [12.0, 19.6], lonMid: 48.15, aspect: 16 / 9, legend: "bottom", gov: 1 },
     /* The legend sits TOP-right here: bottom-right is Aden. */
-    mandab:   { lat: [12.32, 14.92], lonMid: 43.35, aspect: 3 / 2, legend: "top" }
+    mandab:   { lat: [12.32, 14.92], lonMid: 43.35, aspect: 3 / 2, legend: "top", gov: 1.5 }
   };
   /* Text grows with the canvas (u = W / BASE_W) and then by this factor: a
      little on screen, half again on a slide, which is read from across a room
      and is nothing but this picture. */
   var TEXT_SCREEN = 1.15, TEXT_SLIDE = 1.5;
+  /* The smallest step a governorate name keeps above a town name. It exists
+     because the frame's `gov` factor grows with the CANVAS and not off the 17px
+     reading floor: that floor is there so a name stays legible on a small map,
+     and multiplying it handed a phone governorate names a quarter of the map
+     wide - measured at 345px, where "ד'מאר" outweighed everything the frame is
+     about. Wide canvases reach the frame's own factor; narrow ones keep a step
+     and no more. */
+  var GOV_MIN = 1.2;
   var OPPOSITE = { e: "w", w: "e", n: "s", s: "n" };
   /* The board's own legend words, so the painted legend matches the one under
      the map on the board tab. */
@@ -150,6 +163,93 @@ var DossierMap = (function () {
   function geo() { return (typeof GEO !== "undefined" && GEO) ? GEO : null; }
   function dossier() { return (typeof DOSSIER !== "undefined" && DOSSIER) ? DOSSIER : null; }
 
+  /* ---- the active-fighting zones ---------------------------------------------- */
+
+  /* Heights across a shape, tried widest-run first. A name is allowed to reach a
+     little past the ground it names (FIT) - cartography does that everywhere -
+     but a run much narrower than the word means the shape is too small to hold
+     it at this scale, and then nothing is printed: a name the reader cannot tie
+     back to a shape points at nothing. */
+  var LEVELS = [0.5, 0.45, 0.55, 0.4, 0.6, 0.35, 0.65], FIT = 0.8;
+
+  /* The widest run of the shape's OWN ground at one height, and the midpoint of
+     it - an interior point by construction, so the name lands inside the shape
+     however bent it is (a centroid does not: a crescent's is outside it). */
+  function fitInRing(ring, w, h, W, H, taken, R) {
+    var ys = ring.map(function (q) { return q[1]; });
+    var top = Math.min.apply(null, ys), bottom = Math.max.apply(null, ys);
+    return LEVELS.map(function (t) {
+      var y = top + (bottom - top) * t, xs = [];
+      for (var i = 0; i < ring.length - 1; i++) {
+        var a = ring[i], b = ring[i + 1];
+        if ((a[1] > y) !== (b[1] > y)) {
+          xs.push(a[0] + (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1]));
+        }
+      }
+      xs.sort(function (m, n) { return m - n; });
+      var span = 0, cx = 0;
+      for (var k = 0; k + 1 < xs.length; k += 2) {
+        if (xs[k + 1] - xs[k] > span) { span = xs[k + 1] - xs[k]; cx = (xs[k] + xs[k + 1]) / 2; }
+      }
+      return { x: cx, y: y, span: span,
+               box: { x0: cx - w / 2, y0: y - h / 2, x1: cx + w / 2, y1: y + h / 2 } };
+    }).sort(function (a, b) { return b.span - a.span; }).filter(function (s) {
+      return s.span >= w * FIT && s.box.x0 >= 0 && s.box.x1 <= W &&
+        s.box.y0 >= 0 && s.box.y1 <= H &&
+        !taken.some(function (t) { return R.overlaps(s.box, t); });
+    })[0] || null;
+  }
+
+  /* The zones the legend calls שטח לחימה פעיל carry their own names, and WHICH
+     districts those are is read from the CONTROL MAP at paint time
+     (GEO.yem_adm2 -> control === "contested"), never from a label list: which
+     ground is genuinely contested is re-judged in data\control.json, and
+     whatever that file says must be what gets named, with nobody remembering to
+     edit a second list.
+
+     The Hebrew is read off the district itself (`name_he`) when the geo build
+     carries one, and otherwise from the dossier's own district gains, joined on
+     the ADM2 shapeID. geo.js today carries geoBoundaries' ENGLISH shapeName and
+     no Hebrew at all, so a contested district that is not also a gain is left
+     UNNAMED - a transliteration invented here, or a raw slug, would be English
+     on the map, and there is no English on this map ever (CLAUDE.md). The fix
+     is a Hebrew name per district in the data, joined by geo_prep.py exactly as
+     data\gov_names.json is joined for governorates; the `name_he` branch below
+     is what that join would light up, with no further change here.
+
+     No dot: this names an area, exactly as a country name does, and it is set a
+     weight lighter than a town so the two never read as the same kind of thing.
+     No new hue - every one is spoken for by a front, a verdict or a side. */
+  function zoneNames(ctx, p, P, u, W, H, G, D, size, taken) {
+    var R = painters(), he = {};
+    (D.gains || []).forEach(function (g) {
+      if (g.kind === "district" && g.district_id) he[g.district_id] = g.he;
+    });
+    ((G.yem_adm2 && G.yem_adm2.features) || []).forEach(function (f) {
+      var props = f.properties || {};
+      var name = props.control === "contested"
+        ? (props.name_he || he[props.shapeID]) : null;
+      if (!name) return;
+      var geom = f.geometry || {}, ring = null, area = 0;
+      var polys = geom.type === "Polygon" ? [geom.coordinates]
+        : geom.type === "MultiPolygon" ? geom.coordinates : [];
+      polys.forEach(function (poly) {
+        var r = poly[0].map(function (c) { return p(c[0], c[1]); }), a = 0;
+        for (var i = 0; i < r.length - 1; i++) {
+          a += r[i][0] * r[i + 1][1] - r[i + 1][0] * r[i][1];
+        }
+        a = Math.abs(a) / 2;
+        if (a > area) { area = a; ring = r; }
+      });
+      if (!ring) return;
+      var spot = fitInRing(ring, R.width(ctx, name, size, 500), size * 1.25,
+                           W, H, taken, R);
+      if (!spot) return;
+      R.text(ctx, P, name, spot.x, spot.y, { size: size, weight: 500, halo: 3 * u });
+      taken.push(spot.box);
+    });
+  }
+
   /* ---- the picture ----------------------------------------------------------- */
 
   function paint(ctx, mapId, theme, W, H, ts) {
@@ -178,13 +278,21 @@ var DossierMap = (function () {
        third of the map and squeeze the strait's name off the close-up
        (measured at 700px), so it is left to the HTML legend the view prints
        under the canvas; the export is always wider and always carries it. */
-    var title = map.title_he || "", titleW = R.width(ctx, title, titleSize, 600);
-    var titleBottom = 16 * u + titleSize * 1.3;
+    /* A map may carry NO heading: Ziv struck the close-up's on 2026-09-12
+       ("remove this line"). An empty title paints nothing and reserves nothing,
+       so the legend below it climbs to the same inset every other floating thing
+       uses - a heading that is gone must not leave its gap behind. */
+    var title = map.title_he || "";
+    var titleBottom = title ? 16 * u + titleSize * 1.3 : 16 * u;
     var legend = W >= 800
       ? R.legendLayout(ctx, P, u, W, H, !!(map.lanes && map.lanes.length), WORDS,
-          { size: size, top: F.legend === "top" ? titleBottom + 10 * u : null,
+          { size: size, top: F.legend === "top" ? titleBottom + (title ? 10 * u : 0) : null,
             fresh: (D.gains || []).some(function (g) { return g.fresh; }) }) : null;
-    var taken = [{ x0: W - 28 * u - titleW, y0: 0, x1: W, y1: titleBottom }];
+    var taken = [];
+    if (title) {
+      taken.push({ x0: W - 28 * u - R.width(ctx, title, titleSize, 600), y0: 0,
+                   x1: W, y1: titleBottom });
+    }
     if (legend) taken.push(legend.box);
     /* A label keeps its authored side while that side is free; when two names
        would overprint (measured at 600px: Perim over Aden) it tries the other
@@ -211,14 +319,22 @@ var DossierMap = (function () {
     });
     var points = labels.map(function (l) { return { q: l.pt, he: l.spec.str }; });
     R.lanes(ctx, p, P, u, W, H, map.lanes, size, taken, legend && legend.box);
-    if (mapId === "overview") R.govLabels(ctx, p, P, u, G, size, taken, points);
+    /* The governorate names go down BEFORE the fighting zones: each has one
+       anchor point and no second choice, while a zone name has a whole shape to
+       find room in. */
+    var gov = F.gov || 1;
+    R.govLabels(ctx, p, P, u, G,
+      Math.max(size * Math.min(GOV_MIN, gov), 17 * u * ts * gov), taken, points);
+    zoneNames(ctx, p, P, u, W, H, G, D, size, taken);
     labels.forEach(function (l) {
       var s = l.spec;
       R.text(ctx, P, s.str, s.x, s.y, { size: s.size, weight: l.quiet ? 500 : 600,
         halo: 3 * u, align: s.align, baseline: s.baseline, color: l.quiet ? P.govLabel : null });
     });
-    R.text(ctx, P, title, W - 16 * u, 16 * u, { size: titleSize, weight: 600,
-      halo: 4 * u, align: "right", baseline: "top" });
+    if (title) {
+      R.text(ctx, P, title, W - 16 * u, 16 * u, { size: titleSize, weight: 600,
+        halo: 4 * u, align: "right", baseline: "top" });
+    }
     if (legend) R.paintLegend(ctx, P, u, legend);
   }
 

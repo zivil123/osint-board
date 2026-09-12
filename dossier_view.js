@@ -1,6 +1,6 @@
 /* The dossier view (the מתקפת פתע tab) — one dated document, read top to
    bottom: header, the Top 5, the two maps, background, the strategic importance,
-   the meanings, the sources, and the day it was written. The background is the
+   the sources, and the day it was written. The background is the
    only DATED part, so it is the only one carrying a day picker and the only one
    that answers it.
 
@@ -29,16 +29,6 @@
     partial:   { he: "אימות חלקי", tok: "partial" },
     none:      { he: "ללא אימות עצמאי", tok: "none" },
     claim:     { he: "טענה", tok: "none" },
-  };
-  /* For whom a meaning is written. An unknown kind renders untagged rather
-     than mislabelled. */
-  const KIND_HE = {
-    shipping: "לספנות",
-    saudi: "לסעודיה",
-    israel: "לישראל",
-    yemen: "לממשלת תימן ולקואליציה",
-    iran: "לאיראן ולציר",
-    watch: "מה לעקוב",
   };
   /* The HTML legend under each map — the same fills the board's legend names
      (index.html #lg-territory), plus the gains layer in the ground-war violet.
@@ -138,7 +128,7 @@
      is the whole document.
      The chips ARE the board's chips: .chip / .chips / .chips-label from
      style.css with the same --chip-c / --chip-t tokens, only lifted to this
-     page's reading scale, the way .badge and .tag are. Each prints its own
+     page's reading scale, the way .badge is. Each prints its own
      count, so the shape of the days is readable before anything is pressed. */
   const ALL_DAYS = "";
   let dayPick = ALL_DAYS;
@@ -203,19 +193,14 @@
     });
   }
 
-  /* Importance and meanings: a titled item. The meaning's kind rides before
-     its title as a quiet tag — unless the title already IS that word, in
-     which case printing it twice says nothing. */
-  function titledHtml(section, withKind) {
-    const rows = (section.items || []).map((it) => {
-      const kind = withKind ? KIND_HE[it.kind] : "";
-      const tag = kind && kind !== it.title_he
-        ? '<span class="tag">' + esc(kind) + "</span>" : "";
-      return '<div class="ds-item">' +
-        '<h3 class="ds-h3">' + tag + "<span>" + esc(it.title_he) + "</span></h3>" +
-        '<p class="ds-text">' + esc(it.text_he) + "</p>" +
-        srcHtml(it.src) + "</div>";
-    }).join("");
+  /* The strategic importance: a titled item — a heading and its paragraph,
+     with the sources under it like every other item. */
+  function titledHtml(section) {
+    const rows = (section.items || []).map((it) =>
+      '<div class="ds-item">' +
+      '<h3 class="ds-h3"><span>' + esc(it.title_he) + "</span></h3>" +
+      '<p class="ds-text">' + esc(it.text_he) + "</p>" +
+      srcHtml(it.src) + "</div>").join("");
     return sectionOpen(section) +
       (rows ? '<div class="ds-card">' + rows + "</div>" : "") + "</section>";
   }
@@ -284,8 +269,7 @@
        Ziv, 2026-09-12: below the background they cost a long scroll to reach. */
     parts.push(mapsHtml());
     if (byId.background) parts.push(backgroundHtml(byId.background));
-    if (byId.importance) parts.push(titledHtml(byId.importance, false));
-    if (byId.meanings) parts.push(titledHtml(byId.meanings, true));
+    if (byId.importance) parts.push(titledHtml(byId.importance));
     parts.push(sourcesHtml());
     parts.push('<p class="ds-written">נכתב: ' + fmtDate(DOSSIER.written) + "</p>");
     pane.innerHTML = parts.join("");
