@@ -224,6 +224,15 @@ var DossierMapDraw = (function () {
   function gainStyle(P, u) {
     return { fill: alpha(P.violetFill, 0.5), stroke: P.violet, width: 2 * u, dash: [] };
   }
+  /* Ground that changed hands within a day of `as_of`. This is NOT the captured /
+     contested split Ziv struck on 2026-09-11 - that one is about how sure we are,
+     and it stays out of the map. This is WHEN, which he asked for on 2026-09-12:
+     "something that says it was conquered in the last twenty four hours". Same
+     violet, so it still reads as taken ground; the edge is the map's brightest
+     ink and half again as heavy, which is a difference in weight, not a new hue. */
+  function freshStyle(P, u) {
+    return { fill: alpha(P.violetFill, 0.5), stroke: P.ink, width: 3.2 * u, dash: [] };
+  }
   /* A district and an island BOTH paint only `coordinates[part_index]` of their
      ADM2 feature, never the whole district: the islands live inside mainland
      districts (Perim in Dhubab, Hanish and Zuqar in Al Khukhah), so a whole
@@ -248,11 +257,12 @@ var DossierMapDraw = (function () {
          two tones, which is the very separation Ziv asked to remove. */
       if (geom) {
         ctx.beginPath(); polyPath(ctx, p, geom);
-        paintShape(ctx, { fill: P.land }); paintShape(ctx, gainStyle(P, u));
+        paintShape(ctx, { fill: P.land });
+        paintShape(ctx, g.fresh ? freshStyle(P, u) : gainStyle(P, u));
       } else {
         var q = p(g.lon, g.lat);
         ringMark(ctx, q[0], q[1], 7 * u, { fill: P.land });
-        ringMark(ctx, q[0], q[1], 7 * u, gainStyle(P, u));
+        ringMark(ctx, q[0], q[1], 7 * u, g.fresh ? freshStyle(P, u) : gainStyle(P, u));
       }
     });
   }
@@ -374,6 +384,10 @@ var DossierMapDraw = (function () {
       { gain: gainStyle(P, u), label: words.gained },
       { line: P.control, dash: dashOf(P.controlDash, u), width: P.controlW * u, label: words.front }
     ];
+    /* The freshest ground gets its own row only while there IS any - a key that
+       promises "in the last day" over a map where nothing fell in the last day
+       is the map telling the reader something untrue. */
+    if (opt.fresh) L.rows.splice(4, 0, { gain: freshStyle(P, u), label: words.fresh });
     if (hasLanes) L.rows.push({ line: P.lane, dash: [8 * u, 6 * u], width: 2 * u, label: words.lane });
     var textW = Math.max.apply(null, L.rows.map(function (r) { return width(ctx, r.label, L.size, 500); }));
     L.w = Math.min(W * 0.44, Math.max(textW + L.sw + L.gap, 220 * u) + 2 * L.pad);

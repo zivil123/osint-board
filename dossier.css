@@ -157,6 +157,11 @@ body.view-dossier .wrap { display: none; }
   --sw-fill: color-mix(in srgb, var(--f-internal) 50%, transparent);
   border-color: var(--f-internal);
 }
+/* The freshest ground: same violet, the brightest ink on the edge and half
+   again as heavy. A difference in weight, never a second hue. */
+.ds-legend .sw.fill.gain.fresh {
+  border-color: var(--ink); border-width: 2px;
+}
 
 /* ---- Sources and the closing line ---------------------------------------- */
 .ds-sources {
