@@ -53,6 +53,14 @@
   --geo-control-line: #E6EDF5;
   --geo-control-w: 2;
   --geo-control-dash: 6 4;
+  /* The ground that changed hands inside the window. Density, never a new hue:
+     the border is solid and heavy and the front line is a 6-4 dash, so the free
+     texture is a fine dot, over a fill one step brighter than the ground it sits
+     on. */
+  --geo-gain-line: #E6EDF5;
+  --geo-gain-w: 2.6;
+  --geo-gain-dash: 3 4;
+  --geo-gain-fill: rgba(233, 240, 248, 0.22);
   --site-mark: #7C8FA3;
   /* The Esri canvas draws its own roads and wadis. On a board that carries its own
      boundaries, control fill and names, that detail reads as scribble, so the tiles
@@ -350,6 +358,15 @@ button.lg-row[aria-pressed="false"] .sw { opacity: 0.4; }
   content: ""; position: absolute; inset: 0; background-color: var(--sw-fill);
 }
 .sw.fill.dash { border-style: dashed; border-color: var(--geo-contested-stroke); }
+.sw.fill.dotted { border-style: dotted; border-color: var(--geo-gain-line); }
+/* One line per area that changed hands: the name, and when it fell. */
+.lg-gain {
+  display: flex; align-items: baseline; gap: 8px;
+  min-block-size: 26px; padding-inline-start: 26px;
+  font-size: 15px; line-height: 1.35; color: var(--ink-muted);
+}
+.lg-gain b { font-weight: 600; color: var(--ink); }
+.lg-gain span { margin-inline-start: auto; font-size: 14px; color: var(--ink-faint); }
 .sw.line { display: flex; align-items: center; }
 .sw.line::after {
   content: ""; inline-size: 100%;

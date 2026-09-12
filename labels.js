@@ -6,7 +6,8 @@
 
      window.MapLabels = {
        build({ map, geo, pane }),   // returns the layer, already added to the map
-       place()                      // re-run the fit after a zoom or a resize
+       place(),                     // re-run the fit after a zoom or a resize
+       reserve(getter)              // boxes another layer has already claimed
      }
 
    The names and their anchor points are baked into geo.js by scripts/geo_prep.py.
@@ -18,6 +19,7 @@ var MapLabels = (function () {
   var map = null;
   var layer = null;
   var marks = [];
+  var claimed = null;
 
   /* One Hebrew name per governorate (and per Saudi region in the frame), on the
      anchor point geo_prep.py placed - checked to lie inside the area itself, so a
@@ -55,6 +57,15 @@ var MapLabels = (function () {
     return layer;
   }
 
+  /* Room another layer has already taken on the map. A governorate name is the
+     background and the label over the recently taken ground is the new
+     information, so the name is the one that gives way. The getter is read at
+     draw time, never stored as boxes, because a stale rectangle would hold room
+     the label has since left. */
+  function reserve(getter) {
+    claimed = (typeof getter === "function") ? getter : null;
+  }
+
   function boxesOverlap(a, b) {
     return !(a.right < b.left || b.right < a.left ||
              a.bottom < b.top || b.bottom < a.top);
@@ -67,7 +78,7 @@ var MapLabels = (function () {
      ones that were dropped come back on their own. */
   function place() {
     if (!layer || !map || !map.hasLayer(layer)) return;
-    var kept = [];
+    var kept = (claimed ? claimed() : []) || [];
     marks.forEach(function (mark) {
       var el = mark.marker.getElement();
       var text = el && el.querySelector("b");
@@ -84,7 +95,7 @@ var MapLabels = (function () {
     });
   }
 
-  return { build: build, place: place };
+  return { build: build, place: place, reserve: reserve };
 })();
 
 window.MapLabels = MapLabels;

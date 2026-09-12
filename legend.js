@@ -42,6 +42,18 @@ var MapLegend = (function () {
     return bits.join("<br>");
   }
 
+  /* One line per area that changed hands, newest first - the map says WHERE, and
+     these say what it is called and when it fell. `to` is the status it ended in,
+     so ground still being fought over is never reported as taken. */
+  var GAIN_HE = { houthi: "נכבש", contested: "קרבות" };
+
+  function gainRowsHtml(geo) {
+    return (geo.recent_gains_list || []).map(function (gain) {
+      return '<div class="lg-gain"><b>' + esc(gain.name_he) + "</b><span>" +
+        fmtDate(gain.date) + " · " + (GAIN_HE[gain.to] || "") + "</span></div>";
+    }).join("");
+  }
+
   function init(context) {
     ctx = context;
     var root = document.getElementById("legend");
@@ -58,6 +70,9 @@ var MapLegend = (function () {
       show(toggleButton("governorates"), !!ctx.layers.governorates);
       show(document.getElementById("lg-borders"), !!ctx.layers.borders);
       show(toggleButton("control"), !!ctx.layers.control);
+      var gainList = document.getElementById("lg-gain-list");
+      if (gainList) gainList.innerHTML = gainRowsHtml(geo);
+      show(document.getElementById("lg-gains"), !!ctx.layers.gains);
       var foot = document.getElementById("lg-foot");
       if (foot) {
         foot.innerHTML = legendFootHtml(geo);

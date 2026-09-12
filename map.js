@@ -313,6 +313,8 @@ var MapView = (function () {
     var control = addGeo(geo.control_line, "geoControl",
       lineStyle(S.control, S.controlW, S.controlDash));
     if (control) geoLayers.control = control.addTo(map);
+
+    geoLayers.gains = MapGains.build({ map: map, geo: geo, add: addGeo });
   }
 
   /* ---- fixed reference sites --------------------------------------------- */

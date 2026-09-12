@@ -27,6 +27,24 @@
 /* Governorate names — the map's own labelling, Hebrew, never letter-spaced. The
    halo is legibility on a photographic-dark ground, not decoration. */
 .gov-label { pointer-events: none; }
+
+/* The one label the map adds for ground that just changed hands. Brighter and
+   heavier than a governorate name on purpose: that name is the background a
+   reader orients by, this is the thing they came to look for. */
+.gain-label { pointer-events: none; }
+.gain-label b {
+  /* PHYSICAL right, not inset-inline: the anchor is the coast and the text has to
+     run out to sea, which is the left of the screen whatever the page direction
+     says. Centred on the anchor like a governorate name, half of it lands back on
+     the land the pins are standing on. */
+  position: absolute; inset-block-start: -9px; right: 6px; left: auto;
+  inline-size: max-content;
+  text-align: end; white-space: nowrap;
+  font-size: 15px; font-weight: 600; line-height: 1.2;
+  letter-spacing: normal; color: var(--ink);
+  text-shadow: 0 0 3px var(--map-halo), 0 1px 4px var(--map-halo),
+               0 0 8px var(--map-halo);
+}
 .gov-label b {
   /* Centred on the anchor point WITHOUT growing a box around it: the collision
      pass in labels.js measures this element, so it has to be the width of the

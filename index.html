@@ -12,13 +12,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-<link rel="stylesheet" href="style.css?v=20260911101646-1926c731">
-<link rel="stylesheet" href="cards.css?v=20260911101646-1926c731">
-<link rel="stylesheet" href="map.css?v=20260911101646-1926c731">
-<link rel="stylesheet" href="tabs.css?v=20260911101646-1926c731">
-<link rel="stylesheet" href="daily.css?v=20260911101646-1926c731">
-<link rel="stylesheet" href="dossier.css?v=20260911101646-1926c731">
-<link rel="stylesheet" href="unlock.css?v=20260911101646-1926c731">
+<link rel="stylesheet" href="style.css?v=20260912133541-3c7861d7">
+<link rel="stylesheet" href="cards.css?v=20260912133541-3c7861d7">
+<link rel="stylesheet" href="map.css?v=20260912133541-3c7861d7">
+<link rel="stylesheet" href="tabs.css?v=20260912133541-3c7861d7">
+<link rel="stylesheet" href="daily.css?v=20260912133541-3c7861d7">
+<link rel="stylesheet" href="dossier.css?v=20260912133541-3c7861d7">
+<link rel="stylesheet" href="unlock.css?v=20260912133541-3c7861d7">
 </head>
 <body>
 
@@ -140,6 +140,16 @@
           <button type="button" class="lg-row" data-layer="control" aria-pressed="true">
             <span class="sw line dash" style="--sw-c: var(--geo-control-line); --sw-w: 2px"></span>קו חזית משוער
           </button>
+
+          <!-- The ground that changed hands inside the window. Rows are written in
+               by legend.js from geo.js; the whole block hides when there are none. -->
+          <div id="lg-gains" hidden>
+            <h3 class="lg-h">שטח שנכבש לאחרונה</h3>
+            <button type="button" class="lg-row" data-layer="gains" aria-pressed="true">
+              <span class="sw fill dotted" style="--sw-fill: var(--geo-gain-fill)"></span>סימון על המפה
+            </button>
+            <div id="lg-gain-list"></div>
+          </div>
         </div>
 
         <div id="lg-sites" hidden>
@@ -185,22 +195,23 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script src="bundle.js?v=20260911101646-1926c731"></script>
-<script src="unlock.js?v=20260911101646-1926c731"></script>
-<script type="text/plain" data-locked-src="geo.js?v=20260911101646-1926c731"></script>
-<script type="text/plain" data-locked-src="labels.js?v=20260911101646-1926c731"></script>
-<script type="text/plain" data-locked-src="legend.js?v=20260911101646-1926c731"></script>
-<script type="text/plain" data-locked-src="icons.js?v=20260911101646-1926c731"></script>
-<script type="text/plain" data-locked-src="cluster.js?v=20260911101646-1926c731"></script>
-<script type="text/plain" data-locked-src="map.js?v=20260911101646-1926c731"></script>
-<script type="text/plain" data-locked-src="expand.js?v=20260911101646-1926c731"></script>
-<script type="text/plain" data-locked-src="filters.js?v=20260911101646-1926c731"></script>
-<script type="text/plain" data-locked-src="app.js?v=20260911101646-1926c731"></script>
-<script type="text/plain" data-locked-src="tabs.js?v=20260911101646-1926c731"></script>
-<script type="text/plain" data-locked-src="daily.js?v=20260911101646-1926c731"></script>
-<script type="text/plain" data-locked-src="dossier_map.js?v=20260911101646-1926c731"></script>
-<script type="text/plain" data-locked-src="dossier_map_draw.js?v=20260911101646-1926c731"></script>
-<script type="text/plain" data-locked-src="dossier_deck.js?v=20260911101646-1926c731"></script>
-<script type="text/plain" data-locked-src="dossier_view.js?v=20260911101646-1926c731"></script>
+<script src="bundle.js?v=20260912133541-3c7861d7"></script>
+<script src="unlock.js?v=20260912133541-3c7861d7"></script>
+<script type="text/plain" data-locked-src="geo.js?v=20260912133541-3c7861d7"></script>
+<script type="text/plain" data-locked-src="labels.js?v=20260912133541-3c7861d7"></script>
+<script type="text/plain" data-locked-src="legend.js?v=20260912133541-3c7861d7"></script>
+<script type="text/plain" data-locked-src="icons.js?v=20260912133541-3c7861d7"></script>
+<script type="text/plain" data-locked-src="cluster.js?v=20260912133541-3c7861d7"></script>
+<script type="text/plain" data-locked-src="gains.js?v=20260912133541-3c7861d7"></script>
+<script type="text/plain" data-locked-src="map.js?v=20260912133541-3c7861d7"></script>
+<script type="text/plain" data-locked-src="expand.js?v=20260912133541-3c7861d7"></script>
+<script type="text/plain" data-locked-src="filters.js?v=20260912133541-3c7861d7"></script>
+<script type="text/plain" data-locked-src="app.js?v=20260912133541-3c7861d7"></script>
+<script type="text/plain" data-locked-src="tabs.js?v=20260912133541-3c7861d7"></script>
+<script type="text/plain" data-locked-src="daily.js?v=20260912133541-3c7861d7"></script>
+<script type="text/plain" data-locked-src="dossier_map.js?v=20260912133541-3c7861d7"></script>
+<script type="text/plain" data-locked-src="dossier_map_draw.js?v=20260912133541-3c7861d7"></script>
+<script type="text/plain" data-locked-src="dossier_deck.js?v=20260912133541-3c7861d7"></script>
+<script type="text/plain" data-locked-src="dossier_view.js?v=20260912133541-3c7861d7"></script>
 </body>
 </html>
