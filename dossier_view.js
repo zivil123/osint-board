@@ -6,7 +6,7 @@
    scripts\dossier_build.py; the contract is DOSSIER.md). Two sibling globals
    do the drawing and the deck, and both are OPTIONAL at runtime:
      window.DossierMap.draw(canvas, mapId, theme, cssWidth)  — paints a map
-     window.DossierDeck.download(theme)                      — Promise, builds the .pptx
+     window.DossierDeck.build(theme)   — Promise of { blob, fileName, mime }
    When either is missing the page says so in Hebrew, in place, and nothing
    else breaks.
 
@@ -54,6 +54,9 @@
   const MISSING_DECK = "ההורדה אינה זמינה";
   const BUSY = "מכין את המצגת…";
   const FAILED = "ההורדה נכשלה.";
+  const READY = "שמור את המצגת";
+  const READY_HINT = "המצגת מוכנה — הקישו לשמירה.";
+  const NO_SAVE = "לא ניתן לשמור כאן. פתחו את הדף בספארי או בכרום ונסו שוב.";
 
   let sourceById = new Map();
 
@@ -248,6 +251,45 @@
     return /[֐-׿]/.test(text) ? text : FAILED;
   }
 
+  /* iPhone does not DOWNLOAD a blob: URL from an <a download> - WebKit navigates
+     to it instead, and a chat app's in-app browser cannot render a .pptx. That is
+     the "WebKitBlobResource - 1" Ziv photographed on 2026-09-12, on a deck that
+     saves correctly on the desktop. The phone's own answer is the share sheet,
+     which hands the file to Files, to PowerPoint or to anything else he has.
+     `navigator.share` needs a LIVE tap and the build takes a second or two, which
+     spends the tap he already gave - so on a phone the first tap BUILDS and the
+     second SHARES, and the button says which it is waiting for.
+     `?deck=share` forces the same path on a desktop: the branch a phone takes is
+     otherwise unreachable from here, and an untested branch is the one that
+     breaks in his hand. */
+  const IOS = /iP(hone|od|ad)/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1) ||
+    /[?&]deck=share(&|$)/.test(location.search);
+
+  function shareable(file) {
+    return !!(navigator.share && navigator.canShare &&
+              navigator.canShare({ files: [file] }));
+  }
+
+  /* The anchor and its URL both outlive the click: WebKit aborts a save whose
+     anchor or blob was taken away in the same tick. */
+  function saveByLink(made) {
+    const url = URL.createObjectURL(made.blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = made.fileName; a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => a.remove(), 2000);
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+
+  /* The built file, waiting for the tap that will share it. */
+  let pending = null;
+  function clearPending() {
+    if (pending) pending.btn.textContent = pending.label;
+    pending = null;
+  }
+
   function wireButtons() {
     const buttons = Array.from(pane.querySelectorAll(".ds-btn"));
     if (!window.DossierDeck) {
@@ -256,10 +298,22 @@
       return;
     }
     buttons.forEach((btn) => {
+      const label = btn.textContent;
       btn.addEventListener("click", () => {
-        const label = btn.textContent;
+        if (pending && pending.btn === btn) {
+          const file = pending.file;
+          clearPending();
+          setStatus("");
+          navigator.share({ files: [file], title: file.name }).catch((err) => {
+            /* He closed the sheet himself - that is not a failure to report. */
+            if (err && err.name === "AbortError") return;
+            setStatus(NO_SAVE);
+          });
+          return;
+        }
+        clearPending();
         /* Both are held while one runs: two decks building at once would
-           fetch the same library twice and race each other's save. */
+           fetch the same library twice and race each other. */
         buttons.forEach((b) => { b.disabled = true; });
         btn.textContent = BUSY;
         setStatus("");
@@ -268,8 +322,27 @@
           buttons.forEach((b) => { b.disabled = false; });
         };
         Promise.resolve()
-          .then(() => DossierDeck.download(btn.dataset.theme))
-          .then(restore, (err) => { restore(); setStatus(rejectionText(err)); });
+          .then(() => DossierDeck.build(btn.dataset.theme))
+          .then((made) => {
+            buttons.forEach((b) => { b.disabled = false; });
+            /* An old WebKit with no File constructor still gets the link path
+               rather than a thrown error inside the tap. */
+            let file = null;
+            try {
+              file = new File([made.blob], made.fileName, { type: made.mime });
+            } catch (e) { file = null; }
+            if (IOS && file && shareable(file)) {
+              pending = { btn: btn, label: label, file: file };
+              btn.textContent = READY;
+              setStatus(READY_HINT);
+              return;
+            }
+            restore();
+            /* On a phone with no share sheet the link cannot work either - say
+               so, rather than letting the tap do nothing at all. */
+            if (IOS) { setStatus(NO_SAVE); return; }
+            saveByLink(made);
+          }, (err) => { restore(); setStatus(rejectionText(err)); });
       });
     });
   }

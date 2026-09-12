@@ -1,6 +1,7 @@
 /* dossier_deck.js — the dossier tab's PowerPoint, built in the browser on tap.
 
-   window.DossierDeck = { download(theme) }  theme: "dark" | "light"  → Promise.
+   window.DossierDeck = { build(theme) }  theme: "dark" | "light"  → Promise
+   resolving to { blob, fileName, mime }. It does not save; see dossier_view.js.
    Reads DOSSIER (dossier_data.js) and, for the two map slides, DossierMap.exportPng
    (dossier_map.js). PptxGenJS 4.0.1 is fetched from jsDelivr on the FIRST tap and
    never before: the board must open with no network, and the deck is the one thing
@@ -423,6 +424,8 @@
     });
   }
 
+  const MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+
   /* pptxgenjs writes an <a:pPr> before EVERY run of a mixed-run paragraph, and
      the schema allows one, first. PowerPoint reads the extras leniently (measured:
      every slide rendered) but a stricter reader may not, so the zip is opened with
@@ -436,30 +439,26 @@
       return "<a:p>" + kept + "</a:p>";
     });
   }
+  /* Hands the finished file BACK, and never saves it. Which way a file reaches
+     the reader is the view's business, not the deck's: on a phone it is the
+     share sheet and on a desktop it is a download, and only the view knows
+     which tap it is holding. */
   function save(pptx, fileName) {
-    if (!window.JSZip) return pptx.writeFile({ fileName: fileName });
     return pptx.write({ outputType: "blob" })
-      .then(blob => JSZip.loadAsync(blob))
-      .then(zip => {
+      .then(blob => window.JSZip ? JSZip.loadAsync(blob).then(zip => {
         const slides = Object.keys(zip.files).filter(n => /^ppt\/slides\/slide\d+\.xml$/.test(n));
         return Promise.all(slides.map(n => zip.file(n).async("string")
-          .then(xml => zip.file(n, cleanParagraphs(xml))))).then(() => zip);
-      })
-      .then(zip => zip.generateAsync({ type: "blob", compression: "DEFLATE",
-        mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation" }))
-      .then(blob => {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url; a.download = fileName; a.style.display = "none";
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 30000);
-        return fileName;
-      })
-      .catch(err => { console.warn("dossier_deck: clean save failed, using writeFile", err);
-        return pptx.writeFile({ fileName: fileName }); });
+          .then(xml => zip.file(n, cleanParagraphs(xml)))))
+          .then(() => zip.generateAsync({ type: "blob", compression: "DEFLATE",
+            mimeType: MIME }));
+      }).catch(err => {
+        console.warn("dossier_deck: paragraph clean failed, using the raw zip", err);
+        return blob;
+      }) : blob)
+      .then(blob => ({ blob: blob, fileName: fileName, mime: MIME }));
   }
 
-  function download(theme) {
+  function build_(theme) {
     const t = theme === "light" ? "light" : "dark";
     if (typeof DOSSIER === "undefined" || !DOSSIER || !DOSSIER.title_he) {
       return Promise.reject(new Error(NO_DATA));
@@ -476,5 +475,5 @@
       });
   }
 
-  window.DossierDeck = { download: download };
+  window.DossierDeck = { build: build_ };
 })();
