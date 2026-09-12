@@ -1,4 +1,4 @@
-/* The two static maps of the dossier tab (רקע ומשמעויות), painted on a canvas
+/* The two static maps of the dossier tab (מתקפת פתע), painted on a canvas
    from GEO (the board's own geography) plus DOSSIER (the gains layer, the lanes
    and the hand-anchored labels). The same painter serves the screen and the
    PowerPoint: exportPng() paints an offscreen canvas at slide resolution, so the

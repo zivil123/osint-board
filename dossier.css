@@ -1,4 +1,4 @@
-/* The dossier view (the רקע ומשמעויות tab) — layout and type.
+/* The dossier view (the מתקפת פתע tab) — layout and type.
 
    A dated DOCUMENT read top to bottom, not a feed and not a worklist, so it
    takes the READING scale (design-law §1, the 2026-08-29 amendment: body 22px,
@@ -74,6 +74,30 @@ body.view-dossier .wrap { display: none; }
 .ds-item .ds-text.ds-top { margin-block-start: 0; } /* beats `.ds-item .ds-text` below */
 .ds-top strong { font-weight: 600; }
 .ds-top .bar { color: var(--ink-faint); }
+
+/* The day picker, in the dated section's own header — under its heading and
+   above its rows, so what it filters is readable without a tooltip. It reuses
+   the board's control outright: .chips, .chip, .chips-label and the same
+   --chip-c / --chip-t tokens from style.css, lifted to this page's reading
+   scale exactly as .badge and .tag are below. Nothing new is invented here, so
+   it reads as the same family as the band on the first tab.
+   `nowrap` is the band's own lesson (style.css): a flex item's automatic
+   minimum is its min-CONTENT, so a label that can break at a space squeezes
+   itself under its own width and goes two lines tall beside a 44px neighbour.
+   Held on one line a chip that will not fit takes the next row whole instead —
+   which is what a 375px phone gets. */
+.ds-days { margin-block-start: 14px; }
+.dossier-pane .chip { font-size: 18px; white-space: nowrap; }
+.dossier-pane .chip .n { font-size: 18px; }
+/* Under 900px the band lifts a group's name ONTO its own border box, absolutely
+   placed against it (style.css). This page has no such box, so that rule had
+   nowhere to hang the word and threw it to the top-left of the whole document —
+   measured, the label vanished off the top of the tab at the pane's own 800px.
+   Held static it stays what it is here: the first word in the row. */
+.dossier-pane .chips-label {
+  font-size: 18px; position: static; background: none;
+  padding-inline: 0 2px;
+}
 
 /* Background rows: the date as a quiet lead cell, the development beside it. */
 .ds-row {

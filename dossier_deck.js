@@ -6,13 +6,13 @@
    (dossier_map.js). PptxGenJS 4.0.1 is fetched from jsDelivr on the FIRST tap and
    never before: the board must open with no network, and the deck is the one thing
    on it that needs one. Rejections carry a Hebrew message the view prints as is.
+   VERIFY WITH `?deck=dry`, never a real save: the board runs on the machine the
+   reader is sitting at, and a test tap must not put a file or a window on it.
 
    Every text box is RTL, right-aligned, he-IL, Segoe UI (on every Windows
    PowerPoint; Heebo is a web font and would not be on a projector laptop). Mixed
-   content is built from RUNS in one paragraph; a digits-only date is its own run
-   wrapped in LRM marks, the deck's equivalent of the page's <bdi dir="ltr">.
-   Paragraph properties (rtlMode, align, bullet, spacing) must sit on the FIRST run
-   of each paragraph — pptxgenjs reads them from there, not from the shape.
+   content is built from RUNS in one paragraph, a digits-only date in LRM marks;
+   paragraph properties sit on the FIRST run — pptxgenjs reads them there.
 
    PowerPoint cannot report a text box's height back, so page breaks are decided
    here from a conservative glyph estimate; the text budgets in DOSSIER.md are the
@@ -28,6 +28,19 @@
   const FAILED = "יצירת המצגת נכשלה";
   const NO_MAP = "המפה אינה זמינה";
   const FONT = "Segoe UI";
+  /* ?deck=dry — the verification path, beside the view's own ?deck=share. This
+     board runs on the machine the reader is SITTING AT, so a test tap may never
+     drop a file in his downloads or open his file explorer over what he is doing:
+     with the flag the deck is built in FULL and then handed back as a rejection
+     carrying its Hebrew result, which the view prints while saving nothing, and
+     the blob and counts wait on DossierDeck.dry. The buttons say so in a ::after,
+     which the view's label restore (it stores the text and puts it back after
+     every tap) cannot wipe off them. */
+  const DRY = /[?&]deck=dry(&|$)/.test(location.search), META = {};
+  if (DRY) {
+    const st = document.createElement("style");
+    st.textContent = '.ds-btn::after{content:" · בדיקה בלבד"}';
+    (document.head || document.documentElement).appendChild(st); }
   const W = 10, H = 5.625, M = 0.5;            // LAYOUT_16x9, inches
   const BODY_TOP = 1.2, BODY_BOTTOM = H - 0.58; // under the heading, above the footer
   const RULE_W = 0.9, GAP = 0.4;
@@ -37,12 +50,8 @@
      ~76 per line where this says 65); the pitch is taken as measured. */
   const GLYPH = 0.55, LINE = 1.2;
   const LRM = "\u200E";
-  const VERDICT = {
-    confirmed: "אומת בדיווחים בין-לאומיים",
-    partial: "אימות חלקי",
-    none: "דיווח שלא נמצא לו אימות עצמאי",
-    claim: "טענה",
-  };
+  const VERDICT = { confirmed: "אומת בדיווחים בין-לאומיים", partial: "אימות חלקי",
+                    none: "דיווח שלא נמצא לו אימות עצמאי", claim: "טענה" };
   const KIND = { shipping: "ספנות", saudi: "סעודיה", israel: "ישראל",
                  yemen: "תימן", iran: "איראן", watch: "למעקב" };
   const LIGHT = { bg: "FBFDFF", ink: "0B2138", muted: "3F5670", accent: "1D4ED8",
@@ -59,10 +68,7 @@
     libPromise = new Promise((resolve, reject) => {
       const s = document.createElement("script");
       let timer = null;
-      function fail() {
-        clearTimeout(timer); s.remove(); libPromise = null;
-        reject(new Error(NO_NET));
-      }
+      function fail() { clearTimeout(timer); s.remove(); libPromise = null; reject(new Error(NO_NET)); }
       s.src = CDN; s.async = true;
       s.onload = () => { clearTimeout(timer);
         if (window.PptxGenJS) resolve(window.PptxGenJS); else fail(); };
@@ -77,8 +83,7 @@
 
   function tok(name, fallback) {
     const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-    const m = /^#([0-9a-f]{6})$/i.exec(v);
-    return m ? m[1].toUpperCase() : fallback;
+    const m = /^#([0-9a-f]{6})$/i.exec(v); return m ? m[1].toUpperCase() : fallback;
   }
   function themeOf(name) {
     if (name === "light") return Object.assign({ name: "light" }, LIGHT);
@@ -101,6 +106,7 @@
     if (p.length !== 3) return String(iso || "");
     return LRM + Number(p[2]) + "." + Number(p[1]) + "." + p[0] + LRM;
   }
+  const ISO = /^\d{4}-\d{2}-\d{2}$/;
   function run(text, o) {
     return { text: String(text == null ? "" : text),
       options: Object.assign({ rtlMode: true, lang: "he-IL", fontFace: FONT,
@@ -127,20 +133,15 @@
     segs.forEach((t, i) => {
       if (HEB.test(t) || LAT.test(t)) { cls[i] = HEB.test(t) ? "he" : "en"; lastStrong = cls[i]; }
       else if (/[0-9]/.test(t)) cls[i] = lastStrong === "en" ? "en" : "he";
-      else cls[i] = "";
-    });
+      else cls[i] = ""; });
     cls.forEach((c, i) => {
-      if (c) return;
-      let prev = "", next = "";
+      if (c) return; let prev = "", next = "";
       for (let j = i - 1; j >= 0 && !prev; j--) prev = cls[j];
       for (let j = i + 1; j < cls.length && !next; j++) next = cls[j];
-      cls[i] = (prev === "en" && next === "en") ? "en" : "he";
-    });
-    const groups = [];
-    segs.forEach((t, i) => {
+      cls[i] = (prev === "en" && next === "en") ? "en" : "he"; });
+    const groups = []; segs.forEach((t, i) => {
       const last = groups[groups.length - 1];
-      if (last && last.cls === cls[i]) last.text += t; else groups.push({ cls: cls[i], text: t });
-    });
+      if (last && last.cls === cls[i]) last.text += t; else groups.push({ cls: cls[i], text: t }); });
     return groups.map(g => {
       const opts = Object.assign({}, o || {}, { lang: g.cls === "en" ? "en-US" : "he-IL" });
       if (opts.hyperlink) opts.hyperlink = Object.assign({}, opts.hyperlink);
@@ -150,19 +151,16 @@
   /* Paragraph-level options go on the first run; the last run ends the paragraph. */
   function para(runs, popts) {
     Object.assign(runs[0].options, popts || {});
-    runs[runs.length - 1].options.breakLine = true;
-    return runs;
+    runs[runs.length - 1].options.breakLine = true; return runs;
   }
   function box(slide, runs, pos, o) {
     slide.addText(runs, Object.assign({ isTextBox: true, rtlMode: true, align: "right",
       valign: "top", lang: "he-IL", fontFace: FONT, margin: 0 }, pos, o || {}));
   }
-  function linesOf(text, widthIn, pt) {
-    const perLine = Math.max(8, Math.floor(widthIn * 72 / (pt * GLYPH)));
-    return Math.max(1, Math.ceil(String(text || "").length / perLine));
-  }
   function tall(text, widthIn, pt, afterPt) {
-    return (linesOf(text, widthIn, pt) * pt * LINE + (afterPt || 0)) / 72;
+    const lines = Math.max(1, Math.ceil(String(text || "").length /
+      Math.max(8, Math.floor(widthIn * 72 / (pt * GLYPH)))));
+    return (lines * pt * LINE + (afterPt || 0)) / 72;
   }
 
   /* Packs items into columns; `avail(pageIdx)` is the column height on that page,
@@ -171,12 +169,9 @@
      keeps its page alone and the item opens the next one (measured: a 700-char
      intro plus one item ran through the footer). */
   function pack(items, measure, avail, cols, maxPerCol) {
-    const pages = [];
-    let page = [], col = [], used = 0;
-    function closeCol() {
-      page.push(col); col = []; used = 0;
-      if (page.length === cols) { pages.push(page); page = []; }
-    }
+    const pages = []; let page = [], col = [], used = 0;
+    const closeCol = () => { page.push(col); col = []; used = 0;
+      if (page.length === cols) { pages.push(page); page = []; } };
     items.forEach(item => {
       const h = measure(item);
       if (col.length && (used + h > avail(pages.length) || col.length >= maxPerCol)) closeCol();
@@ -187,8 +182,7 @@
       col.push(item); used += h;
     });
     if (col.length) page.push(col);
-    if (page.length) pages.push(page);
-    return pages;
+    if (page.length) pages.push(page); return pages;
   }
 
   /* ---- slide furniture ---------------------------------------------------- */
@@ -220,7 +214,7 @@
     const title = noBreakHyphen(DOSSIER.title_he), sub = DOSSIER.subtitle_he || "";
     const titleH = tall(title, W - 2 * M, 40, 0), subH = sub ? tall(sub, W - 2 * M, 20, 0) : 0;
     const blockH = 0.26 + titleH + 0.12 + subH + 0.35 + 0.4;
-    let y = Math.max(0.45, (H - blockH) / 2);
+    let y = Math.max(0.45, (H - blockH) / 2);  // the block is centred as a whole
     slide.addShape("rect", { x: W - M - 1.4, y: y, w: 1.4, h: 0.06,
       fill: { color: T.violet }, line: { color: T.violet, width: 0 } });
     y += 0.26;
@@ -230,43 +224,61 @@
     if (sub) {
       box(slide, runsFor(sub, { fontSize: 20, color: T.muted }),
         { x: M, y: y, w: W - 2 * M, h: subH });
-      y += subH;
-    }
+      y += subH; }
     box(slide, [run("נכון ל-", { fontSize: 16, color: T.accent }),
                 run(fmtDate(DOSSIER.as_of), { fontSize: 16, color: T.accent })],
       { x: M, y: y + 0.35, w: W - 2 * M, h: 0.4 });
   }
 
-  /* ---- slide 2: the Top 5 ------------------------------------------------- */
+  /* ---- slides 2+: the Top 5 ----------------------------------------------- */
 
-  /* Ziv's own slide (2026-09-11): five headlines, each "title | one paragraph",
-     all on ONE slide — never a second page. The build caps every item
-     (DOSSIER.md) so the five fit at 12pt by the conservative estimate; this
-     takes the largest size from 16pt down that fits. */
-  function top5Page(pages, T) {
+  /* Ziv's own slide (2026-09-11): five headlines, each "title | one paragraph".
+     ONE slide shrunk to 12pt until 2026-09-12, when the paragraphs grew and he
+     chose MORE SLIDES over smaller type — a projector is read across a room. So
+     the size is picked FIRST, never under TOP5_FLOOR, and is the largest needing
+     no more slides than that floor would (short items collapse back to two
+     slides on their own); the items spread evenly over them, five over three
+     being 2+2+1 and not 3+1+1; and every slide shares the size and repeats the
+     heading with " (המשך)", the background section's own continuation mark. */
+  const TOP5_FLOOR = 16, TOP5_MAX = 20;
+
+  function top5Pages(pages, T) {
     const top = DOSSIER.top5;
     const items = top && Array.isArray(top.items) ? top.items : [];
     if (!items.length) return;
     const width = W - 2 * M, avail = BODY_BOTTOM - BODY_TOP;
     const line = it => (it.title_he || "") + " | " + (it.text_he || "");
-    /* Measured on PowerPoint's render of this slide (2026-09-11): ~120 characters
-       a line at 12pt across the full body, where GLYPH's 0.55 says 98 — so the
-       shared estimate left a sixth of the slide empty at 12pt. 0.5 keeps slack. */
-    const height = p => items.reduce((h, it) => h + (Math.ceil(line(it).length /
-      Math.floor(width * 72 / (p * 0.5))) * p * LINE + 10) / 72, 0);
-    let pt = 16;
-    while (pt > 12 && height(pt) > avail) pt--;
-    pages.push({ draw: (slide, n, total) => {
-      ground(slide, T);
-      heading(slide, T, top.heading_he || "");
-      footer(slide, T, n, total);
-      const runs = items.reduce((acc, it) => acc.concat(para(
-        runsFor(it.title_he, { fontSize: pt, bold: true, color: T.ink })
-          .concat(run(" | ", { fontSize: pt, color: T.muted }))
-          .concat(runsFor(it.text_he, { fontSize: pt, color: T.ink })),
-        { paraSpaceAfter: 10 })), []);
-      box(slide, runs, { x: M, y: BODY_TOP, w: width, h: BODY_BOTTOM - BODY_TOP });
-    } });
+    /* Measured on PowerPoint's own render (2026-09-11): ~120 characters a line at
+       12pt across the full body, where GLYPH's 0.55 says 98. 0.5 keeps slack. */
+    const height = (it, p) => (Math.ceil(line(it).length /
+      Math.floor(width * 72 / (p * 0.5))) * p * LINE + 10) / 72;
+    /* In order at size p, `per` items at most; the five are never reflowed. */
+    const fill = (p, per) => {
+      const out = []; let group = [], used = 0;
+      items.forEach(it => {
+        const h = height(it, p);
+        if (group.length && (used + h > avail || group.length >= per)) { out.push(group); group = []; used = 0; }
+        group.push(it); used += h;
+      });
+      if (group.length) out.push(group); return out;
+    };
+    const least = fill(TOP5_FLOOR, items.length).length; let pt = TOP5_MAX;
+    while (pt > TOP5_FLOOR && fill(pt, items.length).length > least) pt--;
+    const groups = fill(pt, Math.ceil(items.length / least));
+    META.top5 = { pt: pt, slides: groups.length };
+    groups.forEach((group, gi) => {
+      pages.push({ draw: (slide, n, total) => {
+        ground(slide, T);
+        heading(slide, T, (top.heading_he || "") + (gi ? " (המשך)" : ""));
+        footer(slide, T, n, total);
+        const runs = group.reduce((acc, it) => acc.concat(para(
+          runsFor(it.title_he, { fontSize: pt, bold: true, color: T.ink })
+            .concat(run(" | ", { fontSize: pt, color: T.muted }))
+            .concat(runsFor(it.text_he, { fontSize: pt, color: T.ink })),
+          { paraSpaceAfter: 10 })), []);
+        box(slide, runs, { x: M, y: BODY_TOP, w: width, h: BODY_BOTTOM - BODY_TOP });
+      } });
+    });
   }
 
   /* ---- prose sections: background, importance, meanings ------------------ */
@@ -306,8 +318,7 @@
     const full = BODY_BOTTOM - BODY_TOP;
     const avail = i => (i === 0 ? full - introH : full);
     const items = Array.isArray(sec.items) ? sec.items : [];
-    const packed = items.length ? pack(items, toMeasure(colW), avail, cols, maxPerCol)
-                                : [[]];
+    const packed = items.length ? pack(items, toMeasure(colW), avail, cols, maxPerCol) : [[]];
     packed.forEach((columns, pi) => {
       pages.push({ draw: (slide, n, total) => {
         ground(slide, T);
@@ -331,17 +342,15 @@
 
   /* ---- map slides --------------------------------------------------------- */
 
-  /* A map slide is the map, edge to edge: the picture carries its own title
-     and legend, so a heading bar, caption and footer would only shrink it
-     (Ziv, 2026-09-11: "make everything bigger"). Only a failed export falls
-     back to a titled slide saying so. */
+  /* A map slide is the map, edge to edge: the picture carries its own title and
+     legend, so a heading bar, caption and footer would only shrink it (Ziv,
+     2026-09-11: "make everything bigger"). Only a failed export falls back to a
+     titled slide saying so. */
   function mapPage(pages, T, map, png) {
     pages.push({ draw: (slide) => {
       ground(slide, T);
       if (png) {
-        slide.addImage({ data: png.replace(/^data:/, ""), x: 0, y: 0, w: W, h: H });
-        return;
-      }
+        slide.addImage({ data: png.replace(/^data:/, ""), x: 0, y: 0, w: W, h: H }); return; }
       heading(slide, T, map.title_he || "");
       box(slide, [run(NO_MAP, { fontSize: 20, color: T.muted, align: "center" })],
         { x: M, y: H / 2 - 0.25, w: W - 2 * M, h: 0.5 }, { align: "center" });
@@ -349,9 +358,7 @@
   }
 
   function exportMap(id, theme) {
-    if (!window.DossierMap || typeof DossierMap.exportPng !== "function") {
-      return Promise.resolve(null);
-    }
+    if (!window.DossierMap || typeof DossierMap.exportPng !== "function") return null;
     return Promise.resolve()
       .then(() => DossierMap.exportPng(id, theme, 2560, 1440))
       .then(png => (typeof png === "string" && png.indexOf("base64,") > 0) ? png : null)
@@ -373,8 +380,7 @@
     return para(runs.concat(link), { bullet: { type: "number", indent: 24 }, paraSpaceAfter: 6 });
   }
   function sourcePages(pages, T) {
-    const sources = Array.isArray(DOSSIER.sources) ? DOSSIER.sources : [];
-    const width = W - 2 * M - 0.35;
+    const sources = Array.isArray(DOSSIER.sources) ? DOSSIER.sources : [], width = W - 2 * M - 0.35;
     const measure = s => tall((s.title || "") + " — " + (s.publisher || "") + " · " +
                               fmtDate(s.date), width, 14, 6);
     const packed = pack(sources, measure, () => BODY_BOTTOM - BODY_TOP, 1, 14);
@@ -399,28 +405,28 @@
   }
 
   function build(Lib, themeName) {
-    const T = themeOf(themeName);
-    const maps = Array.isArray(DOSSIER.maps) ? DOSSIER.maps : [];
+    const T = themeOf(themeName), maps = Array.isArray(DOSSIER.maps) ? DOSSIER.maps : [];
     const wanted = ["overview", "mandab"].map(id => maps.find(m => m && m.id === id))
                                           .filter(Boolean);
     return Promise.all(wanted.map(m => exportMap(m.id, T.name))).then(pngs => {
-      const pptx = new Lib();
-      pptx.layout = "LAYOUT_16x9";
-      pptx.rtlMode = true;
+      const pptx = new Lib(); pptx.layout = "LAYOUT_16x9"; pptx.rtlMode = true;
       pptx.theme = { headFontFace: FONT, bodyFontFace: FONT, lang: "he-IL" };
       pptx.title = DOSSIER.title_he || "";
       const pages = [];
+      /* Order, since 2026-09-12: title · Top 5 · map · map · background ·
+         importance · meanings · sources — the maps moved up off Ziv's ask,
+         "so they are not buried behind everything else". */
       pages.push({ draw: slide => { ground(slide, T); titleSlide(slide, T); } });
-      top5Page(pages, T);
-      sectionPages(pages, T, section("background"), bgRuns, bgMeasure, 1, 7);
+      top5Pages(pages, T);
       wanted.forEach((m, i) => mapPage(pages, T, m, pngs[i]));
+      sectionPages(pages, T, section("background"), bgRuns, bgMeasure, 1, 7);
       const importance = section("importance"), meanings = section("meanings");
       const twoUp = s => (s && s.items && s.items.length > 4 ? 2 : 1);
       sectionPages(pages, T, importance, itemRuns, itemMeasure, twoUp(importance), 8);
       sectionPages(pages, T, meanings, itemRuns, itemMeasure, twoUp(meanings), 8);
       sourcePages(pages, T);
       pages.forEach((p, i) => p.draw(pptx.addSlide(), i + 1, pages.length));
-      return pptx;
+      META.slides = pages.length; return pptx;
     });
   }
 
@@ -453,23 +459,35 @@
             mimeType: MIME }));
       }).catch(err => {
         console.warn("dossier_deck: paragraph clean failed, using the raw zip", err);
-        return blob;
-      }) : blob)
+        return blob; }) : blob)
       .then(blob => ({ blob: blob, fileName: fileName, mime: MIME }));
+  }
+
+  /* Built, counted, and NOT handed over: the dry run's numbers go where a checker
+     can read them and its Hebrew line goes on screen through the view. */
+  function dry(made) {
+    window.DossierDeck.dry = Object.assign({ slides: META.slides, top5: META.top5 }, made);
+    const err = new Error("בדיקה בלבד — " + META.slides + " שקפים, טופ 5 ב-" +
+      META.top5.pt + " נק'. הקובץ לא נשמר.");
+    err.dry = true; throw err;
   }
 
   function build_(theme) {
     const t = theme === "light" ? "light" : "dark";
-    if (typeof DOSSIER === "undefined" || !DOSSIER || !DOSSIER.title_he) {
+    if (typeof DOSSIER === "undefined" || !DOSSIER || !DOSSIER.title_he)
       return Promise.reject(new Error(NO_DATA));
-    }
+    /* The date in the name is the dossier's OWN as_of, never the clock: the name
+       names the DOCUMENT, so two people saving it on different days get the same
+       file. A malformed as_of drops out rather than inventing one. */
     const base = (DOSSIER.deck && DOSSIER.deck.filename) || "dossier";
+    const day = ISO.test(DOSSIER.as_of || "") ? "-" + DOSSIER.as_of : "";
     return loadLib()
       .then(Lib => build(Lib, t))
-      .then(pptx => save(pptx, base + "-" + t + ".pptx"))
+      .then(pptx => save(pptx, base + day + "-" + t + ".pptx"))
+      .then(made => (DRY ? dry(made) : made))
       .catch(err => {
         const msg = err && err.message;
-        if (msg === NO_NET || msg === NO_DATA) throw err;
+        if (msg === NO_NET || msg === NO_DATA || (err && err.dry)) throw err;
         console.error("dossier_deck:", err);
         throw new Error(FAILED);
       });

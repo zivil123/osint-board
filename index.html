@@ -12,13 +12,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-<link rel="stylesheet" href="style.css?v=20260912173256-1bc861ec">
-<link rel="stylesheet" href="cards.css?v=20260912173256-1bc861ec">
-<link rel="stylesheet" href="map.css?v=20260912173256-1bc861ec">
-<link rel="stylesheet" href="tabs.css?v=20260912173256-1bc861ec">
-<link rel="stylesheet" href="daily.css?v=20260912173256-1bc861ec">
-<link rel="stylesheet" href="dossier.css?v=20260912173256-1bc861ec">
-<link rel="stylesheet" href="unlock.css?v=20260912173256-1bc861ec">
+<link rel="stylesheet" href="style.css?v=20260912182558-c6d57abd">
+<link rel="stylesheet" href="cards.css?v=20260912182558-c6d57abd">
+<link rel="stylesheet" href="map.css?v=20260912182558-c6d57abd">
+<link rel="stylesheet" href="tabs.css?v=20260912182558-c6d57abd">
+<link rel="stylesheet" href="daily.css?v=20260912182558-c6d57abd">
+<link rel="stylesheet" href="dossier.css?v=20260912182558-c6d57abd">
+<link rel="stylesheet" href="unlock.css?v=20260912182558-c6d57abd">
 </head>
 <body>
 
@@ -49,7 +49,7 @@
   <button type="button" class="tab" role="tab" data-view="daily"
           aria-selected="false">סיכומים</button>
   <button type="button" class="tab" role="tab" data-view="dossier"
-          aria-selected="false">רקע ומשמעויות</button>
+          aria-selected="false">מתקפת פתע</button>
 </nav>
 
 <!-- Every group says what question its chips answer. Ziv, 2026-08-31, on his
@@ -186,32 +186,32 @@
 <section class="daily-pane" id="daily-pane" data-pane="daily" role="tabpanel"
          aria-label="סיכומים"></section>
 
-<!-- The dossier view (the רקע ומשמעויות tab): one dated document - background,
+<!-- The dossier view (the מתקפת פתע tab): one dated document - background,
      two static maps, strategic importance, meanings, sources - filled by
      dossier_view.js from const DOSSIER; hidden unless body carries view-dossier.
      Written by the pipeline's Step D - see DOSSIER.md. -->
 <section class="dossier-pane" id="dossier-pane" data-pane="dossier" role="tabpanel"
-         aria-label="רקע ומשמעויות"></section>
+         aria-label="מתקפת פתע"></section>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script src="bundle.js?v=20260912173256-1bc861ec"></script>
-<script src="unlock.js?v=20260912173256-1bc861ec"></script>
-<script type="text/plain" data-locked-src="geo.js?v=20260912173256-1bc861ec"></script>
-<script type="text/plain" data-locked-src="labels.js?v=20260912173256-1bc861ec"></script>
-<script type="text/plain" data-locked-src="legend.js?v=20260912173256-1bc861ec"></script>
-<script type="text/plain" data-locked-src="icons.js?v=20260912173256-1bc861ec"></script>
-<script type="text/plain" data-locked-src="cluster.js?v=20260912173256-1bc861ec"></script>
-<script type="text/plain" data-locked-src="gains.js?v=20260912173256-1bc861ec"></script>
-<script type="text/plain" data-locked-src="map.js?v=20260912173256-1bc861ec"></script>
-<script type="text/plain" data-locked-src="expand.js?v=20260912173256-1bc861ec"></script>
-<script type="text/plain" data-locked-src="filters.js?v=20260912173256-1bc861ec"></script>
-<script type="text/plain" data-locked-src="app.js?v=20260912173256-1bc861ec"></script>
-<script type="text/plain" data-locked-src="tabs.js?v=20260912173256-1bc861ec"></script>
-<script type="text/plain" data-locked-src="daily.js?v=20260912173256-1bc861ec"></script>
-<script type="text/plain" data-locked-src="dossier_map.js?v=20260912173256-1bc861ec"></script>
-<script type="text/plain" data-locked-src="dossier_map_draw.js?v=20260912173256-1bc861ec"></script>
-<script type="text/plain" data-locked-src="dossier_deck.js?v=20260912173256-1bc861ec"></script>
-<script type="text/plain" data-locked-src="dossier_view.js?v=20260912173256-1bc861ec"></script>
+<script src="bundle.js?v=20260912182558-c6d57abd"></script>
+<script src="unlock.js?v=20260912182558-c6d57abd"></script>
+<script type="text/plain" data-locked-src="geo.js?v=20260912182558-c6d57abd"></script>
+<script type="text/plain" data-locked-src="labels.js?v=20260912182558-c6d57abd"></script>
+<script type="text/plain" data-locked-src="legend.js?v=20260912182558-c6d57abd"></script>
+<script type="text/plain" data-locked-src="icons.js?v=20260912182558-c6d57abd"></script>
+<script type="text/plain" data-locked-src="cluster.js?v=20260912182558-c6d57abd"></script>
+<script type="text/plain" data-locked-src="gains.js?v=20260912182558-c6d57abd"></script>
+<script type="text/plain" data-locked-src="map.js?v=20260912182558-c6d57abd"></script>
+<script type="text/plain" data-locked-src="expand.js?v=20260912182558-c6d57abd"></script>
+<script type="text/plain" data-locked-src="filters.js?v=20260912182558-c6d57abd"></script>
+<script type="text/plain" data-locked-src="app.js?v=20260912182558-c6d57abd"></script>
+<script type="text/plain" data-locked-src="tabs.js?v=20260912182558-c6d57abd"></script>
+<script type="text/plain" data-locked-src="daily.js?v=20260912182558-c6d57abd"></script>
+<script type="text/plain" data-locked-src="dossier_map.js?v=20260912182558-c6d57abd"></script>
+<script type="text/plain" data-locked-src="dossier_map_draw.js?v=20260912182558-c6d57abd"></script>
+<script type="text/plain" data-locked-src="dossier_deck.js?v=20260912182558-c6d57abd"></script>
+<script type="text/plain" data-locked-src="dossier_view.js?v=20260912182558-c6d57abd"></script>
 </body>
 </html>
