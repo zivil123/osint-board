@@ -337,9 +337,11 @@
 
   /* ---- map slides --------------------------------------------------------- */
 
-  /* A map slide is the map, edge to edge: the picture carries its own title and
-     legend, so a heading bar, caption and footer would only shrink it (Ziv,
-     2026-09-11: "make everything bigger"). Only a failed export falls back to a
+  /* A map slide is the map, edge to edge: the picture carries its own legend, so
+     a heading bar, caption and footer would only shrink it (Ziv, 2026-09-11:
+     "make everything bigger"). It carries no heading of its own either - he
+     struck the close-up's on 2026-09-12 and the overview's on 2026-09-13 - so a
+     map slide is nothing but the map. Only a failed export falls back to a
      titled slide saying so. */
   function mapPage(pages, T, map, png) {
     pages.push({ draw: (slide) => {

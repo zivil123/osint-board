@@ -224,15 +224,10 @@ var DossierMapDraw = (function () {
   function gainStyle(P, u) {
     return { fill: alpha(P.violetFill, 0.5), stroke: P.violet, width: 2 * u, dash: [] };
   }
-  /* Ground that changed hands within a day of `as_of`. This is NOT the captured /
-     contested split Ziv struck on 2026-09-11 - that one is about how sure we are,
-     and it stays out of the map. This is WHEN, which he asked for on 2026-09-12:
-     "something that says it was conquered in the last twenty four hours". Same
-     violet, so it still reads as taken ground; the edge is the map's brightest
-     ink and half again as heavy, which is a difference in weight, not a new hue. */
-  function freshStyle(P, u) {
-    return { fill: alpha(P.violetFill, 0.5), stroke: P.ink, width: 3.2 * u, dash: [] };
-  }
+  /* There is ONE gain style and no second one. A heavier edge once set the last
+     day's ground apart; Ziv struck that on 2026-09-13 ("remove what was conquered
+     in the last day"), as he struck the captured/contested split on 2026-09-11.
+     WHEN a place fell is said in the text under the map, never by a second style. */
   /* A district and an island BOTH paint only `coordinates[part_index]` of their
      ADM2 feature, never the whole district: the islands live inside mainland
      districts (Perim in Dhubab, Hanish and Zuqar in Al Khukhah), so a whole
@@ -258,11 +253,11 @@ var DossierMapDraw = (function () {
       if (geom) {
         ctx.beginPath(); polyPath(ctx, p, geom);
         paintShape(ctx, { fill: P.land });
-        paintShape(ctx, g.fresh ? freshStyle(P, u) : gainStyle(P, u));
+        paintShape(ctx, gainStyle(P, u));
       } else {
         var q = p(g.lon, g.lat);
         ringMark(ctx, q[0], q[1], 7 * u, { fill: P.land });
-        ringMark(ctx, q[0], q[1], 7 * u, g.fresh ? freshStyle(P, u) : gainStyle(P, u));
+        ringMark(ctx, q[0], q[1], 7 * u, gainStyle(P, u));
       }
     });
   }
@@ -335,9 +330,12 @@ var DossierMapDraw = (function () {
 
   /* Quieter than a claim. Only where the frame holds them, never on top of a
      dossier label, and never beside one naming the same place - "אל-חודיידה"
-     under "חודיידה", or "תעז" against "תעיז", reads as a typo, so a governorate
-     that shares its name with a dossier label, or whose anchor sits within 32px
-     of one's point, yields to it. */
+     under "חודיידה" reads as a typo, and "תעז" twice over reads as a stutter,
+     so a governorate that shares its name with a dossier label, or whose anchor
+     sits within 32px of one's point, yields to it. That second case is why Taiz
+     governorate's authored anchor (data\gov_names.json, on the city) costs the
+     overview nothing: the city label is already there, and the governorate name
+     stands down. */
   function sameName(a, b) {
     var strip = function (s) { return String(s || "").replace(/^אל-/, "").trim(); };
     a = strip(a); b = strip(b);
@@ -384,10 +382,6 @@ var DossierMapDraw = (function () {
       { gain: gainStyle(P, u), label: words.gained },
       { line: P.control, dash: dashOf(P.controlDash, u), width: P.controlW * u, label: words.front }
     ];
-    /* The freshest ground gets its own row only while there IS any - a key that
-       promises "in the last day" over a map where nothing fell in the last day
-       is the map telling the reader something untrue. */
-    if (opt.fresh) L.rows.splice(4, 0, { gain: freshStyle(P, u), label: words.fresh });
     if (hasLanes) L.rows.push({ line: P.lane, dash: [8 * u, 6 * u], width: 2 * u, label: words.lane });
     var textW = Math.max.apply(null, L.rows.map(function (r) { return width(ctx, r.label, L.size, 500); }));
     L.w = Math.min(W * 0.44, Math.max(textW + L.sw + L.gap, 220 * u) + 2 * L.pad);

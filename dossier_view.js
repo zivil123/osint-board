@@ -38,8 +38,6 @@
     { cls: "sw fill", style: "--sw-fill: var(--geo-fill-gov)", he: "שטח בשליטת הכוחות הלגיטימיים" },
     { cls: "sw fill dash hatch", style: "--sw-fill: var(--geo-fill-contested)", he: "שטח לחימה פעיל" },
     { cls: "sw fill gain", style: "", he: "נכבש בידי החות'ים (מאומת + משוער)" },
-    /* Only while something actually is fresh - see FRESH below. */
-    { cls: "sw fill gain fresh", style: "", he: "נכבש ביממה האחרונה", fresh: true },
     { cls: "sw line dash", style: "--sw-c: var(--geo-control-line); --sw-w: 2px", he: "קו חזית משוער" },
   ];
   const MISSING_MAP = "המפה אינה זמינה";
@@ -205,17 +203,9 @@
       (rows ? '<div class="ds-card">' + rows + "</div>" : "") + "</section>";
   }
 
-  /* The row that names the freshest ground is printed only while the record
-     holds some - a key promising "in the last day" over a map where nothing
-     fell in the last day tells the reader something untrue. Same test as the
-     painted legend in dossier_map.js, off the same flag. */
-  function anyFresh() {
-    return (DOSSIER.gains || []).some((g) => g.fresh);
-  }
-
   function legendHtml() {
     return '<div class="ds-legend" aria-label="מקרא המפה">' +
-      LEGEND.filter((r) => !r.fresh || anyFresh()).map((r) =>
+      LEGEND.map((r) =>
       '<span class="ds-lg-row"><span class="' + r.cls + '"' +
       (r.style ? ' style="' + r.style + '"' : "") + "></span>" + esc(r.he) + "</span>"
     ).join("") + "</div>";

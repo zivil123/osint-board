@@ -72,10 +72,6 @@ var DossierMap = (function () {
     /* ONE row for every gain, confirmed or not (Ziv, 2026-09-11). Which ones an
        outside source confirmed is said in the text, never by a second style. */
     gained: "נכבש בידי החות'ים (מאומת + משוער)",
-    /* WHEN, not how sure - the one split the map is allowed to draw on top of
-       the gains (Ziv, 2026-09-12). A day is the finest window the record can
-       carry: its dates have no time of day. */
-    fresh: "נכבש ביממה האחרונה",
     front: "קו חזית משוער",
     lane: "נתיב שיט",
     noData: "אין נתוני מפה להצגה"
@@ -286,8 +282,8 @@ var DossierMap = (function () {
     var titleBottom = title ? 16 * u + titleSize * 1.3 : 16 * u;
     var legend = W >= 800
       ? R.legendLayout(ctx, P, u, W, H, !!(map.lanes && map.lanes.length), WORDS,
-          { size: size, top: F.legend === "top" ? titleBottom + (title ? 10 * u : 0) : null,
-            fresh: (D.gains || []).some(function (g) { return g.fresh; }) }) : null;
+          { size: size, top: F.legend === "top" ? titleBottom + (title ? 10 * u : 0) : null })
+      : null;
     var taken = [];
     if (title) {
       taken.push({ x0: W - 28 * u - R.width(ctx, title, titleSize, 600), y0: 0,
