@@ -9,16 +9,15 @@
    VERIFY WITH `?deck=dry`, never a real save: the board runs on the machine the
    reader is sitting at, and a test tap must not put a file or a window on it.
 
-   Every text box is RTL, right-aligned, he-IL, Segoe UI (on every Windows
-   PowerPoint; Heebo is a web font and would not be on a projector laptop). Mixed
-   content is built from RUNS in one paragraph, a digits-only date in LRM marks;
-   paragraph properties sit on the FIRST run — pptxgenjs reads them there.
+   Every text box is RTL, right-aligned, he-IL, Segoe UI (Heebo is a web font and
+   would not be on a projector laptop). Mixed content is built from RUNS in one
+   paragraph, a digits-only date in LRM marks; paragraph properties sit on the
+   FIRST run — pptxgenjs reads them there.
 
    PowerPoint cannot report a text box's height back, so page breaks are decided
-   here from a conservative glyph estimate; the text budgets in DOSSIER.md are the
-   cap that keeps the estimate honest. Two themes come from one function: the dark
-   one reads the board's own tokens (with the same values as fallbacks), the light
-   one is a cool off-white ground with the violet darkened to keep 3:1. */
+   here from a conservative glyph estimate, capped by DOSSIER.md's text budgets.
+   Two themes, one function: dark reads the board's own tokens, light is a cool
+   off-white ground with the violet darkened to keep 3:1. */
 (function () {
   "use strict";
 
@@ -28,14 +27,11 @@
   const FAILED = "יצירת המצגת נכשלה";
   const NO_MAP = "המפה אינה זמינה";
   const FONT = "Segoe UI";
-  /* ?deck=dry — the verification path, beside the view's own ?deck=share. This
+  /* ?deck=dry — the verification path, beside the view's own ?deck=share. The
      board runs on the machine the reader is SITTING AT, so a test tap may never
-     drop a file in his downloads or open his file explorer over what he is doing:
-     with the flag the deck is built in FULL and then handed back as a rejection
-     carrying its Hebrew result, which the view prints while saving nothing, and
-     the blob and counts wait on DossierDeck.dry. The buttons say so in a ::after,
-     which the view's label restore (it stores the text and puts it back after
-     every tap) cannot wipe off them. */
+     drop a file in his downloads or open his file explorer. With the flag the deck
+     is built in FULL and handed back as a rejection carrying its Hebrew result,
+     with the blob and the counts left on DossierDeck.dry. */
   const DRY = /[?&]deck=dry(&|$)/.test(location.search), META = {};
   if (DRY) {
     const st = document.createElement("style");
@@ -45,9 +41,8 @@
   const BODY_TOP = 1.2, BODY_BOTTOM = H - 0.58; // under the heading, above the footer
   const RULE_W = 0.9, GAP = 0.4;
   /* Measured on PowerPoint's own render of Segoe UI Hebrew (2026-09-11): a line
-     holds width/(pt*0.55) characters once word-wrap slack is counted, and lines
-     sit 1.2em apart. The character count is what carries the slack (measured
-     ~76 per line where this says 65); the pitch is taken as measured. */
+     holds width/(pt*0.55) characters with word-wrap slack counted, lines 1.2em
+     apart. The character count carries the slack; the pitch is as measured. */
   const GLYPH = 0.55, LINE = 1.2;
   const LRM = "\u200E";
   const VERDICT = { confirmed: "אומת בדיווחים בין-לאומיים", partial: "אימות חלקי",
@@ -92,7 +87,6 @@
   }
 
   /* ---- text helpers ------------------------------------------------------- */
-
   /* Headings only: a hyphen between two Hebrew letters becomes a non-breaking one,
      so a name like the strait's is never split across lines. Body text wraps as
      PowerPoint sees fit; this is a heading's privilege. */
@@ -338,11 +332,21 @@
   /* ---- map slides --------------------------------------------------------- */
 
   /* A map slide is the map, edge to edge: the picture carries its own legend, so
-     a heading bar, caption and footer would only shrink it (Ziv, 2026-09-11:
-     "make everything bigger"). It carries no heading of its own either - he
-     struck the close-up's on 2026-09-12 and the overview's on 2026-09-13 - so a
-     map slide is nothing but the map. Only a failed export falls back to a
-     titled slide saying so. */
+     a heading, caption and footer would only shrink it (Ziv, 2026-09-11: "make
+     everything bigger"), and he struck both headings on 12 and 13 September. Only
+     a failed export falls back to a titled slide saying so.
+     EACH MAP IS IN THE DECK TWICE since 2026-09-14 - this picture, and then the
+     same map as objects he can edit, because he asked for both: "put it as a
+     picture and also put it as stuff that I can edit on the PowerPoint slide."
+     The editable one is dossier_deck_map.js; if that file is not on the page the
+     deck simply loses that slide and keeps every picture. */
+  function vectorPage(pages, T, map) {
+    if (!window.DossierDeckMap) return;
+    pages.push({ draw: (slide) => {
+      const s = DossierDeckMap.slide(null, slide, map.id, T.name);
+      if (s) (META.vector = META.vector || []).push(Object.assign({ id: map.id }, s));
+    } });
+  }
   function mapPage(pages, T, map, png) {
     pages.push({ draw: (slide) => {
       ground(slide, T);
@@ -416,7 +420,7 @@
          the same day, so its slides are gone from here too. */
       pages.push({ draw: slide => { ground(slide, T); titleSlide(slide, T); } });
       top5Pages(pages, T);
-      wanted.forEach((m, i) => mapPage(pages, T, m, pngs[i]));
+      wanted.forEach((m, i) => { mapPage(pages, T, m, pngs[i]); vectorPage(pages, T, m); });
       sectionPages(pages, T, section("background"), bgRuns, bgMeasure, 1, 7);
       const importance = section("importance");
       const twoUp = s => (s && s.items && s.items.length > 4 ? 2 : 1);
@@ -463,7 +467,8 @@
   /* Built, counted, and NOT handed over: the dry run's numbers go where a checker
      can read them and its Hebrew line goes on screen through the view. */
   function dry(made) {
-    window.DossierDeck.dry = Object.assign({ slides: META.slides, top5: META.top5 }, made);
+    window.DossierDeck.dry = Object.assign({ slides: META.slides, top5: META.top5,
+      vector: META.vector }, made);
     const err = new Error("בדיקה בלבד — " + META.slides + " שקפים, טופ 5 ב-" +
       META.top5.pt + " נק'. הקובץ לא נשמר.");
     err.dry = true; throw err;

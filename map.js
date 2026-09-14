@@ -131,21 +131,14 @@ var MapView = (function () {
       minZoom: 3,
       maxZoom: 13
     });
-    /* NO raster basemap at all, and this is deliberate - see 2026-08-29.
-       Esri publishes Canvas as Base + Reference so that labels can be dropped,
-       and dropping Reference was the obvious fix. It was not enough: the BASE
-       tiles have country names burnt into them too. Measured, English, over our
-       own Hebrew: DJIBOUTI at z6, YEMEN at z7 - both inside the range this board
-       actually reads at, so there is no zoom band where the ground is clean.
-       CARTO's label-free basemaps now watermark for an API key, so there is no
-       keyless replacement to swap in.
-
-       Nothing of substance is lost. The tiles were already held to 0.42 opacity
-       and 0.55 contrast because their roads and wadis read as scribble under our
-       lines; the map has always been carried by its own geography - the national
-       outlines, the governorate and district boundaries, the control zones, the
-       front line and the fixed sites - and every word on it is Hebrew.
-       Attribution moves to the data that actually draws it. */
+    /* NO raster basemap at all, and this is deliberate - see 2026-08-29, and
+       UI.md "The map", which keeps the measurements. Short version: Esri's Canvas
+       BASE tiles have English country names burnt in (DJIBOUTI at z6, YEMEN at
+       z7, both inside this board's range), dropping the Reference layer is not
+       enough, and CARTO's label-free basemaps now want an API key. Nothing of
+       substance was lost - the tiles were already at 0.42 opacity and the map has
+       always been carried by its own geography. Do not add a tile layer back
+       without opening its tiles at z5-z8 and LOOKING at them. */
     L.control.attribution({ prefix: false })
       .addAttribution(esc(GEO && GEO.attribution ? GEO.attribution
                                                  : "geoBoundaries (CC BY 4.0)"))
@@ -259,20 +252,21 @@ var MapView = (function () {
      FIGHTING zone (rgb 25,45,65 against government 9,25,44 at the default view), so
      it keeps this tint and takes a 45-degree HATCH on top, added below. The dash is
      the ONE stroke on the fill layer; the zones are dissolved, so it draws once. */
+  /* Territory is WHO HOLDS the ground - two values, never three. A fight running
+     on a district is GEO.fronts, drawn over the top. */
   function territoryStyle(feature) {
-    var control = (feature && feature.properties && feature.properties.control) || "";
-    if (control === "contested") {
-      return {
-        stroke: true, color: S.contestedStroke, weight: 0.8, dashArray: "3 3",
-        fill: true, fillColor: S.fillContested, fillOpacity: 1
-      };
-    }
+    var holder = (feature && feature.properties &&
+      (feature.properties.holder || feature.properties.control)) || "";
     return {
       stroke: false,
       fill: true,
-      fillColor: control === "houthi" ? S.fillHouthi : S.fillGov,
+      fillColor: holder === "houthi" ? S.fillHouthi : S.fillGov,
       fillOpacity: 1
     };
+  }
+  function frontStyle() {
+    return { stroke: true, color: S.contestedStroke, weight: 0.8, dashArray: "3 3",
+             fill: true, fillColor: S.fillContested, fillOpacity: 1 };
   }
 
   function lineStyle(color, weight, dash) {
@@ -289,13 +283,17 @@ var MapView = (function () {
     var territory = addGeo(geo.control_zones || geo.yem_adm2, "geoFill",
       territoryStyle);
     if (territory) geoLayers.territory = territory.addTo(map);
-    /* The fighting zone AGAIN, solid on its own canvas, which style.css cuts into
+    var frontFill = addGeo(geo.fronts, "geoFill", frontStyle);
+    if (frontFill) frontFill.addTo(map);
+    /* The fighting zones, solid on their own canvas, which style.css cuts into
        45-degree stripes with a mask - the dossier maps' own texture. Leaflet has no
        fill-pattern option, but it redraws that canvas on every pan and zoom, so a
-       mask on it rides the shape and cannot go stale. */
-    var fight = addGeo(geo.control_zones, "geoHatch", function (f) {
-      return { stroke: false, fillColor: S.contestedStroke, fillOpacity: 1,
-        fill: !!f.properties && f.properties.control === "contested" };
+       mask on it rides the shape and cannot go stale. They come from GEO.fronts
+       (dataronts.json), NOT from a district's control value: painted per
+       district, a 20 km contact belt covered whole governorates - al-Jawf,
+       Maqbanah, the coast to Aden - and hid who held the ground under it. */
+    var fight = addGeo(geo.fronts, "geoHatch", function () {
+      return { stroke: false, fillColor: S.contestedStroke, fillOpacity: 1, fill: true };
     });
     if (fight) geoLayers.fighting = fight.addTo(map);
 

@@ -60,6 +60,11 @@ var DossierMap = (function () {
      about. Wide canvases reach the frame's own factor; narrow ones keep a step
      and no more. */
   var GOV_MIN = 1.2;
+  /* The PIN radius, written for BASE_W and floored the way the 17px text floor
+     is: a mark that shrinks with the canvas stops being a mark. Read `place()`
+     with it - the name is offset by the pin's own radius plus a gap, so the two
+     can never sit on top of each other. */
+  var PIN_R = 4.2, PIN_MIN = 4;
   var OPPOSITE = { e: "w", w: "e", n: "s", s: "n" };
   /* The board's own legend words, so the painted legend matches the one under
      the map on the board tab. */
@@ -196,35 +201,26 @@ var DossierMap = (function () {
     })[0] || null;
   }
 
-  /* The zones the legend calls שטח לחימה פעיל carry their own names, and WHICH
-     districts those are is read from the CONTROL MAP at paint time
-     (GEO.yem_adm2 -> control === "contested"), never from a label list: which
-     ground is genuinely contested is re-judged in data\control.json, and
-     whatever that file says must be what gets named, with nobody remembering to
-     edit a second list.
+  /* The zones the legend calls שטח לחימה פעיל carry their own names, read from
+     GEO.fronts (dataronts.json) at paint time - never from a label list, so
+     whatever that file says is what gets named and nobody has to remember to
+     edit a second one.
 
-     The Hebrew is read off the district itself (`name_he`) when the geo build
-     carries one, and otherwise from the dossier's own district gains, joined on
-     the ADM2 shapeID. geo.js today carries geoBoundaries' ENGLISH shapeName and
-     no Hebrew at all, so a contested district that is not also a gain is left
-     UNNAMED - a transliteration invented here, or a raw slug, would be English
-     on the map, and there is no English on this map ever (CLAUDE.md). The fix
-     is a Hebrew name per district in the data, joined by geo_prep.py exactly as
-     data\gov_names.json is joined for governorates; the `name_he` branch below
-     is what that join would light up, with no further change here.
+     Every front carries a REAL HEBREW NAME as a required field, which is why
+     this no longer has an "unnamed" branch. It used to read a contested
+     DISTRICT's name_he and fall back to a dossier gain's, leaving a contested
+     district that was not also a gain with no name at all - geo.js carries
+     geoBoundaries' English shapeName, and there is no English on this map ever
+     (CLAUDE.md). A front is authored with its name beside its sources, and
+     geo_prep.py refuses one that is missing or carries a Latin letter.
 
      No dot: this names an area, exactly as a country name does, and it is set a
      weight lighter than a town so the two never read as the same kind of thing.
      No new hue - every one is spoken for by a front, a verdict or a side. */
-  function zoneNames(ctx, p, P, u, W, H, G, D, size, taken) {
-    var R = painters(), he = {};
-    (D.gains || []).forEach(function (g) {
-      if (g.kind === "district" && g.district_id) he[g.district_id] = g.he;
-    });
-    ((G.yem_adm2 && G.yem_adm2.features) || []).forEach(function (f) {
-      var props = f.properties || {};
-      var name = props.control === "contested"
-        ? (props.name_he || he[props.shapeID]) : null;
+  function zoneNames(ctx, p, P, u, W, H, G, size, taken) {
+    var R = painters();
+    ((G.fronts && G.fronts.features) || []).forEach(function (f) {
+      var name = (f.properties || {}).name_he;
       if (!name) return;
       var geom = f.geometry || {}, ring = null, area = 0;
       var polys = geom.type === "Polygon" ? [geom.coordinates]
@@ -262,12 +258,13 @@ var DossierMap = (function () {
        and nothing shrinks below it, so a narrow canvas drops tier-2 labels
        instead of shrinking them. */
     var size = Math.max(17, 17 * u * ts), titleSize = Math.max(20, 22 * u * ts);
+    var pinR = Math.max(PIN_MIN, PIN_R * u * ts);
     R.ground(ctx, p, P, u, W, H, G);
     R.gains(ctx, p, P, u, D, G, mapId);
     /* Labels: the dossier's own first (they are the point of the map), then the
        lane names and the governorate names fitted around them and around the
-       legend box, which is measured now and painted last. A label whose place
-       is not a gain gets a small dot, so the name is anchored to something. */
+       legend box, which is measured now and painted last. Every town, port and
+       island gets a PIN, so the name is anchored to a place and not to a shape. */
     var gainKeys = {};
     (D.gains || []).forEach(function (g) { gainKeys[g.place_key] = true; });
     /* Under 800px the legend box (17px rows, six of them) would cover a
@@ -301,15 +298,31 @@ var DossierMap = (function () {
       /* Anchor "c" names a country: centred on its point, no dot, in the
          quieter governorate ink, and dropped rather than moved or cut. */
       var quiet = l.anchor === "c";
+      /* An ISLAND gain on the overview is drawn as a 7px ring by gains(); the
+         name clears that ring rather than the pin inside it. */
+      var clear = isGain ? Math.max(pinR, 7 * u) : pinR;
       (quiet ? ["c"] : [l.anchor, OPPOSITE[l.anchor], "n", "s", "e", "w"]).some(function (a) {
-        var s = R.place(ctx, l.he, q[0], q[1], a, size, (isGain ? 7 : 3) * u, u, W, H);
+        var s = R.place(ctx, l.he, q[0], q[1], a, size, clear, u, W, H);
         var b = s.box, free = !taken.some(function (t) { return R.overlaps(b, t); }) &&
           (!quiet || (b.x0 >= 0 && b.x1 <= W && b.y0 >= 0 && b.y1 <= H));
         if (free) spec = s;
         return free;
       });
       if (!spec) return;
-      if (!isGain && !quiet) R.ringMark(ctx, q[0], q[1], 3 * u, { fill: P.muted });
+      /* A PIN under every town, port and island - the GAINS INCLUDED. Until
+         2026-09-14 the dot was drawn only for a label that was not a gain, so
+         exactly the places the map is about - Mokha, Dhubab, Hays, al-Khawkhah,
+         Perim - were names floating over a violet shape with nothing saying
+         which pixel was the town (Ziv: "put a PIN so people can see where that
+         city is... in the actual exact location"). The 3px muted dot the others
+         got was invisible at the size this map is read at. A disc of the GROUND
+         colour under a dot of the ink reads over violet, over either side's
+         territory and over the sea, and adds no hue - every hue on this board is
+         spoken for by a front, a verdict or a side. */
+      if (!quiet) {
+        R.ringMark(ctx, q[0], q[1], pinR, { fill: P.halo });
+        R.ringMark(ctx, q[0], q[1], pinR * 0.62, { fill: P.ink });
+      }
       taken.push(spec.box);
       labels.push({ pt: q, spec: spec, quiet: quiet });
     });
@@ -321,7 +334,7 @@ var DossierMap = (function () {
     var gov = F.gov || 1;
     R.govLabels(ctx, p, P, u, G,
       Math.max(size * Math.min(GOV_MIN, gov), 17 * u * ts * gov), taken, points);
-    zoneNames(ctx, p, P, u, W, H, G, D, size, taken);
+    zoneNames(ctx, p, P, u, W, H, G, size, taken);
     labels.forEach(function (l) {
       var s = l.spec;
       R.text(ctx, P, s.str, s.x, s.y, { size: s.size, weight: l.quiet ? 500 : 600,
@@ -378,7 +391,16 @@ var DossierMap = (function () {
     return projector(FRAMES[mapId], width || BASE_W, height || BASE_W / aspect(mapId)).extent;
   }
 
-  return { draw: draw, exportPng: exportPng, frame: frame, aspect: aspect };
+  /* The deck's EDITABLE map slide (dossier_deck_map.js) paints the same picture
+     out of PowerPoint shapes, so it must use this file's own projection and this
+     file's own palette - copied, the two slides would drift apart on the first
+     frame change and nobody would know which was right. */
+  function project(mapId, W, H) {
+    return FRAMES[mapId] ? projector(FRAMES[mapId], W, H) : null;
+  }
+
+  return { draw: draw, exportPng: exportPng, frame: frame, aspect: aspect,
+           project: project, palette: palette, words: WORDS };
 })();
 
 window.DossierMap = DossierMap;

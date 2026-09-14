@@ -192,10 +192,18 @@ var DossierMapDraw = (function () {
     var zones = G.control_zones;
     fillCollection(ctx, p, zones, { fill: P.gov }, byControl("government"));
     fillCollection(ctx, p, zones, { fill: P.houthi }, byControl("houthi"));
-    fillCollection(ctx, p, zones, { fill: P.contested }, byControl("contested"));
-    fillCollection(ctx, p, zones, { fill: hatch(ctx, P.contestedStroke, u),
-      stroke: P.contestedStroke, width: Math.max(0.8, 0.8 * u), dash: [3 * u, 3 * u] },
-      byControl("contested"));
+    /* The ACTIVE FIGHTING zones are their own layer (dataronts.json ->
+       GEO.fronts), drawn over the territory instead of replacing a district's
+       fill. Until 2026-09-14 the hatch WAS a district's control value, so a
+       20 km contact belt in one corner of Khab wa Ash Sha'f painted 2.4 degrees
+       of longitude as a war zone and a district one side plainly held lost its
+       colour. Ziv reported it on al-Jawf, on Maqbanah and on the Lahij coast in
+       one message. Territory now says WHO HOLDS, this says WHAT IS HAPPENING. */
+    if (G.fronts) {
+      fillCollection(ctx, p, G.fronts, { fill: P.contested });
+      fillCollection(ctx, p, G.fronts, { fill: hatch(ctx, P.contestedStroke, u),
+        stroke: P.contestedStroke, width: Math.max(0.8, 0.8 * u), dash: [3 * u, 3 * u] });
+    }
     fillCollection(ctx, p, G.yem_adm1, { stroke: P.adm1, width: Math.max(0.8, u) });
     fillCollection(ctx, p, G.sau_adm1, { stroke: P.adm1, width: Math.max(0.8, u) });
     landPath(ctx, p, G, false);
