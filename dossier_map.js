@@ -63,8 +63,9 @@ var DossierMap = (function () {
   /* The PIN radius, written for BASE_W and floored the way the 17px text floor
      is: a mark that shrinks with the canvas stops being a mark. Read `place()`
      with it - the name is offset by the pin's own radius plus a gap, so the two
-     can never sit on top of each other. */
-  var PIN_R = 4.2, PIN_MIN = 4;
+     can never sit on top of each other. 4.2 on the day it was built and 3.0
+     since 2026-09-14: see the mark itself, painted below the labels. */
+  var PIN_R = 3.0, PIN_MIN = 3;
   var OPPOSITE = { e: "w", w: "e", n: "s", s: "n" };
   /* The board's own legend words, so the painted legend matches the one under
      the map on the board tab. */
@@ -169,8 +170,8 @@ var DossierMap = (function () {
   /* Heights across a shape, tried widest-run first. A name is allowed to reach a
      little past the ground it names (FIT) - cartography does that everywhere -
      but a run much narrower than the word means the shape is too small to hold
-     it at this scale, and then nothing is printed: a name the reader cannot tie
-     back to a shape points at nothing. */
+     it at this scale, and then this returns null and the caller sets the name
+     beside the shape instead. */
   var LEVELS = [0.5, 0.45, 0.55, 0.4, 0.6, 0.35, 0.65], FIT = 0.8;
 
   /* The widest run of the shape's OWN ground at one height, and the midpoint of
@@ -216,7 +217,21 @@ var DossierMap = (function () {
 
      No dot: this names an area, exactly as a country name does, and it is set a
      weight lighter than a town so the two never read as the same kind of thing.
-     No new hue - every one is spoken for by a front, a verdict or a side. */
+     No new hue - every one is spoken for by a front, a verdict or a side.
+
+     A name goes INSIDE its shape when the shape can hold it, and BESIDE it when
+     it cannot. The inside-only version was written when a front was a whole
+     district; since 2026-09-14 a front is a narrow band of sourced contact about
+     12 km wide sitting on the control line, and no Hebrew name fits inside a
+     band that thin at any scale this map is drawn at - inside-only would have
+     silently emptied the layer of every name it has. The fallback is the same
+     four sides a town name tries, measured off the band's own bounding box, so
+     the name still points at one shape and nothing else.
+
+     And a shape whose projected bounding box is under 40*u across its diagonal
+     keeps quiet: on the overview the frame spans 14 degrees of longitude, where
+     the smaller bands are a few pixels of hatching and a name on them would
+     shout louder than the thing it names. */
   function zoneNames(ctx, p, P, u, W, H, G, size, taken) {
     var R = painters();
     ((G.fronts && G.fronts.features) || []).forEach(function (f) {
@@ -234,11 +249,37 @@ var DossierMap = (function () {
         if (a > area) { area = a; ring = r; }
       });
       if (!ring) return;
+      var xs = ring.map(function (q) { return q[0]; });
+      var ys = ring.map(function (q) { return q[1]; });
+      var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs);
+      var y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
+      var bw = x1 - x0, bh = y1 - y0;
+      if (Math.sqrt(bw * bw + bh * bh) < 40 * u) return;
       var spot = fitInRing(ring, R.width(ctx, name, size, 500), size * 1.25,
                            W, H, taken, R);
-      if (!spot) return;
-      R.text(ctx, P, name, spot.x, spot.y, { size: size, weight: 500, halo: 3 * u });
-      taken.push(spot.box);
+      if (spot) {
+        R.text(ctx, P, name, spot.x, spot.y, { size: size, weight: 500, halo: 3 * u });
+        taken.push(spot.box);
+        return;
+      }
+      /* Beside the band: from the middle of its bounding box, cleared by half
+         that box on the axis it is leaving, so the name sits off the hatching
+         rather than along it. A side that runs off the canvas or lands on a name
+         already placed is passed over, and a name with no free side is dropped -
+         the same bargain the town names make. */
+      var mx = (x0 + x1) / 2, my = (y0 + y1) / 2, spec = null;
+      ["n", "s", "e", "w"].some(function (a) {
+        var clear = (a === "n" || a === "s") ? bh / 2 : bw / 2;
+        var s = R.place(ctx, name, mx, my, a, size, clear, u, W, H), b = s.box;
+        var free = !taken.some(function (t) { return R.overlaps(b, t); }) &&
+          b.x0 >= 0 && b.x1 <= W && b.y0 >= 0 && b.y1 <= H;
+        if (free) spec = s;
+        return free;
+      });
+      if (!spec) return;
+      R.text(ctx, P, spec.str, spec.x, spec.y, { size: size, weight: 500,
+        halo: 3 * u, align: spec.align, baseline: spec.baseline });
+      taken.push(spec.box);
     });
   }
 
@@ -263,8 +304,9 @@ var DossierMap = (function () {
     R.gains(ctx, p, P, u, D, G, mapId);
     /* Labels: the dossier's own first (they are the point of the map), then the
        lane names and the governorate names fitted around them and around the
-       legend box, which is measured now and painted last. Every town, port and
-       island gets a PIN, so the name is anchored to a place and not to a shape. */
+       legend box, which is measured now and painted last. Every town and port
+       gets a PIN, so the name is anchored to a place and not to a shape; an
+       island, the strait and a country name carry the name alone. */
     var gainKeys = {};
     (D.gains || []).forEach(function (g) { gainKeys[g.place_key] = true; });
     /* Under 800px the legend box (17px rows, six of them) would cover a
@@ -309,17 +351,26 @@ var DossierMap = (function () {
         return free;
       });
       if (!spec) return;
-      /* A PIN under every town, port and island - the GAINS INCLUDED. Until
-         2026-09-14 the dot was drawn only for a label that was not a gain, so
-         exactly the places the map is about - Mokha, Dhubab, Hays, al-Khawkhah,
-         Perim - were names floating over a violet shape with nothing saying
-         which pixel was the town (Ziv: "put a PIN so people can see where that
-         city is... in the actual exact location"). The 3px muted dot the others
-         got was invisible at the size this map is read at. A disc of the GROUND
-         colour under a dot of the ink reads over violet, over either side's
-         territory and over the sea, and adds no hue - every hue on this board is
-         spoken for by a front, a verdict or a side. */
-      if (!quiet) {
+      /* A PIN under every town and port - the GAINS INCLUDED. Until 2026-09-14
+         the dot was drawn only for a label that was not a gain, so exactly the
+         places the map is about - Mokha, Dhubab, Hays, al-Khawkhah - were names
+         floating over a violet shape with nothing saying which pixel was the
+         town (Ziv: "put a PIN so people can see where that city is... in the
+         actual exact location"). A disc of the GROUND colour under a dot of the
+         ink reads over violet, over either side's territory and over the sea,
+         and adds no hue - every hue on this board is spoken for by a front, a
+         verdict or a side.
+
+         The mark that first carried that was 4.2px, and Ziv called it weird the
+         same day ("I don't like the pins that you did. They look weird"). Asked
+         what it should be instead he chose a small, tight dot under the name
+         marking the exact spot - hence 3.0 - and drew the line this condition
+         reads: "only on real towns and ports - never on islands, the strait, or
+         a country name", because those are areas and an area has no one pixel
+         ("especially on the islands, there's no reason to put a point, not even
+         a city"). A country name already says so with anchor "c"; the two
+         islands and the strait say it with `pin: false` in the label. */
+      if (!quiet && l.pin !== false) {
         R.ringMark(ctx, q[0], q[1], pinR, { fill: P.halo });
         R.ringMark(ctx, q[0], q[1], pinR * 0.62, { fill: P.ink });
       }

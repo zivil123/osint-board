@@ -328,8 +328,15 @@ var DossierDeckMap = (function () {
     (map.labels || []).forEach(function (l) {
       if (!p.inside(l.lon, l.lat, 0)) return;
       var q = p(l.lon, l.lat), quiet = l.anchor === "c";
-      if (!quiet) {
-        var r = 0.055;
+      /* The dot marks a SPOT, so only a real town or port gets one, and it is
+         small and tight - Ziv, 2026-09-14: "I don't like the pins that you did.
+         They look weird, especially on the islands, there's no reason to put a
+         point, not even a city." An island, the strait and a country name are
+         areas with no one pixel: `pin: false` in the label (or anchor "c") and
+         the name stands alone. Same rule and same radius step as the canvas
+         painter - the two slides must show the same picture. */
+      if (!quiet && l.pin !== false) {
+        var r = 0.04;
         slide.addShape("ellipse", {
           x: Number((q[0] * sx - r).toFixed(3)), y: Number((q[1] * sy - r).toFixed(3)),
           w: r * 2, h: r * 2, fill: { color: flat(P.ink, LANDC) },
@@ -351,9 +358,27 @@ var DossierDeckMap = (function () {
                   size: 12, bold: false, color: flat(P.govLabel, LANDC) });
     });
     ((G.fronts && G.fronts.features) || []).forEach(function (f) {
-      var r = f.geometry.coordinates[0], cx = 0, cy = 0;
-      r.forEach(function (c) { cx += c[0]; cy += c[1]; });
-      cx /= r.length; cy /= r.length;
+      /* The LARGEST ring, across Polygon and MultiPolygon alike, exactly as the
+         canvas painter picks it. Until 2026-09-14 this read coordinates[0] and
+         averaged it: right for a Polygon, and for a MultiPolygon that index is a
+         whole polygon, so c[0] was an array, the average came out a string, and
+         the name was dropped with nothing in the console to say why. Fronts
+         became multi-part the same day. */
+      var geom = f.geometry || {}, ring = null, area = 0;
+      var polys = geom.type === "Polygon" ? [geom.coordinates]
+        : geom.type === "MultiPolygon" ? geom.coordinates : [];
+      polys.forEach(function (poly) {
+        var g = poly[0], a = 0;
+        for (var i = 0; i < g.length - 1; i++) {
+          a += g[i][0] * g[i + 1][1] - g[i + 1][0] * g[i][1];
+        }
+        a = Math.abs(a) / 2;
+        if (a > area) { area = a; ring = g; }
+      });
+      if (!ring) return;
+      var cx = 0, cy = 0;
+      ring.forEach(function (c) { cx += c[0]; cy += c[1]; });
+      cx /= ring.length; cy /= ring.length;
       if (!p.inside(cx, cy, 0)) return;
       var q = p(cx, cy);
       cand.push({ rank: 2, str: f.properties.name_he, cx: q[0], cy: q[1],
