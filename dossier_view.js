@@ -36,7 +36,7 @@
   const LEGEND = [
     { cls: "sw fill", style: "--sw-fill: var(--geo-fill-houthi)", he: "שטח בשליטת החות'ים" },
     { cls: "sw fill", style: "--sw-fill: var(--geo-fill-gov)", he: "שטח בשליטת הכוחות הלגיטימיים" },
-    { cls: "sw fill dash hatch", style: "--sw-fill: var(--geo-fill-contested)", he: "שטח לחימה פעיל" },
+    { cls: "sw fill dash hatch mark", style: "--sw-fill: var(--geo-fill-contested)", he: "שטח לחימה פעיל" },
     { cls: "sw fill gain", style: "", he: "נכבש בידי החות'ים (מאומת + משוער)" },
     { cls: "sw line dash", style: "--sw-c: var(--geo-control-line); --sw-w: 2px", he: "קו חזית משוער" },
   ];

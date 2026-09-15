@@ -295,7 +295,7 @@ var MapView = (function () {
     var fight = addGeo(geo.fronts, "geoHatch", function () {
       return { stroke: false, fillColor: S.contestedStroke, fillOpacity: 1, fill: true };
     });
-    if (fight) geoLayers.fighting = fight.addTo(map);
+    if (fight) geoLayers.fighting = MapFronts.wrap(map, geo, fight).addTo(map);
 
     /* Built, but NOT added: 333 sub-district outlines inside the governorates
        turn the country into a mesh, and the shape a reader orients by is the

@@ -203,6 +203,7 @@ var DossierMapDraw = (function () {
       fillCollection(ctx, p, G.fronts, { fill: P.contested });
       fillCollection(ctx, p, G.fronts, { fill: hatch(ctx, P.contestedStroke, u),
         stroke: P.contestedStroke, width: Math.max(0.8, 0.8 * u), dash: [3 * u, 3 * u] });
+      frontMarks(ctx, p, P, u, G);
     }
     fillCollection(ctx, p, G.yem_adm1, { stroke: P.adm1, width: Math.max(0.8, u) });
     fillCollection(ctx, p, G.sau_adm1, { stroke: P.adm1, width: Math.max(0.8, u) });
@@ -386,7 +387,7 @@ var DossierMapDraw = (function () {
       { fill: P.houthi, label: words.houthi },
       { fill: P.gov, label: words.gov },
       { fill: P.contested, hatch: hatch(ctx, P.contestedStroke, u), stroke: P.contestedStroke,
-        dash: [3 * u, 3 * u], width: u, label: words.contested },
+        dash: [3 * u, 3 * u], width: u, mark: true, label: words.contested },
       { gain: gainStyle(P, u), label: words.gained },
       { line: P.control, dash: dashOf(P.controlDash, u), width: P.controlW * u, label: words.front }
     ];
@@ -398,6 +399,45 @@ var DossierMapDraw = (function () {
     L.y0 = opt.top != null ? opt.top : H - 14 * u - L.h;
     L.box = { x0: L.x0, y0: L.y0, x1: L.x1, y1: L.y0 + L.h };
     return L;
+  }
+  /* A DIAMOND ON EVERY FIGHTING ZONE (2026-09-15). A belt is 12 km wide, which
+     is five pixels once the whole country is on one canvas, and Ziv could not
+     find them: "make the fighting places more like marked or something because
+     it's hard to see them on a big map." So each zone also carries a mark that
+     does NOT shrink with the geography - a diamond, floored at 5px, so it reads
+     at any scale. Diamond and not a dot, because a dot on this board is a town;
+     no new hue, because every hue is spoken for by a front, a verdict or a side.
+     Drawn at the average of the shape's own vertices, which for a belt sits on
+     its centreline. */
+  var MARK_R = 4.6, MARK_MIN = 5;
+  function diamond(ctx, x, y, r, style) {
+    ctx.beginPath();
+    ctx.moveTo(x, y - r); ctx.lineTo(x + r, y);
+    ctx.lineTo(x, y + r); ctx.lineTo(x - r, y);
+    ctx.closePath();
+    paintShape(ctx, style);
+  }
+  function frontMarks(ctx, p, P, u, G) {
+    var r = Math.max(MARK_MIN, MARK_R * u);
+    eachFeature(G.fronts, function (f) {
+      var geom = f.geometry || {}, best = null, area = 0;
+      var polys = geom.type === "Polygon" ? [geom.coordinates]
+        : geom.type === "MultiPolygon" ? geom.coordinates : [];
+      polys.forEach(function (poly) {
+        var ring = poly[0], sx = 0, sy = 0, a = 0, i;
+        for (i = 0; i < ring.length - 1; i++) {
+          var q = p(ring[i][0], ring[i][1]), n = p(ring[i + 1][0], ring[i + 1][1]);
+          a += q[0] * n[1] - n[0] * q[1];
+          sx += q[0]; sy += q[1];
+        }
+        a = Math.abs(a) / 2;
+        if (a > area && i) { area = a; best = [sx / i, sy / i]; }
+      });
+      if (!best) return;
+      diamond(ctx, best[0], best[1], r + Math.max(1.2, 1.2 * u), { fill: P.halo });
+      diamond(ctx, best[0], best[1], r, { fill: alpha(P.contestedStroke, 0.92),
+        stroke: P.ink, width: Math.max(1, u) });
+    });
   }
   function paintLegend(ctx, P, u, L) {
     ctx.beginPath();
@@ -420,6 +460,10 @@ var DossierMapDraw = (function () {
         ctx.beginPath(); ctx.rect(sx, sy, L.sw, sh);
         paintShape(ctx, r.gain || { fill: r.hatch ? null : r.fill, stroke: r.stroke || P.boxLine,
           width: r.width || Math.max(1, u), dash: r.dash });
+        if (r.mark) {
+          diamond(ctx, sx + L.sw / 2, cy, Math.max(MARK_MIN, MARK_R * u),
+            { fill: alpha(P.contestedStroke, 0.92), stroke: P.ink, width: Math.max(1, u) });
+        }
       }
       setFont(ctx, L.size, 500); ctx.textAlign = "right"; ctx.textBaseline = "middle";
       ctx.fillStyle = P.ink; ctx.fillText(r.label, sx - L.gap, cy);

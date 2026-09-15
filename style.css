@@ -385,6 +385,18 @@ button.lg-row[aria-pressed="false"] .sw { opacity: 0.4; }
 }
 .sw.fill.dash { border-style: dashed; border-color: var(--geo-contested-stroke); background-image: repeating-linear-gradient(-45deg, var(--geo-contested-stroke) 0 1.5px, transparent 1.5px 6px); }
 .sw.fill.dotted { border-style: dotted; border-color: var(--geo-gain-line); }
+/* The mark on an active fighting zone, on the map and in the key. A belt is 12 km
+   wide - a few pixels with the whole country in the window, and Ziv could not find
+   them (2026-09-15: "it's hard to see them on a big map"). A DIAMOND: a dot here is
+   a town, a ring is an approximate place, and every hue is already spoken for. */
+.front-mark i, .sw.fill.mark::before {
+  display: block; inline-size: 8px; block-size: 8px; margin: 2px;
+  transform: rotate(45deg); z-index: 1;
+  background: rgba(233, 240, 248, 0.92); border: 1px solid var(--ink);
+  box-shadow: 0 0 0 1.5px rgba(6, 16, 30, 0.85); box-sizing: border-box;
+}
+.sw.fill.mark::before { content: ""; position: absolute; inset: 50% auto auto 50%;
+  margin: -4px 0 0 -4px; }
 /* One line per area that changed hands: the name, and when it fell. */
 .lg-gain {
   display: flex; align-items: baseline; gap: 8px;
@@ -428,29 +440,9 @@ button.lg-row[aria-pressed="false"] .sw { opacity: 0.4; }
   /* The band carries every filter, so at 375px it wraps to several rows. Pinned,
      that would cover the screen it is meant to control - so on a phone it scrolls
      away with everything else (design-law: a pinned title row and the work below
-     it simply cover each other on a small screen).
-
-     Each group is its own NAMED BOX, and its chips are laid two-up inside it.
-     `display: contents` used to drop the groups out of the layout so all seven
-     chips flowed in ONE wrap context, packed into three tight rows: an arena
-     chip beside a fighting-type chip, with nothing saying they answered
-     different questions. Separating them with a hairline fixed the grouping and
-     left the second half of the fault standing - chips of seven different
-     widths wrapping wherever they landed, so each group ended with an orphan
-     chip and a ragged half-empty row. Ziv, on a photo of his own phone:
-     "this doesn't look organized, the boxes make it look better."
-
-     So: a bordered frame per group with its name sitting ON the frame, the way
-     a fieldset legend does, and every chip on a half-row basis so they line up
-     in two columns instead of packing. The legend costs no height at all, which
-     is why it is drawn there and not on a line of its own - measured, a line
-     each put 78px on a band the map pays for. The frame is unfilled: the label
-     has to mask the border it sits on, and only a transparent frame lets it do
-     that against the band's own colour with no patch showing.
-
-     A chip never SHRINKS below its own text, so when a count reaches three
-     digits and two no longer fit side by side they stack full width instead -
-     still square, never clipped. That is the graceful half of the basis. */
+     it simply cover each other on a small screen). The named-box grouping, the
+     half-row chip basis and Ziv's "this doesn't look organized, the boxes make it
+     look better" are recorded in full in UI.md, under The filter band. */
   .band { position: static; }
   .band-inner { gap: 8px; }
   .band-inner > .chips,
