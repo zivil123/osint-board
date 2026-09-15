@@ -94,7 +94,8 @@ var DossierMap = (function () {
   var LIGHT = {
     sea: "#C9DAEA", land: "#F4F7FA",
     houthi: "#C6BCAE", gov: "#E3E8ED", contested: "#EEF1F4",
-    contestedStroke: "#7F8B98", adm1: "rgba(20, 40, 60, 0.20)",
+    contestedStroke: "#7F8B98", frontMark: "#E01B0F",
+    adm1: "rgba(20, 40, 60, 0.20)",
     border: "#33445A", borderW: 2, control: "#1F2D3D", controlW: 2, controlDash: "6 4",
     ink: "#14202C", muted: "#3A4A5A", faint: "#5A6876", govLabel: "#4A5A6A",
     halo: "rgba(255, 255, 255, 0.92)", violet: "#5B4BC4", violetFill: "#B7A5F7",
@@ -132,6 +133,7 @@ var DossierMap = (function () {
       houthi: cssVar("--geo-fill-houthi"), gov: cssVar("--geo-fill-gov"),
       contested: cssVar("--geo-fill-contested"),
       contestedStroke: cssVar("--geo-contested-stroke"),
+      frontMark: cssVar("--geo-front-mark"),
       adm1: cssVar("--geo-gov-line"),
       border: cssVar("--geo-border"), borderW: cssNum("--geo-border-w", 2.5),
       control: cssVar("--geo-control-line"), controlW: cssNum("--geo-control-w", 2),

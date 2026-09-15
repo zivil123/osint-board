@@ -405,11 +405,14 @@ var DossierMapDraw = (function () {
      find them: "make the fighting places more like marked or something because
      it's hard to see them on a big map." So each zone also carries a mark that
      does NOT shrink with the geography - a diamond, floored at 5px, so it reads
-     at any scale. Diamond and not a dot, because a dot on this board is a town;
-     no new hue, because every hue is spoken for by a front, a verdict or a side.
+     at any scale. Diamond and not a dot, because a dot on this board is a town.
+     RED, and the one place this board takes a new hue: every other colour answers
+     which front or how well confirmed, this one answers where it is happening
+     now. The first pass obeyed the no-new-hue rule and Ziv came back with "make
+     it a color that stands out... so people see it fast" (2026-09-15).
      Drawn at the average of the shape's own vertices, which for a belt sits on
      its centreline. */
-  var MARK_R = 4.6, MARK_MIN = 5;
+  var MARK_R = 6.6, MARK_MIN = 7;
   function diamond(ctx, x, y, r, style) {
     ctx.beginPath();
     ctx.moveTo(x, y - r); ctx.lineTo(x + r, y);
@@ -434,9 +437,9 @@ var DossierMapDraw = (function () {
         if (a > area && i) { area = a; best = [sx / i, sy / i]; }
       });
       if (!best) return;
-      diamond(ctx, best[0], best[1], r + Math.max(1.2, 1.2 * u), { fill: P.halo });
-      diamond(ctx, best[0], best[1], r, { fill: alpha(P.contestedStroke, 0.92),
-        stroke: P.ink, width: Math.max(1, u) });
+      diamond(ctx, best[0], best[1], r + Math.max(2, 2 * u), { fill: P.halo });
+      diamond(ctx, best[0], best[1], r, { fill: P.frontMark,
+        stroke: P.halo, width: Math.max(1.5, 1.5 * u) });
     });
   }
   function paintLegend(ctx, P, u, L) {
@@ -461,8 +464,8 @@ var DossierMapDraw = (function () {
         paintShape(ctx, r.gain || { fill: r.hatch ? null : r.fill, stroke: r.stroke || P.boxLine,
           width: r.width || Math.max(1, u), dash: r.dash });
         if (r.mark) {
-          diamond(ctx, sx + L.sw / 2, cy, Math.max(MARK_MIN, MARK_R * u),
-            { fill: alpha(P.contestedStroke, 0.92), stroke: P.ink, width: Math.max(1, u) });
+          diamond(ctx, sx + L.sw / 2, cy, Math.max(MARK_MIN, MARK_R * u) * 0.8,
+            { fill: P.frontMark, stroke: P.halo, width: Math.max(1, u) });
         }
       }
       setFont(ctx, L.size, 500); ctx.textAlign = "right"; ctx.textBaseline = "middle";

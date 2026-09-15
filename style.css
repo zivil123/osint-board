@@ -57,6 +57,14 @@
      the border is solid and heavy and the front line is a 6-4 dash, so the free
      texture is a fine dot, over a fill one step brighter than the ground it sits
      on. */
+  /* THE ONE HUE THAT IS NOT A SIDE OR A VERDICT. Every other colour here answers
+     "which front" or "how well confirmed"; this one answers "where is it happening
+     right now", and it is loud on purpose - Ziv, 2026-09-15: "make it a color that
+     stands out and make it maybe bigger so people see it fast when they look on the
+     map, especially on the big map." Red, because that is what a fight is called
+     everywhere and teal, pink, amber, violet, green and orange are taken; deeper and
+     far more saturated than --v-denied's salmon, and a DIAMOND not a circle. */
+  --geo-front-mark: #FF2D20;
   --geo-gain-line: #E6EDF5;
   --geo-gain-w: 2.6;
   --geo-gain-dash: 3 4;
@@ -390,13 +398,13 @@ button.lg-row[aria-pressed="false"] .sw { opacity: 0.4; }
    them (2026-09-15: "it's hard to see them on a big map"). A DIAMOND: a dot here is
    a town, a ring is an approximate place, and every hue is already spoken for. */
 .front-mark i, .sw.fill.mark::before {
-  display: block; inline-size: 8px; block-size: 8px; margin: 2px;
+  display: block; inline-size: 12px; block-size: 12px; margin: 3px;
   transform: rotate(45deg); z-index: 1;
-  background: rgba(233, 240, 248, 0.92); border: 1px solid var(--ink);
-  box-shadow: 0 0 0 1.5px rgba(6, 16, 30, 0.85); box-sizing: border-box;
+  background: var(--geo-front-mark); border: 1.5px solid #FFFFFF;
+  box-shadow: 0 0 0 2px rgba(6, 16, 30, 0.9); box-sizing: border-box;
 }
 .sw.fill.mark::before { content: ""; position: absolute; inset: 50% auto auto 50%;
-  margin: -4px 0 0 -4px; }
+  inline-size: 9px; block-size: 9px; margin: -4.5px 0 0 -4.5px; }
 /* One line per area that changed hands: the name, and when it fell. */
 .lg-gain {
   display: flex; align-items: baseline; gap: 8px;

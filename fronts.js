@@ -9,9 +9,11 @@
    the dossier read as one map.
 
    Diamond and not a dot, because a dot on this board is a town, and a ring is a
-   place with an uncertain position. No new hue: every colour here is spoken for
-   by a front, a verdict or a side, so the mark takes the fighting zone's own
-   stroke colour and is told apart by SHAPE.
+   place with an uncertain position. RED, and the one place this board takes a
+   colour of its own: every other hue answers which front or how well confirmed,
+   and this one answers where it is happening right now. The first pass obeyed
+   the no-new-hue rule and he came straight back - "make it a color that stands
+   out and make it maybe bigger so people see it fast." `--geo-front-mark`.
 
    Split into its own file for the same reason gains.js and labels.js were:
    map.js sits on the 500-line ceiling. NO ES modules - this page runs from
@@ -59,7 +61,7 @@ var MapFronts = (function () {
         /* The diamond is an INNER element: Leaflet writes its own transform on
            the icon container to position it, which would overwrite a rotate. */
         icon: L.divIcon({ className: "front-mark", html: "<i></i>",
-                          iconSize: [12, 12], iconAnchor: [6, 6] }),
+                          iconSize: [18, 18], iconAnchor: [9, 9] }),
         interactive: false,
         keyboard: false
       }));

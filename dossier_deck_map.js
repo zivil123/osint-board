@@ -384,11 +384,11 @@ var DossierDeckMap = (function () {
       /* The same DIAMOND the canvas paints, for the same reason: a 12 km belt is
          a hairline once the whole country is on one slide, and Ziv could not find
          the fighting on it (2026-09-15). A real shape he can select and move. */
-      var d = 0.07;
+      var d = 0.105;
       slide.addShape("diamond", {
         x: Number((q[0] * sx - d).toFixed(3)), y: Number((q[1] * sy - d).toFixed(3)),
-        w: d * 2, h: d * 2, fill: { color: flat(P.contestedStroke, HOUC) },
-        line: { color: flat(P.ink, HOUC), width: 1 }
+        w: d * 2, h: d * 2, fill: { color: flat(P.frontMark, HOUC) },
+        line: { color: flat(P.halo, HOUC), width: 1.5 }
       });
       cand.push({ rank: 2, str: f.properties.name_he, cx: q[0], cy: q[1],
                   size: 11, bold: false, color: flat(P.muted, LANDC) });
