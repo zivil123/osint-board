@@ -1,13 +1,17 @@
 /* The layer painters behind dossier_map.js: geometry paths, Hebrew text with a
-   halo, the gains overlay, the shipping lanes, the governorate names and the
-   legend box. dossier_map.js owns the frames, the projection, the palette and
-   the public API; it calls into this file at paint time, so the two may load in
-   either order as long as both are on the page before the view draws.
+   halo, the gains overlay, the shipping lanes and the governorate names.
+   dossier_map.js owns the frames, the projection, the palette and the public
+   API; it calls into this file at paint time, so the painter files may load in
+   any order as long as all of them are on the page before the view draws.
 
    Split out the day the painter passed the 480-line cap, exactly as the brief
-   allowed. NO ES modules - the page runs from file://. One global:
+   allowed. The LEGEND and the fighting-zone diamond left for
+   dossier_map_legend.js on 2026-09-15, and the relief raster, the fighting
+   notes and the assessment arrows went into dossier_map_extra.js the same day.
 
-     window.DossierMapDraw = { ... }   (read by dossier_map.js only)
+   NO ES modules - the page runs from file://. One global:
+
+     window.DossierMapDraw = { ... }   (read by the other painter files only)
 
    Every string painted here is Hebrew; the words the legend needs live in
    dossier_map.js next to the palette, and this file is handed them. */
@@ -184,15 +188,28 @@ var DossierMapDraw = (function () {
     polyPath(ctx, p, G.yem_adm0.features[0].geometry);
     if (shore) eachFeature(G.afr_adm0, function (f) { polyPath(ctx, p, f.geometry); });
   }
-  function ground(ctx, p, P, u, W, H, G) {
+  /* `opt` is the relief variant's business and nothing else's: `{img, bounds}`
+     lays the terrain picture inside the coastline, and `fade` washes the three
+     territory fills back so the terrain stays readable under them. Without it
+     this paints exactly what it painted before the raster existed. */
+  function ground(ctx, p, P, u, W, H, G, opt) {
+    var X = window.DossierMapExtra, o = opt || {};
     ctx.fillStyle = P.sea; ctx.fillRect(0, 0, W, H);
     landPath(ctx, p, G, true);
     paintShape(ctx, { fill: P.land });
+    /* The raster goes in HERE - over the land fill, under everything that
+       carries meaning, and clipped to the coastline that was just drawn. */
+    if (o.img && X) X.relief(ctx, p, o.img, o.bounds);
     var byControl = function (c) { return function (f) { return f.properties.control === c; }; };
     var zones = G.control_zones;
+    /* On the light deck the three fills are opaque; over the terrain they would
+       erase it, so they are washed back. The dark palette's fills already carry
+       their own alpha and are left alone. */
+    if (o.fade) ctx.globalAlpha = o.fade;
     fillCollection(ctx, p, zones, { fill: P.gov }, byControl("government"));
     fillCollection(ctx, p, zones, { fill: P.houthi }, byControl("houthi"));
-    /* The ACTIVE FIGHTING zones are their own layer (dataronts.json ->
+    ctx.globalAlpha = 1;
+    /* The ACTIVE FIGHTING zones are their own layer (data\fronts.json ->
        GEO.fronts), drawn over the territory instead of replacing a district's
        fill. Until 2026-09-14 the hatch WAS a district's control value, so a
        20 km contact belt in one corner of Khab wa Ash Sha'f painted 2.4 degrees
@@ -200,10 +217,15 @@ var DossierMapDraw = (function () {
        colour. Ziv reported it on al-Jawf, on Maqbanah and on the Lahij coast in
        one message. Territory now says WHO HOLDS, this says WHAT IS HAPPENING. */
     if (G.fronts) {
+      if (o.fade) ctx.globalAlpha = o.fade;
       fillCollection(ctx, p, G.fronts, { fill: P.contested });
+      ctx.globalAlpha = 1;
+      /* The hatch, the outline and the diamond are never washed back - they are
+         what says a fight is happening here, and a terrain picture underneath
+         is no reason to say it more quietly. */
       fillCollection(ctx, p, G.fronts, { fill: hatch(ctx, P.contestedStroke, u),
         stroke: P.contestedStroke, width: Math.max(0.8, 0.8 * u), dash: [3 * u, 3 * u] });
-      frontMarks(ctx, p, P, u, G);
+      if (window.DossierMapLegend) window.DossierMapLegend.frontMarks(ctx, p, P, u, G);
     }
     fillCollection(ctx, p, G.yem_adm1, { stroke: P.adm1, width: Math.max(0.8, u) });
     fillCollection(ctx, p, G.sau_adm1, { stroke: P.adm1, width: Math.max(0.8, u) });
@@ -370,115 +392,11 @@ var DossierMapDraw = (function () {
     });
   }
 
-  /* ---- legend --------------------------------------------------------------------- */
-
-  /* MEASURED before any label is placed, so its box counts as taken ground for
-     the governorate names and the lane name, and PAINTED last so it sits over
-     everything. Right-hand (RTL start) corner: at the bottom, or at the top
-     when the frame says so (`opt.top`, the line under the painted title) - the
-     close-up's bottom-right is Aden. A key and nothing else: the strait-width
-     notes that once sat under it were "not relevant" (Ziv, 2026-09-11), and
-     the build now refuses a map note. Everything scales with the row text. */
-  function legendLayout(ctx, P, u, W, H, hasLanes, words, opt) {
-    var k = opt.size / 17;
-    var L = { size: opt.size, k: k, pad: 12 * k, sw: 26 * k, gap: 9 * k };
-    L.rowH = L.size * 1.55;
-    L.rows = [
-      { fill: P.houthi, label: words.houthi },
-      { fill: P.gov, label: words.gov },
-      { fill: P.contested, hatch: hatch(ctx, P.contestedStroke, u), stroke: P.contestedStroke,
-        dash: [3 * u, 3 * u], width: u, mark: true, label: words.contested },
-      { gain: gainStyle(P, u), label: words.gained },
-      { line: P.control, dash: dashOf(P.controlDash, u), width: P.controlW * u, label: words.front }
-    ];
-    if (hasLanes) L.rows.push({ line: P.lane, dash: [8 * u, 6 * u], width: 2 * u, label: words.lane });
-    var textW = Math.max.apply(null, L.rows.map(function (r) { return width(ctx, r.label, L.size, 500); }));
-    L.w = Math.min(W * 0.44, Math.max(textW + L.sw + L.gap, 220 * u) + 2 * L.pad);
-    L.h = 2 * L.pad + L.rows.length * L.rowH;
-    L.x1 = W - 14 * u; L.x0 = L.x1 - L.w;
-    L.y0 = opt.top != null ? opt.top : H - 14 * u - L.h;
-    L.box = { x0: L.x0, y0: L.y0, x1: L.x1, y1: L.y0 + L.h };
-    return L;
-  }
-  /* A DIAMOND ON EVERY FIGHTING ZONE (2026-09-15). A belt is 12 km wide, which
-     is five pixels once the whole country is on one canvas, and Ziv could not
-     find them: "make the fighting places more like marked or something because
-     it's hard to see them on a big map." So each zone also carries a mark that
-     does NOT shrink with the geography - a diamond, floored at 5px, so it reads
-     at any scale. Diamond and not a dot, because a dot on this board is a town.
-     RED, and the one place this board takes a new hue: every other colour answers
-     which front or how well confirmed, this one answers where it is happening
-     now. The first pass obeyed the no-new-hue rule and Ziv came back with "make
-     it a color that stands out... so people see it fast" (2026-09-15).
-     Drawn at the average of the shape's own vertices, which for a belt sits on
-     its centreline. */
-  var MARK_R = 6.6, MARK_MIN = 7;
-  function diamond(ctx, x, y, r, style) {
-    ctx.beginPath();
-    ctx.moveTo(x, y - r); ctx.lineTo(x + r, y);
-    ctx.lineTo(x, y + r); ctx.lineTo(x - r, y);
-    ctx.closePath();
-    paintShape(ctx, style);
-  }
-  function frontMarks(ctx, p, P, u, G) {
-    var r = Math.max(MARK_MIN, MARK_R * u);
-    eachFeature(G.fronts, function (f) {
-      var geom = f.geometry || {}, best = null, area = 0;
-      var polys = geom.type === "Polygon" ? [geom.coordinates]
-        : geom.type === "MultiPolygon" ? geom.coordinates : [];
-      polys.forEach(function (poly) {
-        var ring = poly[0], sx = 0, sy = 0, a = 0, i;
-        for (i = 0; i < ring.length - 1; i++) {
-          var q = p(ring[i][0], ring[i][1]), n = p(ring[i + 1][0], ring[i + 1][1]);
-          a += q[0] * n[1] - n[0] * q[1];
-          sx += q[0]; sy += q[1];
-        }
-        a = Math.abs(a) / 2;
-        if (a > area && i) { area = a; best = [sx / i, sy / i]; }
-      });
-      if (!best) return;
-      diamond(ctx, best[0], best[1], r + Math.max(2, 2 * u), { fill: P.halo });
-      diamond(ctx, best[0], best[1], r, { fill: P.frontMark,
-        stroke: P.halo, width: Math.max(1.5, 1.5 * u) });
-    });
-  }
-  function paintLegend(ctx, P, u, L) {
-    ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(L.x0, L.y0, L.w, L.h, 10 * L.k);
-    else ctx.rect(L.x0, L.y0, L.w, L.h);
-    paintShape(ctx, { fill: P.box, stroke: P.boxLine, width: Math.max(1, u) });
-    var y = L.y0 + L.pad, sh = 16 * L.k;
-    L.rows.forEach(function (r) {
-      var cy = y + L.rowH / 2, sx = L.x1 - L.pad - L.sw, sy = cy - sh / 2;
-      if (r.line) {
-        ctx.beginPath(); ctx.moveTo(sx, cy); ctx.lineTo(sx + L.sw, cy);
-        paintShape(ctx, { stroke: r.line, width: r.width, dash: r.dash });
-      } else {
-        /* Land under the fill, so the swatch is the colour the map shows; a
-           hairline edge, because the government wash is a dark step that
-           would otherwise vanish into the box. */
-        ctx.beginPath(); ctx.rect(sx, sy, L.sw, sh);
-        paintShape(ctx, { fill: P.land });
-        if (r.hatch) { paintShape(ctx, { fill: r.fill }); paintShape(ctx, { fill: r.hatch }); }
-        ctx.beginPath(); ctx.rect(sx, sy, L.sw, sh);
-        paintShape(ctx, r.gain || { fill: r.hatch ? null : r.fill, stroke: r.stroke || P.boxLine,
-          width: r.width || Math.max(1, u), dash: r.dash });
-        if (r.mark) {
-          diamond(ctx, sx + L.sw / 2, cy, Math.max(MARK_MIN, MARK_R * u) * 0.8,
-            { fill: P.frontMark, stroke: P.halo, width: Math.max(1, u) });
-        }
-      }
-      setFont(ctx, L.size, 500); ctx.textAlign = "right"; ctx.textBaseline = "middle";
-      ctx.fillStyle = P.ink; ctx.fillText(r.label, sx - L.gap, cy);
-      y += L.rowH;
-    });
-  }
-
   return {
     mix: mix, alpha: alpha, text: text, width: width, overlaps: overlaps,
-    place: place, ringMark: ringMark,
-    ground: ground, gains: gains, lanes: lanes, govLabels: govLabels,
-    legendLayout: legendLayout, paintLegend: paintLegend
+    place: place, ringMark: ringMark, setFont: setFont, paintShape: paintShape,
+    hatch: hatch, dashOf: dashOf, eachFeature: eachFeature, gainStyle: gainStyle,
+    ground: ground, gains: gains, lanes: lanes, govLabels: govLabels
   };
 })();
 

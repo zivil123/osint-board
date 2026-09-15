@@ -12,13 +12,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-<link rel="stylesheet" href="style.css?v=20260915042208-fe91ad79">
-<link rel="stylesheet" href="cards.css?v=20260915042208-fe91ad79">
-<link rel="stylesheet" href="map.css?v=20260915042208-fe91ad79">
-<link rel="stylesheet" href="tabs.css?v=20260915042208-fe91ad79">
-<link rel="stylesheet" href="daily.css?v=20260915042208-fe91ad79">
-<link rel="stylesheet" href="dossier.css?v=20260915042208-fe91ad79">
-<link rel="stylesheet" href="unlock.css?v=20260915042208-fe91ad79">
+<link rel="stylesheet" href="style.css?v=20260915213326-6bfb4fe2">
+<link rel="stylesheet" href="cards.css?v=20260915213326-6bfb4fe2">
+<link rel="stylesheet" href="map.css?v=20260915213326-6bfb4fe2">
+<link rel="stylesheet" href="tabs.css?v=20260915213326-6bfb4fe2">
+<link rel="stylesheet" href="daily.css?v=20260915213326-6bfb4fe2">
+<link rel="stylesheet" href="dossier.css?v=20260915213326-6bfb4fe2">
+<link rel="stylesheet" href="unlock.css?v=20260915213326-6bfb4fe2">
 </head>
 <body>
 
@@ -205,33 +205,36 @@
          aria-label="סיכומים"></section>
 
 <!-- The dossier view (the מתקפת פתע tab): one dated document - background,
-     two static maps, strategic importance, meanings, sources - filled by
-     dossier_view.js from const DOSSIER; hidden unless body carries view-dossier.
+     the static maps (one block per map and per variant), strategic importance,
+     sources - filled by dossier_view.js from const DOSSIER; hidden unless
+     body carries view-dossier.
      Written by the pipeline's Step D - see DOSSIER.md. -->
 <section class="dossier-pane" id="dossier-pane" data-pane="dossier" role="tabpanel"
          aria-label="מתקפת פתע"></section>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script src="bundle.js?v=20260915042208-fe91ad79"></script>
-<script src="unlock.js?v=20260915042208-fe91ad79"></script>
-<script type="text/plain" data-locked-src="geo.js?v=20260915042208-fe91ad79"></script>
-<script type="text/plain" data-locked-src="labels.js?v=20260915042208-fe91ad79"></script>
-<script type="text/plain" data-locked-src="legend.js?v=20260915042208-fe91ad79"></script>
-<script type="text/plain" data-locked-src="icons.js?v=20260915042208-fe91ad79"></script>
-<script type="text/plain" data-locked-src="cluster.js?v=20260915042208-fe91ad79"></script>
-<script type="text/plain" data-locked-src="gains.js?v=20260915042208-fe91ad79"></script>
-<script type="text/plain" data-locked-src="fronts.js?v=20260915042208-fe91ad79"></script>
-<script type="text/plain" data-locked-src="map.js?v=20260915042208-fe91ad79"></script>
-<script type="text/plain" data-locked-src="expand.js?v=20260915042208-fe91ad79"></script>
-<script type="text/plain" data-locked-src="filters.js?v=20260915042208-fe91ad79"></script>
-<script type="text/plain" data-locked-src="app.js?v=20260915042208-fe91ad79"></script>
-<script type="text/plain" data-locked-src="tabs.js?v=20260915042208-fe91ad79"></script>
-<script type="text/plain" data-locked-src="daily.js?v=20260915042208-fe91ad79"></script>
-<script type="text/plain" data-locked-src="dossier_map.js?v=20260915042208-fe91ad79"></script>
-<script type="text/plain" data-locked-src="dossier_map_draw.js?v=20260915042208-fe91ad79"></script>
-<script type="text/plain" data-locked-src="dossier_deck_map.js?v=20260915042208-fe91ad79"></script>
-<script type="text/plain" data-locked-src="dossier_deck.js?v=20260915042208-fe91ad79"></script>
-<script type="text/plain" data-locked-src="dossier_view.js?v=20260915042208-fe91ad79"></script>
+<script src="bundle.js?v=20260915213326-6bfb4fe2"></script>
+<script src="unlock.js?v=20260915213326-6bfb4fe2"></script>
+<script type="text/plain" data-locked-src="geo.js?v=20260915213326-6bfb4fe2"></script>
+<script type="text/plain" data-locked-src="labels.js?v=20260915213326-6bfb4fe2"></script>
+<script type="text/plain" data-locked-src="legend.js?v=20260915213326-6bfb4fe2"></script>
+<script type="text/plain" data-locked-src="icons.js?v=20260915213326-6bfb4fe2"></script>
+<script type="text/plain" data-locked-src="cluster.js?v=20260915213326-6bfb4fe2"></script>
+<script type="text/plain" data-locked-src="gains.js?v=20260915213326-6bfb4fe2"></script>
+<script type="text/plain" data-locked-src="fronts.js?v=20260915213326-6bfb4fe2"></script>
+<script type="text/plain" data-locked-src="map.js?v=20260915213326-6bfb4fe2"></script>
+<script type="text/plain" data-locked-src="expand.js?v=20260915213326-6bfb4fe2"></script>
+<script type="text/plain" data-locked-src="filters.js?v=20260915213326-6bfb4fe2"></script>
+<script type="text/plain" data-locked-src="app.js?v=20260915213326-6bfb4fe2"></script>
+<script type="text/plain" data-locked-src="tabs.js?v=20260915213326-6bfb4fe2"></script>
+<script type="text/plain" data-locked-src="daily.js?v=20260915213326-6bfb4fe2"></script>
+<script type="text/plain" data-locked-src="dossier_map.js?v=20260915213326-6bfb4fe2"></script>
+<script type="text/plain" data-locked-src="dossier_map_draw.js?v=20260915213326-6bfb4fe2"></script>
+<script type="text/plain" data-locked-src="dossier_map_legend.js?v=20260915213326-6bfb4fe2"></script>
+<script type="text/plain" data-locked-src="dossier_map_extra.js?v=20260915213326-6bfb4fe2"></script>
+<script type="text/plain" data-locked-src="dossier_deck_map.js?v=20260915213326-6bfb4fe2"></script>
+<script type="text/plain" data-locked-src="dossier_deck.js?v=20260915213326-6bfb4fe2"></script>
+<script type="text/plain" data-locked-src="dossier_view.js?v=20260915213326-6bfb4fe2"></script>
 </body>
 </html>

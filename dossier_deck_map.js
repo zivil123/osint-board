@@ -383,8 +383,10 @@ var DossierDeckMap = (function () {
       var q = p(cx, cy);
       /* The same DIAMOND the canvas paints, for the same reason: a 12 km belt is
          a hairline once the whole country is on one slide, and Ziv could not find
-         the fighting on it (2026-09-15). A real shape he can select and move. */
-      var d = 0.105;
+         the fighting on it (2026-09-15). A real shape he can select and move.
+         Widened the same afternoon, with the canvas painter's own constant: at
+         0.105 in he still could not see it on a projected slide. */
+      var d = 0.17;
       slide.addShape("diamond", {
         x: Number((q[0] * sx - d).toFixed(3)), y: Number((q[1] * sy - d).toFixed(3)),
         w: d * 2, h: d * 2, fill: { color: flat(P.frontMark, HOUC) },

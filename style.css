@@ -404,7 +404,7 @@ button.lg-row[aria-pressed="false"] .sw { opacity: 0.4; }
   box-shadow: 0 0 0 2px rgba(6, 16, 30, 0.9); box-sizing: border-box;
 }
 .sw.fill.mark::before { content: ""; position: absolute; inset: 50% auto auto 50%;
-  inline-size: 9px; block-size: 9px; margin: -4.5px 0 0 -4.5px; }
+  inline-size: 14px; block-size: 14px; margin: -7px 0 0 -7px; }
 /* One line per area that changed hands: the name, and when it fell. */
 .lg-gain {
   display: flex; align-items: baseline; gap: 8px;

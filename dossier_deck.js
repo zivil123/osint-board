@@ -1,23 +1,27 @@
 /* dossier_deck.js — the dossier tab's PowerPoint, built in the browser on tap.
 
-   window.DossierDeck = { build(theme) }  theme: "dark" | "light"  → Promise
-   resolving to { blob, fileName, mime }. It does not save; see dossier_view.js.
-   Reads DOSSIER (dossier_data.js) and, for the two map slides, DossierMap.exportPng
+   window.DossierDeck = { build() }  → Promise resolving to { blob, fileName, mime }.
+   It does not save; see dossier_view.js. An argument is accepted and ignored: the
+   deck had a dark and a light theme until 2026-09-15, when Ziv kept only the bright
+   one, and an old caller still passes a name.
+   Reads DOSSIER (dossier_data.js) and, for the map slides, DossierMap
    (dossier_map.js). PptxGenJS 4.0.1 is fetched from jsDelivr on the FIRST tap and
    never before: the board must open with no network, and the deck is the one thing
    on it that needs one. Rejections carry a Hebrew message the view prints as is.
    VERIFY WITH `?deck=dry`, never a real save: the board runs on the machine the
    reader is sitting at, and a test tap must not put a file or a window on it.
 
+   THE DECK IS A TITLE SLIDE AND THEN MAPS ONLY (Ziv, 2026-09-15). The Top 5, the
+   dated background, the importance and the sources all came off the deck the same
+   day: the tab still carries them, the presentation is the maps. Every map in
+   DOSSIER.maps is exported once per variant DossierMap knows for it (plain, notes,
+   relief) as a full-bleed picture, and the plain overview and close-up are also
+   emitted as editable PowerPoint objects (dossier_deck_map.js).
+
    Every text box is RTL, right-aligned, he-IL, Segoe UI (Heebo is a web font and
    would not be on a projector laptop). Mixed content is built from RUNS in one
    paragraph, a digits-only date in LRM marks; paragraph properties sit on the
-   FIRST run — pptxgenjs reads them there.
-
-   PowerPoint cannot report a text box's height back, so page breaks are decided
-   here from a conservative glyph estimate, capped by DOSSIER.md's text budgets.
-   Two themes, one function: dark reads the board's own tokens, light is a cool
-   off-white ground with the violet darkened to keep 3:1. */
+   FIRST run — pptxgenjs reads them there. */
 (function () {
   "use strict";
 
@@ -38,19 +42,19 @@
     st.textContent = '.ds-btn::after{content:" · בדיקה בלבד"}';
     (document.head || document.documentElement).appendChild(st); }
   const W = 10, H = 5.625, M = 0.5;            // LAYOUT_16x9, inches
-  const BODY_TOP = 1.2, BODY_BOTTOM = H - 0.58; // under the heading, above the footer
-  const RULE_W = 0.9, GAP = 0.4;
+  const RULE_W = 0.9;
   /* Measured on PowerPoint's own render of Segoe UI Hebrew (2026-09-11): a line
      holds width/(pt*0.55) characters with word-wrap slack counted, lines 1.2em
      apart. The character count carries the slack; the pitch is as measured. */
   const GLYPH = 0.55, LINE = 1.2;
-  const LRM = "\u200E";
-  const VERDICT = { confirmed: "אומת בדיווחים בין-לאומיים", partial: "אימות חלקי",
-                    none: "דיווח שלא נמצא לו אימות עצמאי", claim: "טענה" };
-  const LIGHT = { bg: "FBFDFF", ink: "0B2138", muted: "3F5670", accent: "1D4ED8",
-                  violet: "5B4BC4", line: "D6DEE8" };
-  const DARK_FALLBACK = { bg: "081A2F", ink: "E6EDF5", muted: "A9BACC",
-                          accent: "6EA8FF", violet: "B7A5F7", line: "22384F" };
+  const LRM = "‎";
+  /* The one theme: a cool off-white ground, dark ink, the violet darkened to keep 3:1.
+     `name` is what DossierMap and DossierDeckMap are asked for. */
+  const T = { name: "light", bg: "FBFDFF", ink: "0B2138", muted: "3F5670",
+              accent: "1D4ED8", violet: "5B4BC4", line: "D6DEE8" };
+  /* The maps that also go in as editable objects: the twin knows these two frames
+     and their plain layers, nothing more. */
+  const EDITABLE = ["overview", "mandab"];
   let libPromise = null;
 
   /* ---- library ------------------------------------------------------------ */
@@ -72,26 +76,11 @@
     return libPromise;
   }
 
-  /* ---- theme -------------------------------------------------------------- */
-
-  function tok(name, fallback) {
-    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-    const m = /^#([0-9a-f]{6})$/i.exec(v); return m ? m[1].toUpperCase() : fallback;
-  }
-  function themeOf(name) {
-    if (name === "light") return Object.assign({ name: "light" }, LIGHT);
-    const F = DARK_FALLBACK;
-    return { name: "dark", bg: tok("--bg", F.bg), ink: tok("--ink", F.ink),
-      muted: tok("--ink-muted", F.muted), accent: tok("--accent-text", F.accent),
-      violet: tok("--f-internal", F.violet), line: F.line };
-  }
-
   /* ---- text helpers ------------------------------------------------------- */
   /* Headings only: a hyphen between two Hebrew letters becomes a non-breaking one,
-     so a name like the strait's is never split across lines. Body text wraps as
-     PowerPoint sees fit; this is a heading's privilege. */
+     so a name like the strait's is never split across lines. */
   function noBreakHyphen(text) {
-    return String(text || "").replace(/([\u0590-\u05FF])-([\u0590-\u05FF])/g, "$1\u2011$2");
+    return String(text || "").replace(/([֐-׿])-([֐-׿])/g, "$1‑$2");
   }
   function fmtDate(iso) {
     const p = String(iso || "").split("-");
@@ -115,8 +104,8 @@
      PowerPoint places and mirrors it as the page would; inside a Latin run it is
      drawn LTR at the run's end, which put "AFP," with its comma on the wrong side
      and split "ב-Bab al-Mandab" into two reversed halves (measured). */
-  const HEB = /[\u0590-\u05FF]/, LAT = /[A-Za-z\u00C0-\u024F]/;
-  const SEG = /[\u0590-\u05FF]+|[A-Za-z\u00C0-\u024F]+|[0-9]+|[^\u0590-\u05FFA-Za-z\u00C0-\u024F0-9]+/g;
+  const HEB = /[֐-׿]/, LAT = /[A-Za-zÀ-ɏ]/;
+  const SEG = /[֐-׿]+|[A-Za-zÀ-ɏ]+|[0-9]+|[^֐-׿A-Za-zÀ-ɏ0-9]+/g;
   function runsFor(text, o) {
     const segs = String(text == null ? "" : text).match(SEG) || [];
     if (!segs.length) return [run("", o)];
@@ -134,16 +123,8 @@
     const groups = []; segs.forEach((t, i) => {
       const last = groups[groups.length - 1];
       if (last && last.cls === cls[i]) last.text += t; else groups.push({ cls: cls[i], text: t }); });
-    return groups.map(g => {
-      const opts = Object.assign({}, o || {}, { lang: g.cls === "en" ? "en-US" : "he-IL" });
-      if (opts.hyperlink) opts.hyperlink = Object.assign({}, opts.hyperlink);
-      return run(g.text, opts);
-    });
-  }
-  /* Paragraph-level options go on the first run; the last run ends the paragraph. */
-  function para(runs, popts) {
-    Object.assign(runs[0].options, popts || {});
-    runs[runs.length - 1].options.breakLine = true; return runs;
+    return groups.map(g => run(g.text,
+      Object.assign({}, o || {}, { lang: g.cls === "en" ? "en-US" : "he-IL" })));
   }
   function box(slide, runs, pos, o) {
     slide.addText(runs, Object.assign({ isTextBox: true, rtlMode: true, align: "right",
@@ -155,54 +136,32 @@
     return (lines * pt * LINE + (afterPt || 0)) / 72;
   }
 
-  /* Packs items into columns; `avail(pageIdx)` is the column height on that page,
-     so the first page can give room to the intro. Returns pages → columns → items.
-     An item that cannot fit beside the intro is NOT squeezed under it: the intro
-     keeps its page alone and the item opens the next one (measured: a 700-char
-     intro plus one item ran through the footer). */
-  function pack(items, measure, avail, cols, maxPerCol) {
-    const pages = []; let page = [], col = [], used = 0;
-    const closeCol = () => { page.push(col); col = []; used = 0;
-      if (page.length === cols) { pages.push(page); page = []; } };
-    items.forEach(item => {
-      const h = measure(item);
-      if (col.length && (used + h > avail(pages.length) || col.length >= maxPerCol)) closeCol();
-      if (!col.length && !page.length && h > avail(pages.length) &&
-          avail(pages.length + 1) > avail(pages.length)) {
-        pages.push([[]]);
-      }
-      col.push(item); used += h;
-    });
-    if (col.length) page.push(col);
-    if (page.length) pages.push(page); return pages;
-  }
-
   /* ---- slide furniture ---------------------------------------------------- */
 
-  function ground(slide, T) { slide.background = { color: T.bg }; }
+  function ground(slide) { slide.background = { color: T.bg }; }
 
-  function heading(slide, T, text) {
+  function heading(slide, text) {
     box(slide, runsFor(noBreakHyphen(text), { fontSize: 30, bold: true, color: T.ink }),
       { x: M, y: 0.3, w: W - 2 * M, h: 0.62 });
     slide.addShape("rect", { x: W - M - RULE_W, y: 0.98, w: RULE_W, h: 0.045,
       fill: { color: T.violet }, line: { color: T.violet, width: 0 } });
   }
 
-  function footer(slide, T, n, total) {
-    const y = H - 0.42, h = 0.26;
-    box(slide, [run("נכון ל-", { fontSize: 12, color: T.muted }),
-                run(fmtDate(DOSSIER.as_of), { fontSize: 12, color: T.muted })],
-      { x: W / 2, y: y, w: W / 2 - M, h: h });
-    box(slide, [run("עמוד " + n + " מתוך " + total,
-                    { fontSize: 12, color: T.muted, align: "left" })],
-      { x: M, y: y, w: W / 2 - M, h: h }, { align: "left" });
-  }
-
   /* ---- slide 1: title ----------------------------------------------------- */
+
+  /* The relief pictures under the terrain maps carry a credit their licence asks
+     for. It is Latin, which a MAP may never show; a line of small type on the
+     title slide is where it goes. The first frame that names one speaks for all. */
+  function reliefCredit() {
+    const R = (typeof GEO !== "undefined" && GEO && GEO.relief) || null;
+    if (!R || typeof R !== "object") return "";
+    const key = Object.keys(R).find(k => R[k] && R[k].attribution);
+    return key ? String(R[key].attribution).trim() : "";
+  }
 
   /* The block is measured and centred, so a title that wraps to three lines pushes
      the subtitle down instead of printing through it. */
-  function titleSlide(slide, T) {
+  function titleSlide(slide) {
     const title = noBreakHyphen(DOSSIER.title_he), sub = DOSSIER.subtitle_he || "";
     const titleH = tall(title, W - 2 * M, 40, 0), subH = sub ? tall(sub, W - 2 * M, 20, 0) : 0;
     const blockH = 0.26 + titleH + 0.12 + subH + 0.35 + 0.4;
@@ -220,113 +179,9 @@
     box(slide, [run("נכון ל-", { fontSize: 16, color: T.accent }),
                 run(fmtDate(DOSSIER.as_of), { fontSize: 16, color: T.accent })],
       { x: M, y: y + 0.35, w: W - 2 * M, h: 0.4 });
-  }
-
-  /* ---- slides 2+: the Top 5 ----------------------------------------------- */
-
-  /* Ziv's own slide (2026-09-11): five headlines, each "title | one paragraph".
-     ONE slide shrunk to 12pt until 2026-09-12, when the paragraphs grew and he
-     chose MORE SLIDES over smaller type — a projector is read across a room. So
-     the size is picked FIRST, never under TOP5_FLOOR, and is the largest needing
-     no more slides than that floor would (short items collapse back to two
-     slides on their own); the items spread evenly over them, five over three
-     being 2+2+1 and not 3+1+1; and every slide shares the size and repeats the
-     heading with " (המשך)", the background section's own continuation mark. */
-  const TOP5_FLOOR = 16, TOP5_MAX = 20;
-
-  function top5Pages(pages, T) {
-    const top = DOSSIER.top5;
-    const items = top && Array.isArray(top.items) ? top.items : [];
-    if (!items.length) return;
-    const width = W - 2 * M, avail = BODY_BOTTOM - BODY_TOP;
-    const line = it => (it.title_he || "") + " | " + (it.text_he || "");
-    /* Measured on PowerPoint's own render (2026-09-11): ~120 characters a line at
-       12pt across the full body, where GLYPH's 0.55 says 98. 0.5 keeps slack. */
-    const height = (it, p) => (Math.ceil(line(it).length /
-      Math.floor(width * 72 / (p * 0.5))) * p * LINE + 10) / 72;
-    /* In order at size p, `per` items at most; the five are never reflowed. */
-    const fill = (p, per) => {
-      const out = []; let group = [], used = 0;
-      items.forEach(it => {
-        const h = height(it, p);
-        if (group.length && (used + h > avail || group.length >= per)) { out.push(group); group = []; used = 0; }
-        group.push(it); used += h;
-      });
-      if (group.length) out.push(group); return out;
-    };
-    const least = fill(TOP5_FLOOR, items.length).length; let pt = TOP5_MAX;
-    while (pt > TOP5_FLOOR && fill(pt, items.length).length > least) pt--;
-    const groups = fill(pt, Math.ceil(items.length / least));
-    META.top5 = { pt: pt, slides: groups.length };
-    groups.forEach((group, gi) => {
-      pages.push({ draw: (slide, n, total) => {
-        ground(slide, T);
-        heading(slide, T, (top.heading_he || "") + (gi ? " (המשך)" : ""));
-        footer(slide, T, n, total);
-        const runs = group.reduce((acc, it) => acc.concat(para(
-          runsFor(it.title_he, { fontSize: pt, bold: true, color: T.ink })
-            .concat(run(" | ", { fontSize: pt, color: T.muted }))
-            .concat(runsFor(it.text_he, { fontSize: pt, color: T.ink })),
-          { paraSpaceAfter: 10 })), []);
-        box(slide, runs, { x: M, y: BODY_TOP, w: width, h: BODY_BOTTOM - BODY_TOP });
-      } });
-    });
-  }
-
-  /* ---- prose sections: background, importance ----------------------------- */
-
-  function bgRuns(item, T) {
-    const v = VERDICT[item.verdict];
-    const runs = [run(fmtDate(item.date), { fontSize: 18, bold: true, color: T.ink }),
-                  run(" — ", { fontSize: 18, color: T.ink })]
-      .concat(runsFor(item.text_he, { fontSize: 18, color: T.ink }));
-    if (v) runs.push(run(" · " + v, { fontSize: 18, color: T.muted }));
-    return para(runs, { bullet: { indent: 20 }, paraSpaceAfter: 8 });
-  }
-  function bgMeasure(width) {
-    return item => tall(fmtDate(item.date) + " — " + (item.text_he || "") + " · " +
-                        (VERDICT[item.verdict] || ""), width - 0.3, 18, 8);
-  }
-
-  function itemRuns(item, T) {
-    return para(runsFor(item.title_he, { fontSize: 20, bold: true, color: T.ink }),
-                { paraSpaceAfter: 2 }).concat(
-      para(runsFor(item.text_he, { fontSize: 18, color: T.ink }), { paraSpaceAfter: 12 }));
-  }
-  function itemMeasure(width) {
-    return item => tall(item.title_he || "", width, 20, 2) +
-                   tall(item.text_he || "", width, 18, 12);
-  }
-
-  /* One prose section → one or more pages. `cols` is 1 or 2 (RTL: right first). */
-  function sectionPages(pages, T, sec, toRuns, toMeasure, cols, maxPerCol) {
-    if (!sec) return;
-    const colW = cols === 2 ? (W - 2 * M - GAP) / 2 : W - 2 * M;
-    const intro = String(sec.intro_he || "").trim();
-    const introH = intro ? tall(intro, W - 2 * M, 18, 0) + 0.2 : 0;
-    const full = BODY_BOTTOM - BODY_TOP;
-    const avail = i => (i === 0 ? full - introH : full);
-    const items = Array.isArray(sec.items) ? sec.items : [];
-    const packed = items.length ? pack(items, toMeasure(colW), avail, cols, maxPerCol) : [[]];
-    packed.forEach((columns, pi) => {
-      pages.push({ draw: (slide, n, total) => {
-        ground(slide, T);
-        heading(slide, T, sec.heading_he + (pi ? " (המשך)" : ""));
-        footer(slide, T, n, total);
-        let top = BODY_TOP;
-        if (pi === 0 && intro) {
-          box(slide, runsFor(intro, { fontSize: 18, color: T.ink }),
-            { x: M, y: top, w: W - 2 * M, h: introH - 0.2 });
-          top += introH;
-        }
-        columns.forEach((col, ci) => {
-          const runs = col.reduce((acc, it) => acc.concat(toRuns(it, T)), []);
-          if (!runs.length) return;
-          const x = cols === 2 ? (ci === 0 ? W - M - colW : M) : M;
-          box(slide, runs, { x: x, y: top, w: colW, h: BODY_BOTTOM - top });
-        });
-      } });
-    });
+    const credit = reliefCredit();
+    if (credit) box(slide, runsFor(credit, { fontSize: 9, color: T.muted }),
+      { x: M, y: H - 0.42, w: W - 2 * M, h: 0.26 });
   }
 
   /* ---- map slides --------------------------------------------------------- */
@@ -335,100 +190,88 @@
      a heading, caption and footer would only shrink it (Ziv, 2026-09-11: "make
      everything bigger"), and he struck both headings on 12 and 13 September. Only
      a failed export falls back to a titled slide saying so.
-     EACH MAP IS IN THE DECK TWICE since 2026-09-14 - this picture, and then the
-     same map as objects he can edit, because he asked for both: "put it as a
-     picture and also put it as stuff that I can edit on the PowerPoint slide."
-     The editable one is dossier_deck_map.js; if that file is not on the page the
-     deck simply loses that slide and keeps every picture. */
-  function vectorPage(pages, T, map) {
+     THE PLAIN OVERVIEW AND CLOSE-UP ARE IN THE DECK TWICE since 2026-09-14 - the
+     picture, and then the same map as objects he can edit, because he asked for
+     both: "put it as a picture and also put it as stuff that I can edit on the
+     PowerPoint slide." The editable one is dossier_deck_map.js; if that file is
+     not on the page the deck simply loses that slide and keeps every picture. */
+  function vectorPage(pages, map) {
     if (!window.DossierDeckMap) return;
     pages.push({ draw: (slide) => {
       const s = DossierDeckMap.slide(null, slide, map.id, T.name);
-      if (s) (META.vector = META.vector || []).push(Object.assign({ id: map.id }, s));
+      if (s) META.vector.push(Object.assign({ id: map.id }, s));
     } });
   }
-  function mapPage(pages, T, map, png) {
+  function mapPage(pages, map, png) {
     pages.push({ draw: (slide) => {
-      ground(slide, T);
+      ground(slide);
       if (png) {
         slide.addImage({ data: png.replace(/^data:/, ""), x: 0, y: 0, w: W, h: H }); return; }
-      heading(slide, T, map.title_he || "");
+      heading(slide, map.title_he || "");
       box(slide, [run(NO_MAP, { fontSize: 20, color: T.muted, align: "center" })],
         { x: M, y: H / 2 - 0.25, w: W - 2 * M, h: 0.5 }, { align: "center" });
     } });
   }
 
-  function exportMap(id, theme) {
+  /* The painter's own list of what it can draw for a frame, plain first. A painter
+     without the call (or a call that throws) means one plain picture per map. */
+  function variantsOf(id) {
+    const P = window.DossierMap;
+    if (P && typeof P.variantsOf === "function") {
+      try { const v = P.variantsOf(id); if (Array.isArray(v) && v.length) return v.slice(); }
+      catch (err) { console.warn("dossier_deck: variantsOf failed", err); }
+    }
+    return ["plain"];
+  }
+  /* The relief pictures are fetched once and painted from memory; a deck built
+     before they land would carry terrain maps with no terrain on them. */
+  function mapsReady() {
+    const P = window.DossierMap;
+    if (!P || typeof P.ready !== "function") return Promise.resolve();
+    return Promise.resolve().then(() => P.ready(T.name))
+      .catch(err => { console.warn("dossier_deck: relief not ready", err); });
+  }
+  function exportMap(id, variant) {
     if (!window.DossierMap || typeof DossierMap.exportPng !== "function") return null;
     return Promise.resolve()
-      .then(() => DossierMap.exportPng(id, theme, 2560, 1440))
+      .then(() => DossierMap.exportPng(id, T.name, 2560, 1440, variant))
       .then(png => (typeof png === "string" && png.indexOf("base64,") > 0) ? png : null)
       .catch(err => { console.error("dossier_deck: map export failed", err); return null; });
   }
 
-  /* ---- sources ------------------------------------------------------------ */
-
-  /* Date FIRST, link last. With a Latin publisher the paragraph's tail was
-     "AFP · 3.9.2026" — Latin, neutrals, digits — and PowerPoint drew it as
-     "3.9.2026AFP ·". Ending the paragraph on the link keeps any Latin run whole. */
-  function sourceRuns(src, T) {
-    const label = (src.title || "") + (src.publisher ? " — " + src.publisher : "");
-    const runs = [];
-    if (src.date) runs.push(run(fmtDate(src.date), { fontSize: 14, color: T.muted }),
-                            run(" · ", { fontSize: 14, color: T.muted }));
-    const link = runsFor(label, { fontSize: 14, color: T.accent, underline: { style: "sng" },
-                                  hyperlink: { url: src.url, tooltip: src.url } });
-    return para(runs.concat(link), { bullet: { type: "number", indent: 24 }, paraSpaceAfter: 6 });
-  }
-  function sourcePages(pages, T) {
-    const sources = Array.isArray(DOSSIER.sources) ? DOSSIER.sources : [], width = W - 2 * M - 0.35;
-    const measure = s => tall((s.title || "") + " — " + (s.publisher || "") + " · " +
-                              fmtDate(s.date), width, 14, 6);
-    const packed = pack(sources, measure, () => BODY_BOTTOM - BODY_TOP, 1, 14);
-    (packed.length ? packed : [[[]]]).forEach((columns, pi) => {
-      pages.push({ draw: (slide, n, total) => {
-        ground(slide, T);
-        heading(slide, T, "מקורות" + (pi ? " (המשך)" : ""));
-        footer(slide, T, n, total);
-        const runs = columns[0].reduce((acc, s) => acc.concat(sourceRuns(s, T)), []);
-        if (runs.length) {
-          box(slide, runs, { x: M, y: BODY_TOP, w: W - 2 * M, h: BODY_BOTTOM - BODY_TOP });
-        }
-      } });
-    });
-  }
-
   /* ---- the deck ----------------------------------------------------------- */
 
-  function section(id) {
-    const list = Array.isArray(DOSSIER.sections) ? DOSSIER.sections : [];
-    return list.find(s => s && s.id === id) || null;
+  /* One picture per (map, variant) in DOSSIER.maps order, every variant of a map
+     together; the editable twin follows the plain picture of the frames it knows. */
+  function wantedPictures() {
+    const maps = Array.isArray(DOSSIER.maps) ? DOSSIER.maps : [];
+    const out = [];
+    maps.forEach(map => {
+      if (!map || !map.id) return;
+      variantsOf(map.id).forEach(variant => out.push({ map: map, variant: variant }));
+    });
+    return out;
   }
 
-  function build(Lib, themeName) {
-    const T = themeOf(themeName), maps = Array.isArray(DOSSIER.maps) ? DOSSIER.maps : [];
-    const wanted = ["overview", "mandab"].map(id => maps.find(m => m && m.id === id))
-                                          .filter(Boolean);
-    return Promise.all(wanted.map(m => exportMap(m.id, T.name))).then(pngs => {
-      const pptx = new Lib(); pptx.layout = "LAYOUT_16x9"; pptx.rtlMode = true;
-      pptx.theme = { headFontFace: FONT, bodyFontFace: FONT, lang: "he-IL" };
-      pptx.title = DOSSIER.title_he || "";
-      const pages = [];
-      /* Order, since 2026-09-12: title · Top 5 · map · map · background ·
-         importance · sources — the maps moved up off Ziv's ask, "so they are not
-         buried behind everything else", and the meanings section came off the tab
-         the same day, so its slides are gone from here too. */
-      pages.push({ draw: slide => { ground(slide, T); titleSlide(slide, T); } });
-      top5Pages(pages, T);
-      wanted.forEach((m, i) => { mapPage(pages, T, m, pngs[i]); vectorPage(pages, T, m); });
-      sectionPages(pages, T, section("background"), bgRuns, bgMeasure, 1, 7);
-      const importance = section("importance");
-      const twoUp = s => (s && s.items && s.items.length > 4 ? 2 : 1);
-      sectionPages(pages, T, importance, itemRuns, itemMeasure, twoUp(importance), 8);
-      sourcePages(pages, T);
-      pages.forEach((p, i) => p.draw(pptx.addSlide(), i + 1, pages.length));
-      META.slides = pages.length; return pptx;
-    });
+  function build(Lib) {
+    const wanted = wantedPictures();
+    META.vector = []; META.pictures = [];
+    return mapsReady()
+      .then(() => Promise.all(wanted.map(w => exportMap(w.map.id, w.variant))))
+      .then(pngs => {
+        const pptx = new Lib(); pptx.layout = "LAYOUT_16x9"; pptx.rtlMode = true;
+        pptx.theme = { headFontFace: FONT, bodyFontFace: FONT, lang: "he-IL" };
+        pptx.title = DOSSIER.title_he || "";
+        const pages = [];
+        pages.push({ draw: slide => { ground(slide); titleSlide(slide); } });
+        wanted.forEach((w, i) => {
+          mapPage(pages, w.map, pngs[i]);
+          META.pictures.push({ id: w.map.id, variant: w.variant, png: !!pngs[i] });
+          if (w.variant === "plain" && EDITABLE.indexOf(w.map.id) >= 0) vectorPage(pages, w.map);
+        });
+        pages.forEach((p, i) => p.draw(pptx.addSlide(), i + 1, pages.length));
+        META.slides = pages.length; return pptx;
+      });
   }
 
   const MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
@@ -467,15 +310,13 @@
   /* Built, counted, and NOT handed over: the dry run's numbers go where a checker
      can read them and its Hebrew line goes on screen through the view. */
   function dry(made) {
-    window.DossierDeck.dry = Object.assign({ slides: META.slides, top5: META.top5,
+    window.DossierDeck.dry = Object.assign({ slides: META.slides, pictures: META.pictures,
       vector: META.vector }, made);
-    const err = new Error("בדיקה בלבד — " + META.slides + " שקפים, טופ 5 ב-" +
-      META.top5.pt + " נק'. הקובץ לא נשמר.");
+    const err = new Error("בדיקה בלבד — " + META.slides + " שקפים. הקובץ לא נשמר.");
     err.dry = true; throw err;
   }
 
-  function build_(theme) {
-    const t = theme === "light" ? "light" : "dark";
+  function build_(/* theme — accepted and ignored since 2026-09-15 */) {
     if (typeof DOSSIER === "undefined" || !DOSSIER || !DOSSIER.title_he)
       return Promise.reject(new Error(NO_DATA));
     /* The date in the name is the dossier's OWN as_of, never the clock: the name
@@ -484,8 +325,8 @@
     const base = (DOSSIER.deck && DOSSIER.deck.filename) || "dossier";
     const day = ISO.test(DOSSIER.as_of || "") ? "-" + DOSSIER.as_of : "";
     return loadLib()
-      .then(Lib => build(Lib, t))
-      .then(pptx => save(pptx, base + day + "-" + t + ".pptx"))
+      .then(Lib => build(Lib))
+      .then(pptx => save(pptx, base + day + ".pptx"))
       .then(made => (DRY ? dry(made) : made))
       .catch(err => {
         const msg = err && err.message;
