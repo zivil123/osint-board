@@ -43,8 +43,14 @@ var RoadsMap = (function () {
   var BANDS = ["low", "active", "heavy"];
   var BAND_HE = { quiet: "שקט", low: "נמוך", active: "פעיל", heavy: "כבד" };
   /* Importance 1-5 as a stepped scale, slate - blue - gold - orange - magenta, so
-     neighbouring scores stay apart at half scale; none is a fighting colour. */
-  var IMP = ["#6B7A8F", "#7FB3D5", "#F5C445", "#F28C28", "#E0457B"];
+     neighbouring scores stay apart at half scale; none is a fighting colour. The
+     bottom of the scale is LIGHT, never dark: a dark line disappears into the
+     terrain at half scale (Ziv, 2026-09-17). */
+  var IMP = ["#BCD0E6", "#63D2F0", "#7BDA6A", "#FFB020", "#FF5C93"];
+  /* Every key line sits on a dark casing, like the board own lines, so even the
+     lightest band reads over pale coast and dark highland alike. */
+  var CASE = "rgba(3,12,24,0.92)";
+  var NET = "rgba(124,145,170,0.5)";
   var STATE_HE = { open: "פתוח", closed: "סגור", frontline: "קו חזית", reopened: "נפתח מחדש" };
   var HOLDER_HE = { houthi: "בשליטת החות'ים", government: "בשליטת הכוחות הלגיטימיים",
                     none: "מחוץ לשטח תימן" };
@@ -121,13 +127,13 @@ var RoadsMap = (function () {
     return C.fire;
   }
   function paintCorridor(ctx, p, P, C, u, c, state) {
-    var w = Math.max(3.5, 6 * u), layer = state.layer;
+    var w = Math.max(5.5, 9 * u), layer = state.layer;
     var dim = state.selected && state.selected !== c.key;
     ctx.globalAlpha = dim ? 0.4 : 1;
     /* Casing first: the selected road carries a wide ink outline, every road a
        ground-coloured one, so a line reads over terrain and territory alike. */
     if (state.selected === c.key) stroke(ctx, p, c.p, P.ink, w + 7 * u);
-    else stroke(ctx, p, c.p, P.sea, w + 3 * u);
+    else stroke(ctx, p, c.p, CASE, w + 3.5 * u);
     if (layer === "control") {
       (c.stretches || []).forEach(function (s) {
         if (s.holder === "government") {
@@ -167,7 +173,7 @@ var RoadsMap = (function () {
       F.pieces.forEach(function (q) {
         if (q[3] !== b) return;
         var flat = slice(N, q[0], q[1], q[2]);
-        stroke(ctx, p, flat, P.sea, w + 2.5 * u);
+        stroke(ctx, p, flat, CASE, w + 3 * u);
         stroke(ctx, p, flat, C[b], w);
       });
     });
@@ -230,10 +236,13 @@ var RoadsMap = (function () {
     if (N) {
       ctx.beginPath();
       N.lines.forEach(function (l) { if (l.c !== "s") flatPath(ctx, p, l.p); });
-      ctx.strokeStyle = P.faint; ctx.lineWidth = Math.max(0.8, 1.1 * u); ctx.stroke();
+      /* The background network is deliberately thin and cool: a key corridor has
+         to be findable in one glance, and that is a difference of KIND, not a
+         score (Ziv, 2026-09-17). */
+      ctx.strokeStyle = NET; ctx.lineWidth = Math.max(0.7, 0.9 * u); ctx.stroke();
       ctx.beginPath();
       N.lines.forEach(function (l) { if (l.c === "s") flatPath(ctx, p, l.p); });
-      ctx.globalAlpha = 0.6; ctx.lineWidth = Math.max(0.5, 0.7 * u); ctx.stroke();
+      ctx.globalAlpha = 0.5; ctx.lineWidth = Math.max(0.5, 0.6 * u); ctx.stroke();
       ctx.globalAlpha = 1;
     }
     var size = Math.max(15, 16 * u * ts), taken = [];
@@ -308,7 +317,7 @@ var RoadsMap = (function () {
     var C = colours(), rows = [], D = roads() || {}, F = D.fighting;
     var P = window.DossierMap ? window.DossierMap.palette("dark") : {};
     if (state.layer === "fighting") {
-      rows = [{ c: P.faint || "#8FA3B8", w: 2, l: BAND_HE.quiet + " (0)" },
+      rows = [{ c: "rgba(143,163,184,0.7)", w: 2, l: BAND_HE.quiet + " (0)" },
               { c: C.low, l: BAND_HE.low + " (1-2)" }, { c: C.active, l: BAND_HE.active + " (3-5)" },
               { c: C.heavy, l: BAND_HE.heavy + " (6 ומעלה)" },
               { note: true, l: "ניקוד לכל קטע כביש: פיגוע ב-7 הימים 3, פיגוע ב-30 הימים 1, " +
@@ -335,7 +344,7 @@ var RoadsMap = (function () {
       rows = [{ c: C.flow, l: "זרימה בין ערים - עובי לפי הכמות שפורסמה" },
               { c: C.flow, dash: true, l: "לא פורסמה כמות - החץ אומר מה עובר" }];
     }
-    rows.push({ c: "rgba(143,163,184,0.7)", w: 1.5, l: "כביש ראשי" });
+    rows.push({ c: NET, w: 1.5, l: "כביש ראשי" });
     rows.push({ c: P.control || "#E6EDF5", w: 2, dash: true,
                 l: "קו המגע" + (D.control_as_of ? ", נכון ל-" + day(D.control_as_of) : "") });
     return rows;

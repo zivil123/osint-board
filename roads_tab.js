@@ -115,7 +115,7 @@
         const tags = [r.front ? "באזור לחימה" : "", r.cross ? "חוצה את קו המגע" : ""]
           .filter(Boolean).join(" · ");
         return '<li><button type="button" class="rd-top-item rd-band-' + esc(r.band) +
-          '" data-top="' + k + '" aria-pressed="' + (on ? "true" : "false") + '">' +
+          '" data-top="' + k + '" aria-label="' + esc((k + 1) + '. ' + r.name_he) + '" aria-pressed="' + (on ? "true" : "false") + '">' +
           '<span class="rd-top-rank">' + (k + 1) + "</span>" +
           '<span class="rd-top-body"><strong>' + esc(r.name_he) + "</strong>" +
           "<span>" + esc(RoadsMap.BAND_HE[r.band] || r.band) + " · " + esc(count) + "</span>" +

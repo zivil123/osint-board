@@ -58,15 +58,19 @@
     pane.querySelectorAll(".ds-canvas").forEach((canvas) => {
       const width = canvas.parentElement.clientWidth;
       if (width <= 0) return;
-      DossierMap.draw(canvas, canvas.dataset.mapId, "dark", width, canvas.dataset.variant);
+      DossierMap.draw(canvas, canvas.dataset.mapId, theme(), width, canvas.dataset.variant);
     });
   }
+
+  /* The picture on the page is the picture the button saves — Ziv, 2026-09-17:
+     "make all of the maps bright". The painter owns the name. */
+  const theme = () => (window.DossierMap && DossierMap.screenTheme) || "light";
 
   /* Every map here is drawn ON the terrain, so this is not a nicety: painted
      before its picture landed, each one comes out on plain ground. */
   function repaintWhenReady() {
     if (!window.DossierMap || typeof DossierMap.ready !== "function") return;
-    Promise.resolve().then(() => DossierMap.ready("dark")).then(drawMaps, () => {});
+    Promise.resolve().then(() => DossierMap.ready(theme())).then(drawMaps, () => {});
   }
 
   let resizeTimer = 0;

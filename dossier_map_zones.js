@@ -11,21 +11,25 @@
 
      window.DossierMapZones = { draw, radius, legendRows }
 
-   TWO COLOURS, AND THAT IS A CHANGE (2026-09-17). Until today both kinds of
-   zone were the muted ink and were told apart by their EDGE alone - solid for
-   a dated report, dotted for an analyst's reading. Ziv, on the strait picture:
-   *"it's not good"*, and asked for the mines and the fortifications in
-   different colours, with smaller and lighter areas. So `type` picks the
-   colour and the glyph and `kind` keeps the edge:
+   NO RINGS. THESE ARE MAP SIGNS NOW (2026-09-17, the third pass at this
+   picture). Ziv: *"the second picture needs a redo, the signs of the digging
+   and stuff, I don't like how it looks."* A hatched ring said "somewhere in
+   this circle", which is both vaguer and louder than the sources are: a trench
+   line is a LINE along a ridge, and one recovered mine is a POINT in the water.
+   So each type is drawn as the sign cartography already has for it:
 
-     mine - a saturated red-orange, and a spiked circle at the centre
-     fort - a saturated ochre with a dark edge, and a short zigzag
+     fort - a fortified line ALONG the ridge, ochre with a black edge and small
+            black teeth on the sea-facing side; `radius_km` is its LENGTH in
+            kilometres and `bearing` its compass direction, the teeth on the
+            LEFT of that heading. An assessed line is dashed.
+     mine - the naval-mine sign at the spot: a black circle with six spikes
+            and a thin red ring outside it. No area, no hatch.
 
-   Neither may be read as the fighting red (--geo-front-mark, the diamond every
-   active front carries) or as the violet of captured ground, and the ochre has
-   to hold against the terrain's own browns - which is what the dark edge under
-   it is for. The hatch is a THIRD of the weight it used to carry, at a wider
-   pitch, so a ring reads as a marked area rather than as a painted one. */
+   The two colours stay (they came from his previous pass, when both kinds were
+   the same muted ink): neither may be read as the fighting red - the diamond
+   every active front carries - or as the violet of captured ground, and the
+   ochre holds against the terrain's own browns because of the black under it.
+   Both signs sit on a halo, exactly as every other mark on these maps does. */
 "use strict";
 
 var DossierMapZones = (function () {
@@ -54,127 +58,157 @@ var DossierMapZones = (function () {
     return t[P && P.theme === "light" ? "light" : "dark"];
   }
   function typeOf(z) { return (z && z.type === "mine") ? "mine" : "fort"; }
+  var RAD = Math.PI / 180;
 
-  /* A THIRD of the old hatch: the lines are drawn at 0.34 alpha on a pitch half
-     again as wide, so the ring says "this area" without painting over the
-     terrain under it. Still 135 degrees, which the fighting zones' 45 can never
-     be confused with. */
-  function hatch(ctx, color, u) {
-    var R = D(), n = Math.max(13, Math.round(26 * u));
-    var c = document.createElement("canvas");
-    c.width = c.height = n;
-    var g = c.getContext("2d");
-    g.strokeStyle = R.alpha(color, 0.34); g.lineWidth = Math.max(1, 1.1 * u);
-    g.lineCap = "square";
-    g.beginPath();
-    g.moveTo(0, 0); g.lineTo(n, n);
-    g.moveTo(-1, n - 1); g.lineTo(1, n + 1);
-    g.moveTo(n - 1, -1); g.lineTo(n + 1, 1);
-    g.stroke();
-    return ctx.createPattern(c, "repeat");
-  }
-  /* The ring's radius is the AUTHORED one in kilometres - the explicit
-     radius_km if the record carries it, otherwise the gazetteer's own for that
-     area key. A floor keeps a small area visible on the country frame. */
+  /* HOW MUCH ROOM THE SIGN TAKES, in pixels, which is what the name placement
+     in dossier_map_routes.js keeps clear of. For a fort that is half the drawn
+     line; for a mine the sign's own outer ring, never the report's reach - a
+     15 km circle would push the mine's name right out of the strait. */
   function radius(z, per, u) {
-    return Math.max(7 * u, (z.radius_km || 0) * per);
+    if (typeOf(z) === "mine") return mineR(u) * 1.6;
+    return Math.max(7 * u, (z.radius_km || 0) * per / 2);
   }
-  /* REPORTED takes a solid edge and ASSESSED a dotted one: a dated open report
-     with a link is a different claim from an analyst's view, and the edge says
-     which without spending the colour, which now says WHAT the zone is. Thinner
-     than it was, with the colour doing the work the weight used to do. */
-  function edge(z, P, u) {
-    return { stroke: skin(P, typeOf(z)).edge, width: Math.max(1.1, 1.4 * u),
-             dash: z.kind === "assessed" ? [2.5 * u, 3.5 * u] : [] };
+  function mineR(u) { return Math.max(7, 9.5 * u); }
+  /* REPORTED takes a solid line and ASSESSED a dashed one: a dated open report
+     with a link is a different claim from an analyst's reading, and the line
+     style says which without spending the colour, which says WHAT it is. */
+  function dashOf(z, u) {
+    return z.kind === "assessed" ? [6 * u, 4.5 * u] : null;
   }
 
-  /* ---- the centre glyphs ----------------------------------------------------- */
+  /* ---- the naval mine -------------------------------------------------------- */
 
-  /* A GLYPH AT THE CENTRE, because colour may never carry meaning alone
-     (design-law) and because a lighter hatch needs a mark that finds the eye.
-     Each draws what it names: a moored contact mine with its horns, and a cut
-     trench line. Both sit on a halo disc, exactly as every other mark on these
-     maps does, so they read over terrain, over sea and over either fill. */
-  function mineGlyph(ctx, P, x, y, r, u, c) {
-    var R = D(), i, a;
-    R.ringMark(ctx, x, y, r * 1.5, { fill: P.halo });
+  /* THE SIGN, not a symbol of our own: a moored contact mine is drawn as a
+     black disc with its horns, and the thin ring outside it in the type's red
+     is what says this one is a REPORT on this board rather than a chart
+     feature. Six spikes, as Ziv asked. */
+  function mineSign(ctx, P, x, y, u, c) {
+    var R = D(), i, a, r = mineR(u);
+    R.ringMark(ctx, x, y, r * 1.75, { fill: P.halo });
     ctx.beginPath();
-    for (i = 0; i < 8; i++) {
-      a = i * Math.PI / 4;
-      ctx.moveTo(x + Math.cos(a) * r * 0.72, y + Math.sin(a) * r * 0.72);
-      ctx.lineTo(x + Math.cos(a) * r * 1.35, y + Math.sin(a) * r * 1.35);
+    for (i = 0; i < 6; i++) {
+      a = -Math.PI / 2 + i * Math.PI / 3;
+      ctx.moveTo(x + Math.cos(a) * r * 0.85, y + Math.sin(a) * r * 0.85);
+      ctx.lineTo(x + Math.cos(a) * r * 1.45, y + Math.sin(a) * r * 1.45);
     }
-    R.paintShape(ctx, { stroke: c.edge, width: Math.max(1.2, 1.6 * u) });
-    R.ringMark(ctx, x, y, r * 0.78, { fill: c.ink, stroke: c.edge,
-      width: Math.max(1, 1.2 * u) });
-  }
-  function fortGlyph(ctx, P, x, y, r, u, c) {
-    var R = D(), i, step = r * 0.62;
-    R.ringMark(ctx, x, y, r * 1.35, { fill: P.halo });
-    ctx.beginPath();
-    ctx.moveTo(x - step * 2, y + r * 0.45);
-    for (i = 0; i < 4; i++) {
-      ctx.lineTo(x - step * 2 + step * (i + 0.5), y + (i % 2 ? r * 0.45 : -r * 0.55));
-    }
-    ctx.lineTo(x + step * 2, y + r * 0.45);
-    R.paintShape(ctx, { stroke: P.halo, width: Math.max(3, 4 * u) });
-    ctx.beginPath();
-    ctx.moveTo(x - step * 2, y + r * 0.45);
-    for (i = 0; i < 4; i++) {
-      ctx.lineTo(x - step * 2 + step * (i + 0.5), y + (i % 2 ? r * 0.45 : -r * 0.55));
-    }
-    ctx.lineTo(x + step * 2, y + r * 0.45);
-    R.paintShape(ctx, { stroke: c.ink, width: Math.max(1.8, 2.4 * u) });
-  }
-  function glyph(ctx, P, type, x, y, r, u) {
-    var c = skin(P, type);
-    if (type === "mine") mineGlyph(ctx, P, x, y, r, u, c);
-    else fortGlyph(ctx, P, x, y, r, u, c);
+    R.paintShape(ctx, { stroke: P.ink, width: Math.max(1.4, 1.9 * u) });
+    R.ringMark(ctx, x, y, r * 0.86, { fill: P.ink });
+    R.ringMark(ctx, x, y, r * 1.62, { stroke: c.ink, width: Math.max(1.1, 1.5 * u) });
   }
 
-  /* ---- the rings ------------------------------------------------------------- */
+  /* ---- the fortified line ---------------------------------------------------- */
 
-  /* Drawn WITH the ground, under every pin and every name: a zone is an area,
-     and a town inside it still has to be findable. */
+  /* THE LINE IS LAID OUT IN LON/LAT AND THEN PROJECTED, never drawn at an angle
+     on the canvas: longitude and latitude do not share a scale, so a bearing
+     turned into a canvas angle would be wrong by a few degrees at this latitude
+     and wrong by more on a wider frame. The ends are the authored bearing and
+     half the authored length from the centre; the teeth side comes from a THIRD
+     projected point, 1 km to the left of the heading, so the side survives the
+     projection too. */
+  function ends(p, z) {
+    var half = Math.max(1, z.radius_km || 10) / 2, b = (z.bearing || 0) * RAD;
+    var dLat = Math.cos(b) * half / 111.0;
+    var dLon = Math.sin(b) * half / (111.32 * Math.cos(z.lat * RAD));
+    var lb = b - Math.PI / 2;                       /* the teeth side */
+    return { a: p(z.lon - dLon, z.lat - dLat), b: p(z.lon + dLon, z.lat + dLat),
+             side: p(z.lon + Math.sin(lb) / (111.32 * Math.cos(z.lat * RAD)),
+                     z.lat + Math.cos(lb) / 111.0) };
+  }
+  function fortSign(ctx, p, P, u, z, c) {
+    var R = D(), e = ends(p, z), dash = dashOf(z, u);
+    var dx = e.b[0] - e.a[0], dy = e.b[1] - e.a[1];
+    var len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
+    var mid = [(e.a[0] + e.b[0]) / 2, (e.a[1] + e.b[1]) / 2];
+    /* which perpendicular points at the seaward point */
+    var sx = e.side[0] - mid[0], sy = e.side[1] - mid[1];
+    var nx = -uy, ny = ux;
+    if (nx * sx + ny * sy < 0) { nx = uy; ny = -ux; }
+    /* The teeth start at the OUTER edge of the line and stand clear of it - a
+       tooth beginning on the centreline is swallowed by the line drawn over it
+       and the sign reads as a ladder instead of a fortification. */
+    var w = Math.max(3.4, 4.6 * u), tooth = Math.max(4.6, 6 * u);
+    var base = w / 2 + 0.9 * u;
+    var i, n = Math.max(3, Math.round(len / Math.max(11, 15 * u))), t, bx, by;
+    var line = function (style) {
+      ctx.beginPath();
+      ctx.moveTo(e.a[0], e.a[1]); ctx.lineTo(e.b[0], e.b[1]);
+      R.paintShape(ctx, style);
+    };
+    var teeth = function (style) {
+      ctx.beginPath();
+      for (i = 0; i <= n; i++) {
+        t = i / n;
+        bx = e.a[0] + dx * t + nx * base; by = e.a[1] + dy * t + ny * base;
+        ctx.moveTo(bx, by);
+        ctx.lineTo(bx + nx * tooth, by + ny * tooth);
+      }
+      R.paintShape(ctx, style);
+    };
+    line({ stroke: P.halo, width: w + 3.4 * u });
+    teeth({ stroke: P.halo, width: Math.max(2.8, 3.6 * u) });
+    teeth({ stroke: c.edge, width: Math.max(1.5, 2 * u) });
+    line({ stroke: c.edge, width: w + 1.8 * u, dash: dash });
+    line({ stroke: c.ink, width: w, dash: dash });
+  }
+
+  /* ---- the marks ------------------------------------------------------------- */
+
+  /* Drawn WITH the ground, under every pin and every name: a town beside a
+     trench line still has to be findable. */
   function draw(ctx, p, P, u, map, per) {
-    var R = D(), list = (map || {}).zones || [];
+    var list = (map || {}).zones || [];
     list.forEach(function (z) {
-      var type = typeOf(z), q = p(z.lon, z.lat), r = radius(z, per, u);
-      R.ringMark(ctx, q[0], q[1], r, { fill: hatch(ctx, skin(P, type).ink, u) });
-      R.ringMark(ctx, q[0], q[1], r, edge(z, P, u));
-      glyph(ctx, P, type, q[0], q[1], Math.min(r * 0.42, Math.max(6, 9 * u)), u);
+      var type = typeOf(z), q = p(z.lon, z.lat), c = skin(P, type);
+      if (type === "mine") mineSign(ctx, P, q[0], q[1], u, c);
+      else fortSign(ctx, p, P, u, z, c);
     });
   }
 
   /* ---- the key --------------------------------------------------------------- */
 
-  /* ONE ROW PER TYPE, plus one row for the dotted edge when the map carries an
+  /* ONE ROW PER TYPE, plus one row for the dashed line when the map carries an
      assessed zone. The type's row says what it is and whether it was reported -
-     `מוקש ימי - דיווח` - and the dotted row explains the other edge once,
-     rather than doubling every type. */
+     `מוקש ימי - דיווח` - and the dashed row explains the other style once,
+     rather than doubling every type. EVERY SWATCH IS THE SIGN ITSELF, drawn by
+     the same code the map draws: a swatch that only resembles the mark is a key
+     to a picture nobody has. */
+  function swatchLine(c, Q, uu, x, cy, sw, dash) {
+    var R = D(), i, n = 3, x0 = x + 2 * uu, x1 = x + sw - 2 * uu;
+    var w = Math.max(2.6, 3.2 * uu), tooth = Math.max(3.6, 4.6 * uu);
+    var k = skin(Q, "fort"), top = cy - w / 2 - 0.8 * uu;
+    var seg = function (style) {
+      c.beginPath(); c.moveTo(x0, cy); c.lineTo(x1, cy); R.paintShape(c, style);
+    };
+    c.beginPath();
+    for (i = 0; i <= n; i++) {
+      c.moveTo(x0 + (x1 - x0) * i / n, top);
+      c.lineTo(x0 + (x1 - x0) * i / n, top - tooth);
+    }
+    R.paintShape(c, { stroke: k.edge, width: Math.max(1.2, 1.6 * uu) });
+    seg({ stroke: k.edge, width: w + 1.6 * uu, dash: dash });
+    seg({ stroke: k.ink, width: w, dash: dash });
+  }
   function legendRows(ctx, P, u, map) {
-    var R = D(), list = (map || {}).zones || [], rows = [], seen = {}, dotted = false;
+    var list = (map || {}).zones || [], rows = [], seen = {}, dashed = false;
     list.forEach(function (z) {
       var type = typeOf(z);
-      if (z.kind === "assessed") dotted = true;
+      if (z.kind === "assessed") dashed = true;
       if (seen[type]) return;
       seen[type] = true;
       var reported = list.some(function (o) {
         return typeOf(o) === type && o.kind !== "assessed";
       });
       rows.push({ label: HE[type] + " - " + (reported ? HE.reported : HE.assessed),
-        draw: function (c, Q, uu, x, cy, sw, sh) {
-          var r = sh * 0.46;
-          R.ringMark(c, x + sw / 2, cy, r, { fill: hatch(c, skin(Q, type).ink, uu) });
-          R.ringMark(c, x + sw / 2, cy, r,
-            { stroke: skin(Q, type).edge, width: Math.max(1.1, 1.4 * uu) });
-          glyph(c, Q, type, x + sw / 2, cy, r * 0.62, uu);
+        draw: function (c, Q, uu, x, cy, sw) {
+          /* 0.62 of the map's own scale: the sign is drawn by the same code,
+             and a swatch box is smaller than the sea it stands on. */
+          if (type === "mine") mineSign(c, Q, x + sw / 2, cy, uu * 0.62, skin(Q, "mine"));
+          else swatchLine(c, Q, uu, x, cy, sw, null);
         } });
     });
-    if (dotted) {
-      rows.push({ label: HE.dotted, draw: function (c, Q, uu, x, cy, sw, sh) {
-        R.ringMark(c, x + sw / 2, cy, sh * 0.46, { stroke: Q.muted,
-          width: Math.max(1.1, 1.4 * uu), dash: [2.5 * uu, 3.5 * uu] });
+    if (dashed) {
+      rows.push({ label: HE.dotted, draw: function (c, Q, uu, x, cy, sw) {
+        swatchLine(c, Q, uu, x, cy, sw, [5 * uu, 4 * uu]);
       } });
     }
     return rows;

@@ -432,9 +432,11 @@ var DossierMap = (function () {
   }
 
   /* Heebo is a web font: a canvas painted before it arrives is set in the
-     fallback face. Paint anyway (the page is never blank), then paint once more
-     when the face lands. */
+     fallback face. Paint anyway (never a blank page), repaint when it lands. */
   var pending = [];
+  /* THE SCREEN PAINTS THE THEME THE BUTTON SAVES - Ziv, 2026-09-17: *"make all
+     of the maps bright."* One name, read by both tabs, so they cannot drift. */
+  var SCREEN_THEME = "light";
   function fontReady() {
     return !document.fonts || document.fonts.check("600 17px Heebo");
   }
@@ -490,7 +492,7 @@ var DossierMap = (function () {
   }
 
   return { draw: draw, exportPng: exportPng, frame: frame, aspect: aspect,
-           variantsOf: variantsOf, ready: ready,
+           variantsOf: variantsOf, ready: ready, screenTheme: SCREEN_THEME,
            project: project, palette: palette, words: WORDS };
 })();
 
