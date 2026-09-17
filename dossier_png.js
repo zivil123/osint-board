@@ -1,35 +1,46 @@
-/* dossier_png.js - one download button under every map picture on the dossier
-   tab, and the dry path that proves it without putting a file on anybody's
-   screen.
+/* dossier_png.js - the download buttons under every map picture, on the dossier
+   tab and on the maps tab, and the dry path that proves them without putting a
+   file on anybody's screen.
 
    window.DossierPng = { mount(pane), dry }
 
-   Ziv asked for the maps as PNG files he can download (2026-09-17). The picture
-   already exists at slide resolution - DossierMap.exportPng(id, theme, w, h,
-   variant) is what the deck's own slides are made of - so this is a thin
-   wrapper over it: export at 2560x1440 in the LIGHT theme (the deck's one
-   theme, and the one that prints), turn the data URL into a blob, and hand it
-   to the view's own save helper.
+   Ziv asked for the maps as PNG files he can download (2026-09-17), and the
+   same day for two SHAPES of each: wide for a whole slide, square for a slide
+   with text beside it. The picture already exists at slide resolution -
+   DossierMap.exportPng(id, theme, w, h, variant, shape) is what the deck's own
+   slides are made of - so this is a thin wrapper over it: export in the LIGHT
+   theme (the deck's one theme, and the one that prints), turn the data URL into
+   a blob, and hand it to the view's own save helper.
 
    VERIFY WITH `?png=dry`, NEVER A REAL TAP. The board runs on the machine Ziv
    is sitting at: a test press drops a file in his downloads and pops his file
    explorer open over whatever he is doing. It happened twice in one session on
    2026-09-12 with the deck, which is why `?deck=dry` exists; this is the same
-   flag for the same reason. With it the page builds every picture on load,
-   SEQUENTIALLY (nine 2560x1440 canvases at once is a memory spike for nothing),
-   stashes what it measured on window.DossierPng.dry, and every button stashes
-   instead of saving and says so in Hebrew.
+   flag for the same reason. With it the page builds every picture in every
+   shape on load, SEQUENTIALLY (eighteen huge canvases at once is a memory spike
+   for nothing), stashes what it measured on window.DossierPng.dry, and every
+   button stashes instead of saving and says so in Hebrew.
 
-   No ES modules - the page runs from file://. Loaded BEFORE dossier_view.js, so
-   the global exists by the time the view renders and calls mount(). */
+   No ES modules - the page runs from file://. Loaded BEFORE dossier_view.js and
+   maps_tab.js, so the global exists by the time either view renders and calls
+   mount(). */
 "use strict";
 
 var DossierPng = (function () {
-  var LABEL = "הורדת המפה (PNG)";
+  /* TWO SHAPES, TWO BUTTONS (2026-09-17). Ziv puts some of these pictures on a
+     half slide with text beside them and asked for a shape that fits, so every
+     picture offers the WIDE one (a whole 16:9 slide) and the SQUARE one (beside
+     the text). The label says which slide it is for rather than naming pixels:
+     a number tells him nothing about where the picture goes. The square frame
+     is authored per frame - see dossier_map.js - and is never a crop. */
+  var SHAPES = [
+    { shape: "wide", label: "PNG רחב (שקף מלא)", w: 2560, h: 1440 },
+    { shape: "square", label: "PNG מרובע (לצד טקסט)", w: 2048, h: 2048 }
+  ];
   var BUSY = "מכין את התמונה…";
   var FAILED = "יצירת התמונה נכשלה.";
   var MISSING = "ההורדה אינה זמינה";
-  var W = 2560, H = 1440, THEME = "light";
+  var THEME = "light";
   /* Same flag shape as the deck's ?deck=dry, and the same mark on the button
      so nobody mistakes a checking session for the real thing. */
   var DRY = /[?&]png=dry(&|$)/.test(location.search);
@@ -48,9 +59,12 @@ var DossierPng = (function () {
     var d = new Date();
     return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
   }
-  function fileName(id, variant) {
+  /* The SHAPE rides in the name, before the date: two pictures of the same map
+     land in the same folder on the same day, and "which one is this" must be
+     answerable without opening either. */
+  function fileName(id, variant, shape) {
     return "osint-map-" + id + (variant && variant !== "plain" ? "-" + variant : "") +
-      "-" + stamp() + ".png";
+      "-" + (shape || "wide") + "-" + stamp() + ".png";
   }
   /* A data URL is what the painter returns; a blob is what a save needs. Done
      by hand rather than through fetch(), which a file:// page refuses. */
@@ -72,24 +86,24 @@ var DossierPng = (function () {
       .catch(function (err) { console.warn("dossier_png: relief not ready", err); });
   }
 
-  function render(id, variant) {
+  function render(id, variant, s) {
     return ready().then(function () {
-      var png = DossierMap.exportPng(id, THEME, W, H, variant);
+      var png = DossierMap.exportPng(id, THEME, s.w, s.h, variant, s.shape);
       if (typeof png !== "string" || png.indexOf("base64,") < 0) throw new Error(FAILED);
       return png;
     });
   }
-  function note(id, variant, png) {
+  function note(id, variant, s, png) {
     /* `name` is the file the real button would have written. It is stashed so a
        checker can read the stamped filename without a tap putting a file on
        Ziv's screen - the whole bargain of the dry run. */
-    var item = { id: id, variant: variant, width: W, height: H,
-                 name: fileName(id, variant),
+    var item = { id: id, variant: variant, shape: s.shape, width: s.w, height: s.h,
+                 name: fileName(id, variant, s.shape),
                  bytes: Math.round((png.length - png.indexOf(",") - 1) * 3 / 4),
                  dataUrl: png };
     out.dry = out.dry || { done: false, items: [] };
     out.dry.items = out.dry.items.filter(function (it) {
-      return it.id !== id || it.variant !== variant;
+      return it.id !== id || it.variant !== variant || it.shape !== s.shape;
     });
     out.dry.items.push(item);
     return item;
@@ -102,21 +116,21 @@ var DossierPng = (function () {
     if (el) el.textContent = text || "";
   }
 
-  function press(section, btn) {
+  function press(section, btn, s) {
     var id = section.dataset.map, variant = section.dataset.variant || "plain";
     var label = btn.textContent;
     btn.disabled = true; btn.textContent = BUSY; status(section, "");
-    render(id, variant).then(function (png) {
+    render(id, variant, s).then(function (png) {
       btn.disabled = false; btn.textContent = label;
       if (DRY) {
-        var it = note(id, variant, png);
+        var it = note(id, variant, s, png);
         status(section, "בדיקה בלבד — " + it.width + "x" + it.height +
           ". הקובץ לא נשמר.");
         return;
       }
       var blob = toBlob(png), save = window.DossierSave;
       if (!blob || typeof save !== "function") { status(section, MISSING); return; }
-      save({ blob: blob, fileName: fileName(id, variant), mime: "image/png" });
+      save({ blob: blob, fileName: fileName(id, variant, s.shape), mime: "image/png" });
     }, function (err) {
       btn.disabled = false; btn.textContent = label;
       console.error("dossier_png:", err);
@@ -124,22 +138,24 @@ var DossierPng = (function () {
     });
   }
 
-  /* One button per PICTURE, which on this tab means one per (map, variant):
+  /* TWO buttons per PICTURE, which on these tabs means two per (map, variant):
      each block on the page is its own canvas, so each saves what is above it
-     and nothing else has to be chosen. A quiet secondary control - it is not
-     what the page is for, and the page's own primary control (the deck) sits
-     in the header (design-law: hierarchy from weight and shade, never a second
-     colour). */
+     and nothing else has to be chosen; the pair is the wide picture and the
+     square one. Quiet secondary controls - they are not what the dossier is
+     for, and its own primary control (the deck) sits in the header (design-law:
+     hierarchy from weight and shade, never a second colour). */
   function mount(pane) {
     if (!pane || !window.DossierMap) return;
     Array.prototype.forEach.call(pane.querySelectorAll(".ds-map"), function (section) {
       if (section.querySelector(".ds-png-btn")) return;
       var row = document.createElement("div");
       row.className = "ds-map-actions";
-      var btn = document.createElement("button");
-      btn.type = "button"; btn.className = "ds-png-btn"; btn.textContent = LABEL;
-      btn.addEventListener("click", function () { press(section, btn); });
-      row.appendChild(btn);
+      SHAPES.forEach(function (s) {
+        var btn = document.createElement("button");
+        btn.type = "button"; btn.className = "ds-png-btn"; btn.textContent = s.label;
+        btn.addEventListener("click", function () { press(section, btn, s); });
+        row.appendChild(btn);
+      });
       var line = document.createElement("p");
       line.className = "ds-map-status";
       line.setAttribute("aria-live", "polite");
@@ -151,24 +167,42 @@ var DossierPng = (function () {
 
   /* ---- the dry run ---------------------------------------------------------- */
 
-  /* Every picture on the page, one after another, with nothing saved and
-     nothing opened. SEQUENTIAL on purpose: each export is a 2560x1440 canvas
-     plus its data URL, and building nine of them at once spikes memory for no
-     gain. What it measured lands on window.DossierPng.dry for a checker to
-     read - the deck's own ?deck=dry bargain. */
+  /* Every picture on the page in every shape, one after another, with nothing
+     saved and nothing opened. SEQUENTIAL on purpose: each export is a canvas of
+     millions of pixels plus its data URL, and building eighteen of them at once
+     spikes memory for no gain. What it measured lands on window.DossierPng.dry
+     for a checker to read - the deck's own ?deck=dry bargain.
+
+     TWO PANES ASK, since the maps tab arrived: the dossier's six pictures and
+     this tab's three. They share ONE queue and one item list, and `done` is set
+     when the last pane's jobs drain - two runs each resetting the stash would
+     leave a checker reading half of it and calling it all. */
+  var queue = Promise.resolve(), running = 0;
+
   function dryRun(pane) {
-    var jobs = Array.prototype.map.call(pane.querySelectorAll(".ds-map"),
-      function (s) { return { id: s.dataset.map, variant: s.dataset.variant || "plain" }; });
-    out.dry = { done: false, items: [] };
-    jobs.reduce(function (chain, job) {
-      return chain.then(function () {
-        return render(job.id, job.variant).then(function (png) {
-          note(job.id, job.variant, png);
-        }, function (err) {
-          console.error("dossier_png: dry export failed for " + job.id, err);
-        });
+    var jobs = [];
+    Array.prototype.forEach.call(pane.querySelectorAll(".ds-map"), function (s) {
+      SHAPES.forEach(function (shape) {
+        jobs.push({ id: s.dataset.map, variant: s.dataset.variant || "plain", s: shape });
       });
-    }, Promise.resolve()).then(function () { out.dry.done = true; });
+    });
+    out.dry = out.dry || { done: false, items: [] };
+    out.dry.done = false;
+    running++;
+    queue = queue.then(function () {
+      return jobs.reduce(function (chain, job) {
+        return chain.then(function () {
+          return render(job.id, job.variant, job.s).then(function (png) {
+            note(job.id, job.variant, job.s, png);
+          }, function (err) {
+            console.error("dossier_png: dry export failed for " + job.id, err);
+          });
+        });
+      }, Promise.resolve());
+    }).then(function () {
+      running -= 1;
+      if (!running) out.dry.done = true;
+    });
   }
 
   if (DRY) {

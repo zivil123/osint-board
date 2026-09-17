@@ -1,0 +1,132 @@
+/* One picture's BLOCK on a page: the heading above the canvas, the canvas in
+   its frame's own shape, the caption under it and the HTML legend under that.
+
+   Split out of dossier_view.js on 2026-09-17, when the three terrain maps moved
+   to their own tab (מפות) and two views needed to draw the same block. Nothing
+   about the markup changed in the move; only its address did.
+
+   NO ES modules - the page runs from file://. One global:
+
+     window.DossierMapBlock = { html(maps), variantsOf(id) }
+
+   `html` takes a LIST of maps (each a record from DOSSIER.maps) and returns one
+   section per (map, variant), in the list's own order - the order the deck lays
+   its slides, so what he scrolls and what he presents never differ. Which maps
+   are in the list is the view's business: the dossier renders the maps with no
+   `tab`, the maps tab those whose `tab` is "maps".
+
+   Both views then scan the DOM for `.ds-canvas` to paint and `.ds-map` to hang
+   a download button on, so neither knows anything per-view about the other.
+
+   Reads `esc` (app.js) at call time, and DossierMap for the frame's aspect. */
+"use strict";
+
+var DossierMapBlock = (function () {
+  /* The HTML legend under each map - the same fills the board's legend names
+     (index.html #lg-territory), plus the gains layer in the ground-war violet.
+     Hebrew only: nothing under a map is English. */
+  var LEGEND = [
+    { cls: "sw fill", style: "--sw-fill: var(--geo-fill-houthi)", he: "שטח בשליטת החות'ים" },
+    { cls: "sw fill", style: "--sw-fill: var(--geo-fill-gov)", he: "שטח בשליטת הכוחות הלגיטימיים" },
+    { cls: "sw fill dash hatch mark", style: "--sw-fill: var(--geo-fill-contested)", he: "שטח לחימה פעיל" },
+    { cls: "sw fill gain", style: "", he: "נכבש בידי החות'ים (מאומת + משוער)" },
+    { cls: "sw line dash", style: "--sw-c: var(--geo-control-line); --sw-w: 2px", he: "קו חזית משוער" }
+  ];
+  /* A CLEAN map draws none of those - no territory, no fighting, no line of
+     contact (Ziv, 2026-09-17, on the crossing: strip everything unrelated) - so
+     its key under the canvas says only what the picture shows. It mirrors the
+     painted legend's own rows, which dossier_map_legend.js builds from the same
+     flag, so the two keys can never disagree. */
+  var CLEAN_LEGEND = [
+    { cls: "sw line", style: "--sw-c: var(--ink); --sw-w: 3px", he: "נתיב שיט ראשי" },
+    { cls: "sw dot", style: "--sw: var(--ink)", he: "נמל" }
+  ];
+  var MISSING_MAP = "המפה אינה זמינה";
+
+  function legendHtml(m) {
+    var rows = (m && m.clean) ? CLEAN_LEGEND : LEGEND;
+    return '<div class="ds-legend" aria-label="מקרא המפה">' +
+      rows.map(function (r) {
+        return '<span class="ds-lg-row"><span class="' + r.cls + '"' +
+          (r.style ? ' style="' + r.style + '"' : "") + "></span>" + esc(r.he) + "</span>";
+      }).join("") + "</div>";
+  }
+
+  /* The frame's own shape (3:2 for the close-up, 16:9 for the rest), so the box
+     has the canvas's shape before anything is drawn in it. Always the WIDE
+     frame: the square picture is a download, never a canvas on the page. */
+  function aspectOf(id) {
+    var a = window.DossierMap && DossierMap.aspect ? DossierMap.aspect(id) : 16 / 9;
+    return a.toFixed(4);
+  }
+
+  /* The pictures the painter can draw for a frame, plain first - the deck's own
+     list, so the page and the file carry the same blocks. Without the call (an
+     older painter) a map is its one plain picture. */
+  function variantsOf(id) {
+    if (window.DossierMap && typeof DossierMap.variantsOf === "function") {
+      try {
+        var v = DossierMap.variantsOf(id);
+        if (Array.isArray(v) && v.length) return v;
+      } catch (e) { /* fall through to the plain picture */ }
+    }
+    return ["plain"];
+  }
+
+  /* A block's heading: the map's own title when it has one, else the caption's
+     first clause. The cut is at a full stop or a SPACED dash - never a bare
+     hyphen, which in Hebrew joins a prefix to a number ("נכון ל-12"). Since
+     2026-09-17 this is the ONLY heading a picture carries: the painter no
+     longer writes one into the canvas, so the words appear once. */
+  function clauseOf(text) {
+    var t = String(text || "").trim();
+    var m = /[.。]|\s[—–-]\s/.exec(t);
+    return (m ? t.slice(0, m.index) : t).replace(/[,،]\s*$/, "").trim();
+  }
+  function blockHeading(m, variant) {
+    if (variant) return clauseOf(variant.caption_he) || blockHeading(m, null);
+    return String(m.title_he || "").trim() || clauseOf(m.caption_he);
+  }
+
+  /* When the heading was CUT OUT of the caption, the caption prints what is
+     LEFT. Design law: a row never repeats the name of the group it sits in -
+     and a one-clause caption with no title beside it would otherwise print
+     twice, once as the heading and once under the map. */
+  function captionAfter(text, heading) {
+    var t = String(text || "").trim();
+    if (!heading || t.indexOf(heading) !== 0) return t;
+    return t.slice(heading.length).replace(/^[\s.,،。—–-]+/, "").trim();
+  }
+
+  function blockHtml(m, key, variant) {
+    var heading = blockHeading(m, variant);
+    var raw = variant ? (variant.caption_he || "") : (m.caption_he || "");
+    var cut = variant ? true : !String(m.title_he || "").trim();
+    var caption = cut ? captionAfter(raw, heading) : raw;
+    return '<section class="ds-map" data-map="' + esc(m.id) + '" data-variant="' + esc(key) + '">' +
+      (heading ? '<h3 class="ds-map-h">' + esc(heading) + "</h3>" : "") +
+      '<div class="ds-map-wide"><div class="ds-map-box" style="--ar: ' + aspectOf(m.id) + '">' +
+      '<canvas class="ds-canvas" data-map-id="' + esc(m.id) + '" data-variant="' + esc(key) +
+      '" role="img" aria-label="' + esc(heading) + '"></canvas>' +
+      (window.DossierMap ? "" : '<p class="ds-map-missing">' + MISSING_MAP + "</p>") +
+      "</div></div>" +
+      (caption ? '<p class="ds-caption">' + esc(caption) + "</p>" : "") +
+      legendHtml(m) +
+      "</section>";
+  }
+
+  /* One block per (map, variant), every variant of a map together. The plain
+     picture reads the map's own caption; a variant reads its own. */
+  function html(maps) {
+    return (maps || []).map(function (m) {
+      return variantsOf(m.id).map(function (key) {
+        var v = key !== "plain" && m.variants && m.variants[key] ? m.variants[key] : null;
+        return blockHtml(m, key, v);
+      }).join("");
+    }).join("");
+  }
+
+  return { html: html, variantsOf: variantsOf };
+})();
+
+window.DossierMapBlock = DossierMapBlock;

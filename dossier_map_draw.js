@@ -188,10 +188,18 @@ var DossierMapDraw = (function () {
     polyPath(ctx, p, G.yem_adm0.features[0].geometry);
     if (shore) eachFeature(G.afr_adm0, function (f) { polyPath(ctx, p, f.geometry); });
   }
-  /* `opt` is the relief variant's business and nothing else's: `{img, bounds}`
-     lays the terrain picture inside the coastline, and `fade` washes the three
-     territory fills back so the terrain stays readable under them. Without it
-     this paints exactly what it painted before the raster existed. */
+  /* `opt` carries the relief variant's business - `{img, bounds}` lays the
+     terrain picture inside the coastline and `fade` washes the three territory
+     fills back so the terrain stays readable under them - and one flag of its
+     own: `clean`.
+
+     A CLEAN MAP DRAWS NO WAR (2026-09-17). Ziv, on the Mocha-Djibouti
+     crossing: strip everything unrelated to the crossing. So with the flag on,
+     the control fills, the fighting belts with their hatch and their red
+     diamonds, and the line of contact are all skipped, and what is left is the
+     sea, the land, the terrain, the governorate outlines and the coast - the
+     ground a sailing route is read on. Without either this paints exactly what
+     it painted before the raster existed. */
   function ground(ctx, p, P, u, W, H, G, opt) {
     var X = window.DossierMapExtra, o = opt || {};
     ctx.fillStyle = P.sea; ctx.fillRect(0, 0, W, H);
@@ -201,7 +209,7 @@ var DossierMapDraw = (function () {
        carries meaning, and clipped to the coastline that was just drawn. */
     if (o.img && X) X.relief(ctx, p, o.img, o.bounds);
     var byControl = function (c) { return function (f) { return f.properties.control === c; }; };
-    var zones = G.control_zones;
+    var zones = o.clean ? null : G.control_zones;
     /* On the light deck the three fills are opaque; over the terrain they would
        erase it, so they are washed back. The dark palette's fills already carry
        their own alpha and are left alone. */
@@ -216,7 +224,7 @@ var DossierMapDraw = (function () {
        of longitude as a war zone and a district one side plainly held lost its
        colour. Ziv reported it on al-Jawf, on Maqbanah and on the Lahij coast in
        one message. Territory now says WHO HOLDS, this says WHAT IS HAPPENING. */
-    if (G.fronts) {
+    if (G.fronts && !o.clean) {
       if (o.fade) ctx.globalAlpha = o.fade;
       fillCollection(ctx, p, G.fronts, { fill: P.contested });
       ctx.globalAlpha = 1;
@@ -234,8 +242,10 @@ var DossierMapDraw = (function () {
     ctx.beginPath();
     eachFeature(G.afr_adm0, function (f) { polyPath(ctx, p, f.geometry); });
     paintShape(ctx, { stroke: P.adm1, width: Math.max(0.8, u) });
-    strokeLines(ctx, p, G.control_line, { stroke: P.control, width: P.controlW * u,
-      dash: dashOf(P.controlDash, u) });
+    if (!o.clean) {
+      strokeLines(ctx, p, G.control_line, { stroke: P.control, width: P.controlW * u,
+        dash: dashOf(P.controlDash, u) });
+    }
   }
 
   /* ---- the gains overlay -------------------------------------------------------- */

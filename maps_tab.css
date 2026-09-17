@@ -1,0 +1,47 @@
+/* The maps view (the מפות tab) — layout and type.
+
+   A page of PICTURES, so it borrows the dossier pane's own shape rather than
+   inventing one: the same reading column, the same 22px body, the same map
+   blocks (.ds-map and everything under it lives in dossier.css and is written
+   by the shared block builder, so a change to a picture block reaches both
+   tabs at once). What is here is only the shell — what this view hides of the
+   board's furniture, and its own heading.
+
+   Per the shell contract in tabs.js, every rule about what a view hides lives
+   in that view's OWN stylesheet. Same three rules and the same desktop escape
+   as dossier.css and daily.css. */
+
+body:not(.view-maps) [data-pane="maps"] { display: none; }
+body.view-maps .band { display: none; }
+body.view-maps .wrap { display: none; }
+
+/* The desktop shell never scrolls; a page of maps must. */
+@media (min-width: 901px) {
+  body.view-maps { display: block; overflow: auto; }
+}
+
+.maps-pane {
+  max-width: 960px;
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+  padding-block: 20px 64px;
+  font-size: 22px; line-height: 1.6;
+}
+.maps-pane .empty p { font-size: 20px; }
+
+.mt-head { margin-block-end: 8px; }
+.mt-title { font-size: 42px; font-weight: 600; line-height: 1.15; }
+/* One line, and the only prose on the tab: what the two buttons under every
+   picture are for. Quieter than the pictures it introduces. */
+.mt-intro {
+  font-size: 20px; line-height: 1.5; color: var(--ink-muted);
+  margin-block-start: 8px;
+}
+/* The first block sits closer to the heading than the blocks sit to each other:
+   it is the first thing the tab is for, not a new section. */
+.maps-pane .ds-map:first-of-type { margin-block-start: 24px; }
+
+@media (max-width: 480px) {
+  .mt-title { font-size: 34px; }
+  .mt-intro { font-size: 18px; }
+}

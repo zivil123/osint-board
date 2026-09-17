@@ -13,7 +13,10 @@
      window.DossierDeck.build()   — Promise of { blob, fileName, mime }
    When either is missing the page says so in Hebrew, in place, and nothing
    else breaks. The maps section shows ONE BLOCK PER (map, variant), in the
-   deck's own order, so what he scrolls and what he presents never differ.
+   deck's own order, so what he scrolls and what he presents never differ — and
+   since 2026-09-17 only the maps with no `tab`, the other three living on the
+   מפות tab. The block itself is built by dossier_map_block.js, which that tab
+   calls too.
 
    Reads app.js globals (esc, ltr, fmtDate) at call time — loaded after it.
    Never touches setActive or MapView: those are board state and the board is
@@ -33,17 +36,6 @@
     none:      { he: "ללא אימות עצמאי", tok: "none" },
     claim:     { he: "טענה", tok: "none" },
   };
-  /* The HTML legend under each map — the same fills the board's legend names
-     (index.html #lg-territory), plus the gains layer in the ground-war violet.
-     Hebrew only: nothing under a map is English. */
-  const LEGEND = [
-    { cls: "sw fill", style: "--sw-fill: var(--geo-fill-houthi)", he: "שטח בשליטת החות'ים" },
-    { cls: "sw fill", style: "--sw-fill: var(--geo-fill-gov)", he: "שטח בשליטת הכוחות הלגיטימיים" },
-    { cls: "sw fill dash hatch mark", style: "--sw-fill: var(--geo-fill-contested)", he: "שטח לחימה פעיל" },
-    { cls: "sw fill gain", style: "", he: "נכבש בידי החות'ים (מאומת + משוער)" },
-    { cls: "sw line dash", style: "--sw-c: var(--geo-control-line); --sw-w: 2px", he: "קו חזית משוער" },
-  ];
-  const MISSING_MAP = "המפה אינה זמינה";
   const MISSING_DECK = "ההורדה אינה זמינה";
   const BUSY = "מכין את המצגת…";
   const FAILED = "ההורדה נכשלה.";
@@ -205,82 +197,15 @@
       (rows ? '<div class="ds-card">' + rows + "</div>" : "") + "</section>";
   }
 
-  function legendHtml() {
-    return '<div class="ds-legend" aria-label="מקרא המפה">' +
-      LEGEND.map((r) =>
-      '<span class="ds-lg-row"><span class="' + r.cls + '"' +
-      (r.style ? ' style="' + r.style + '"' : "") + "></span>" + esc(r.he) + "</span>"
-    ).join("") + "</div>";
-  }
-
-  /* The frame's own shape (3:2 for the close-up, 16:9 for the overview), so
-     the box has the canvas's shape before anything is drawn in it. */
-  function aspectOf(id) {
-    const a = window.DossierMap && DossierMap.aspect ? DossierMap.aspect(id) : 16 / 9;
-    return a.toFixed(4);
-  }
-
-  /* The pictures the painter can draw for a frame, plain first — the deck's own
-     list, so the page and the file carry the same blocks. Without the call (an
-     older painter) a map is its one plain picture. */
-  function variantsOf(id) {
-    if (window.DossierMap && typeof DossierMap.variantsOf === "function") {
-      try {
-        const v = DossierMap.variantsOf(id);
-        if (Array.isArray(v) && v.length) return v;
-      } catch (e) { /* fall through to the plain picture */ }
-    }
-    return ["plain"];
-  }
-
-  /* A block's heading: the map's own title when it has one, else the caption's
-     first clause. The cut is at a full stop or a SPACED dash — never a bare
-     hyphen, which in Hebrew joins a prefix to a number ("נכון ל-12"). */
-  function clauseOf(text) {
-    const t = String(text || "").trim();
-    const m = /[.。]|\s[—–-]\s/.exec(t);
-    return (m ? t.slice(0, m.index) : t).replace(/[,،]\s*$/, "").trim();
-  }
-  function blockHeading(m, variant) {
-    if (variant) return clauseOf(variant.caption_he) || blockHeading(m, null);
-    return String(m.title_he || "").trim() || clauseOf(m.caption_he);
-  }
-
-  /* When the heading was CUT OUT of the caption, the caption prints what is LEFT.
-     Design law: a row never repeats the name of the group it sits in - and a
-     one-clause caption with no title beside it would otherwise print twice, once
-     as the heading and once under the map. */
-  function captionAfter(text, heading) {
-    const t = String(text || "").trim();
-    if (!heading || t.indexOf(heading) !== 0) return t;
-    return t.slice(heading.length).replace(/^[\s.,،。—–-]+/, "").trim();
-  }
-
-  function mapBlockHtml(m, key, variant) {
-    const heading = blockHeading(m, variant);
-    const raw = variant ? (variant.caption_he || "") : (m.caption_he || "");
-    const cut = variant ? true : !String(m.title_he || "").trim();
-    const caption = cut ? captionAfter(raw, heading) : raw;
-    return '<section class="ds-map" data-map="' + esc(m.id) + '" data-variant="' + esc(key) + '">' +
-      (heading ? '<h3 class="ds-map-h">' + esc(heading) + "</h3>" : "") +
-      '<div class="ds-map-wide"><div class="ds-map-box" style="--ar: ' + aspectOf(m.id) + '">' +
-      '<canvas class="ds-canvas" data-map-id="' + esc(m.id) + '" data-variant="' + esc(key) +
-      '" role="img" aria-label="' + esc(heading) + '"></canvas>' +
-      (window.DossierMap ? "" : '<p class="ds-map-missing">' + MISSING_MAP + "</p>") +
-      "</div></div>" +
-      (caption ? '<p class="ds-caption">' + esc(caption) + "</p>" : "") +
-      legendHtml() +
-      "</section>";
-  }
-
-  /* One block per (map, variant), every variant of a map together, in the order
-     the deck lays its slides. The plain picture reads the map's own caption; a
-     variant reads its own. */
+  /* THE DOCUMENT'S OWN MAPS, and no others. A map carrying `tab: "maps"` lives
+     on the מפות tab instead (Ziv, 2026-09-17: "give me a place for only those
+     three"), and this section renders every map without one — the country, the
+     strait close-up and the Aden assessment, with their variants. The block
+     itself is built by dossier_map_block.js, which the maps tab calls too, so
+     the two views can never draw a picture differently. */
   function mapsHtml() {
-    return (DOSSIER.maps || []).map((m) => variantsOf(m.id).map((key) => {
-      const v = key !== "plain" && m.variants && m.variants[key] ? m.variants[key] : null;
-      return mapBlockHtml(m, key, v);
-    }).join("")).join("");
+    if (!window.DossierMapBlock) return "";
+    return DossierMapBlock.html((DOSSIER.maps || []).filter((m) => m.tab !== "maps"));
   }
 
   /* Derived from sources[] — never authored twice (DOSSIER.md). */

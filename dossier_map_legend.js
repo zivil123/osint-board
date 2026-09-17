@@ -99,7 +99,7 @@ var DossierMapLegend = (function () {
 
   /* ---- which corner the legend takes ---------------------------------------- */
 
-  /* THE LEGEND NEVER COVERS A NAMED PLACE (DOSSIER_MAPS.md), and a corner
+  /* THE LEGEND NEVER COVERS A NAMED PLACE (DOSSIER_LAYERS.md, "Frames"), and a corner
      written into the frame cannot keep that promise: one authored frame is
      drawn at 3:2 on the page and at 16:9 on every slide, and the slide's extra
      longitude moves the ground under a box that does not move with it.
@@ -117,13 +117,19 @@ var DossierMapLegend = (function () {
 
      What is scored, and what deliberately is not. The fighting belts and their
      diamonds, the assessment arrows and the map's own place labels are named
-     places and may never be covered; the painted title is scored heaviest of
-     all, because a box over the heading is not a map problem but a broken
-     picture. The shipping lane is NOT scored: it is a dashed line over open
-     water, its own name already dodges the box, and scoring it would push the
-     legend off the one corner the overview frame was cut for. */
+     places and may never be covered. The shipping lane is NOT scored: it is a
+     dashed line over open water, its own name already dodges the box, and
+     scoring it would push the legend off the one corner the overview frame was
+     cut for.
+
+     THE TITLE IS NO LONGER ONE OF THEM (2026-09-17). It used to be scored
+     heaviest of all - a box over the painted heading is not a map problem but
+     a broken picture - but no heading is painted into a picture any more: it
+     sits above the canvas, as HTML on the page and as a text box on the slide.
+     Whatever the caller has already reserved still comes in as `taken` and is
+     scored like a place. */
   var CORNERS = { top: ["tr", "br", "tl", "bl"], bottom: ["br", "tr", "bl", "tl"] };
-  var W_TITLE = 1000, W_FRONT = 100, W_ARROW = 80, W_LABEL = 60;
+  var W_FRONT = 100, W_ARROW = 80, W_LABEL = 60;
 
   function inBox(b, q) {
     return q[0] >= b.x0 && q[0] <= b.x1 && q[1] >= b.y0 && q[1] <= b.y1;
@@ -140,7 +146,7 @@ var DossierMapLegend = (function () {
      corner. */
   function obstacles(u, opt) {
     var R = D(), p = opt.p, G = opt.G || {}, map = opt.map || {}, r = markR(u);
-    var out = (opt.taken || []).map(function (b) { return { w: W_TITLE, box: b }; });
+    var out = (opt.taken || []).map(function (b) { return { w: W_FRONT, box: b }; });
     if (!p) return out;
     /* A belt is scored by its own OUTLINE, vertex by vertex, and not by its
        bounding box: a belt is a long thin band lying at whatever angle the
@@ -213,7 +219,12 @@ var DossierMapLegend = (function () {
     var R = D(), k = opt.size / 17;
     var L = { size: opt.size, k: k, pad: 12 * k, sw: 26 * k, gap: 9 * k };
     L.rowH = L.size * 1.55;
-    L.rows = [
+    /* A CLEAN map draws no territory, no fighting belts and no line of contact,
+       so it is given none of their rows: a key to something that is not on the
+       picture is noise, and on the crossing map it would be five rows of it.
+       What is left is what this layer's own painters hand back below - the
+       route and the ports. */
+    L.rows = opt.clean ? [] : [
       { fill: P.houthi, label: words.houthi },
       { fill: P.gov, label: words.gov },
       { fill: P.contested, hatch: R.hatch(ctx, P.contestedStroke, u),
@@ -235,6 +246,9 @@ var DossierMapLegend = (function () {
     if (window.DossierMapRoutes) {
       L.rows = L.rows.concat(DossierMapRoutes.legendRows(ctx, P, u, opt.map));
     }
+    /* No rows, no box. Only a clean map can reach this, and an empty key drawn
+       anyway would be a white rectangle floating in a corner. */
+    if (!L.rows.length) return null;
     var textW = Math.max.apply(null, L.rows.map(function (r) {
       return R.width(ctx, r.label, L.size, 500);
     }));

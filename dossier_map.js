@@ -9,11 +9,15 @@
 
      window.DossierMap = {
        draw(canvas, mapId, theme, cssWidth, variant),   // paints in place
-       exportPng(mapId, theme, width, height, variant), // -> PNG data URL
+       exportPng(mapId, theme, w, h, variant, shape),   // -> PNG data URL
        variantsOf(mapId),        // ["plain", ...] the pictures of this frame
        ready(theme),             // Promise: the theme's relief pictures landed
        frame(mapId, w, h), aspect(mapId), project(mapId, W, H), palette, words
      }
+
+   `shape` is "wide" (or undefined) and "square": the two pictures Ziv asked
+   for on 2026-09-17, a whole slide and one that sits beside text. It picks the
+   authored frame, never the canvas.
 
    mapId is any id in DOSSIER.maps ("overview" | "mandab" | "aden"); theme is
    "dark" | "light"; variant is "plain" (or undefined) | "notes" | "relief".
@@ -31,7 +35,7 @@
    projection with a cos(mid-latitude) correction, so any canvas shows the whole
    latitude range and only more or less longitude. That is what lets the same
    frame serve a 640px pane, a 1400px page and a 2560px slide. The rubric -
-   what each frame is cut to and why - is in DOSSIER_MAPS.md. */
+   what each frame is cut to and why - is in DOSSIER_LAYERS.md, "Frames". */
 "use strict";
 
 var DossierMap = (function () {
@@ -54,10 +58,6 @@ var DossierMap = (function () {
      can never sit on top of each other. 4.2 on the day it was built and 3.0
      since 2026-09-14: see the mark itself, painted below the labels. */
   var PIN_R = 3.0, PIN_MIN = 3;
-  /* The territory fills are washed back under the relief picture, on the light
-     deck only: the dark palette's fills already carry their own alpha, and an
-     opaque fill would erase the terrain it is drawn over. */
-  var RELIEF_FADE = 0.66;
   var OPPOSITE = { e: "w", w: "e", n: "s", s: "n" };
   /* The board's own legend words, so the painted legend matches the one under
      the map on the board tab. */
@@ -88,6 +88,10 @@ var DossierMap = (function () {
      under the violet stroke keeps the board's own #B7A5F7, so captured ground
      reads as the same colour in both decks. */
   var LIGHT = {
+    /* Which palette this is, so a layer that authors its own colours (the
+       zones' two, dossier_map_zones.js) can pick the set written for this
+       ground instead of guessing from a token. */
+    theme: "light",
     sea: "#C9DAEA", land: "#F4F7FA",
     houthi: "#C6BCAE", gov: "#E3E8ED", contested: "#EEF1F4",
     contestedStroke: "#7F8B98", frontMark: "#E01B0F",
@@ -136,6 +140,7 @@ var DossierMap = (function () {
     if (!sea) throw new Error("dossier_map: style.css tokens are not on the page");
     var ink = cssVar("--ink");
     return {
+      theme: "dark",
       sea: sea,
       /* Land is a step above the sea. --surface-2 alone is too close: with the
          government fill (a dark wash) on top it lands back on the sea colour and
@@ -187,9 +192,23 @@ var DossierMap = (function () {
     var D = dossier();
     return (D && (D.maps || []).filter(function (m) { return m.id === mapId; })[0]) || null;
   }
-  function frameOf(mapId) {
+  /* TWO SHAPES OF EVERY PICTURE (2026-09-17). Ziv puts some of these maps on a
+     half slide with text beside them and asked for "a shape that fits", so the
+     PNG button offers a WIDE picture (the whole slide) and a SQUARE one (beside
+     the text). The square is never derived: `frames.<name>.square` is authored
+     with its own latitude range and longitude centre, because a square cut out
+     of a 16:9 frame either loses the story's two ends or keeps empty ground.
+     The frame's own `aspect` stays the wide one - the page's canvas and the
+     deck's slide are both wide - and a record that has no `square` yet falls
+     back to the wide frame, which a 1:1 canvas simply shows less longitude of. */
+  function frameOf(mapId, shape) {
     var D = dossier(), m = mapOf(mapId);
-    return (D && m && D.frames && D.frames[m.frame]) || null;
+    var f = (D && m && D.frames && D.frames[m.frame]) || null;
+    if (!f) return null;
+    var sq = shape === "square" ? f.square : null;
+    if (!sq || !sq.lat) return f;
+    return { lat: sq.lat, aspect: [1, 1], legend: f.legend, gov: f.gov,
+             lonMid: typeof sq.lonMid === "number" ? sq.lonMid : f.lonMid };
   }
   function aspect(mapId) {
     var f = frameOf(mapId);
@@ -208,74 +227,19 @@ var DossierMap = (function () {
 
   /* ---- the relief pictures ------------------------------------------------------ */
 
-  /* GEO.relief is written by geo_prep.py from relief_prep.py's output: one
-     entry per frame, each with its lon/lat bounds, a light and a dark file and
-     a content hash to bust the cache with. Nothing here draws until the picture
-     for the theme has landed, which is what ready() is for.
-
-     Loaded ONCE per theme and kept: the deck exports every map at 2560 and the
-     page redraws on every resize, and re-fetching a 200 KB picture each time
-     would make both stutter. */
-  var reliefImg = {}, reliefWait = {};
-
-  function reliefMeta() {
-    var G = geo();
-    return (G && G.relief && typeof G.relief === "object") ? G.relief : null;
-  }
-  /* Only the frames a map actually asks for terrain on - there is no point
-     fetching a picture for a frame no variant draws. */
-  function reliefFrames() {
-    var D = dossier(), seen = {};
-    (D && D.maps || []).forEach(function (m) {
-      /* A `ground: "relief"` map has no variant to ask with, and the terrain is
-         the only ground it ever draws - so it asks by the flag instead. */
-      var wants = (m.variants && m.variants.relief) || m.ground === "relief";
-      if (m.frame && wants) seen[m.frame] = true;
-    });
-    return Object.keys(seen);
-  }
-  function loadOne(store, name, file, hash) {
-    return new Promise(function (resolve) {
-      var img = new Image();
-      img.onload = function () { store[name] = img; resolve(); };
-      /* A picture that will not load costs the terrain and nothing else: the
-         map is painted without it rather than not at all. */
-      img.onerror = function () {
-        console.warn("dossier_map: the relief picture did not load: " + file);
-        resolve();
-      };
-      img.src = file + (hash ? "?v=" + hash : "");
-    });
-  }
-  /* Resolves when every relief picture this theme needs is in memory - or at
-     once when there are none, or when the page is on file://, where an image
-     TAINTS the canvas and toDataURL() throws, which would take the whole deck
-     down for a background layer. */
+  /* Loading them, and deciding which frame needs one, moved to
+     dossier_map_relief.js on 2026-09-17 to make room here for the two picture
+     shapes. It is OPTIONAL at runtime, exactly as the terrain itself is: a
+     board with no relief file draws every map on plain ground, so a missing
+     script costs the terrain and never the picture. */
+  function reliefFile() { return window.DossierMapRelief || null; }
   function ready(theme) {
-    var key = theme === "light" ? "light" : "dark";
-    if (reliefWait[key]) return reliefWait[key];
-    var meta = reliefMeta(), names = meta ? reliefFrames() : [];
-    if (!names.length || location.protocol === "file:") {
-      reliefWait[key] = Promise.resolve(false);
-      return reliefWait[key];
-    }
-    var store = reliefImg[key] = reliefImg[key] || {};
-    reliefWait[key] = Promise.all(names.map(function (name) {
-      var m = meta[name];
-      if (!m || !m.file || !m.file[key]) return Promise.resolve();
-      return loadOne(store, name, m.file[key], m.hash && m.hash[key]);
-    })).then(function () { return true; });
-    return reliefWait[key];
+    var R = reliefFile();
+    return R ? R.ready(theme) : Promise.resolve(false);
   }
-  /* What ground() needs for this map, or null: the picture, where it goes, and
-     how far back to wash the territory fills over it. */
   function reliefOpt(map, theme, variant) {
-    if (variant !== "relief" && (map || {}).ground !== "relief") return null;
-    var key = theme === "light" ? "light" : "dark";
-    var meta = reliefMeta(), m = meta && meta[map.frame];
-    var img = (reliefImg[key] || {})[map.frame];
-    if (!m || !m.bounds || !img) return null;
-    return { img: img, bounds: m.bounds, fade: key === "light" ? RELIEF_FADE : 0 };
+    var R = reliefFile();
+    return R ? R.optFor(map, theme, variant) : null;
   }
 
   /* ---- the picture ----------------------------------------------------------- */
@@ -286,24 +250,35 @@ var DossierMap = (function () {
       { size: Math.max(20, 22 * u), weight: 600, halo: 0 });
   }
 
-  function paint(ctx, mapId, theme, W, H, ts, variant) {
+  function paint(ctx, mapId, theme, W, H, ts, variant, shape) {
     var R = painters(), P = palette(theme), G = geo(), D = dossier(), u = W / BASE_W;
-    var map = mapOf(mapId), F = frameOf(mapId), kind = variant || "plain";
+    var map = mapOf(mapId), F = frameOf(mapId, shape), kind = variant || "plain";
     ctx.direction = "rtl";
     if (!G || !D || !map || !F) { noData(ctx, P, R, W, H, u); return; }
     var p = projector(F, W, H);
     /* 17px is the reading floor on screen; everything grows with the canvas
        and nothing shrinks below it, so a narrow canvas drops tier-2 labels
        instead of shrinking them. */
-    var size = Math.max(17, 17 * u * ts), titleSize = Math.max(20, 22 * u * ts);
+    var size = Math.max(17, 17 * u * ts);
     var pinR = Math.max(PIN_MIN, PIN_R * u * ts);
     /* The NOTES picture is the same map with a sentence at every fighting zone,
        so it needs the room: the second-rank place names and the lane's name come
        off, and what is left is the ground, the fronts and what is happening on
        them. Nothing is added that the plain picture does not have. */
     var notesOn = kind === "notes";
-    R.ground(ctx, p, P, u, W, H, G, reliefOpt(map, theme, kind));
-    R.gains(ctx, p, P, u, D, G, mapId);
+    /* A CLEAN map draws no war. Ziv, 2026-09-17, on the Mocha-Djibouti
+       crossing: strip everything unrelated - the fighting, the control colours,
+       the second route - and leave one line with its length. So `clean` on the
+       record takes the control fills, the fighting belts and their diamonds,
+       the line of contact, the gains and the governorate names off this one
+       picture; the terrain, the coast, the borders, the places, the route and
+       the key all stay. It is a per-map flag and not a variant: the crossing
+       has no second picture of the same frame. */
+    var clean = !!map.clean;
+    var gOpt = reliefOpt(map, theme, kind) || {};
+    gOpt.clean = clean;
+    R.ground(ctx, p, P, u, W, H, G, gOpt);
+    if (!clean) R.gains(ctx, p, P, u, D, G, mapId);
     /* Zones, sea routes and straight-line measures go down WITH the ground: a
        town's pin belongs on top of a line that passes through its port. */
     R.mapUnder(ctx, p, P, u, map);
@@ -318,28 +293,26 @@ var DossierMap = (function () {
        third of the map and squeeze the strait's name off the close-up
        (measured at 700px), so it is left to the HTML legend the view prints
        under the canvas; the export is always wider and always carries it. */
-    /* A map may carry NO heading: Ziv struck the close-up's on 2026-09-12
-       ("remove this line"). An empty title paints nothing and reserves nothing,
-       so the legend below it climbs to the same inset every other floating thing
-       uses - a heading that is gone must not leave its gap behind. */
-    var title = map.title_he || "";
-    var titleBottom = title ? 16 * u + titleSize * 1.3 : 16 * u;
+    /* NO TITLE IS PAINTED INTO A PICTURE (2026-09-17). Ziv, reviewing the three
+       new maps: the header goes OUTSIDE the picture, not into it. The page has
+       always printed the heading as an <h3> above the canvas, so a painted one
+       said the same words twice; the deck now writes it as a slide text box
+       above the picture (dossier_deck.js). What the canvas gains is the top
+       inset back: every floating thing on it - the legend, the scale bar - now
+       starts at the same 16*u edge as everything else. */
+    var titleTop = 16 * u;
     var taken = [];
-    if (title) {
-      taken.push({ x0: W - 28 * u - R.width(ctx, title, titleSize, 600), y0: 0,
-                   x1: W, y1: titleBottom });
-    }
     /* WHICH CORNER the legend takes is decided per render, by what would be
        under each of the four - the belts and their diamonds, the axes and the
        map's own labels (dossier_map_legend.js). The frame's authored `legend`
        is handed over as a PREFERENCE and only breaks a tie, because one frame
        is drawn at 3:2 on the page and 16:9 on every slide and a fixed corner
-       cannot be clean on both. `top` is the y a top corner takes: the line
-       under the painted title, or the plain inset when there is none. */
+       cannot be clean on both. `top` is the y a top corner takes - the plain
+       inset since 2026-09-17, no title being painted above it any more. */
     var legend = W >= 800
       ? R.legendLayout(ctx, P, u, W, H, !!(map.lanes && map.lanes.length), WORDS,
           { size: size, arrows: !!(map.arrows && map.arrows.length),
-            top: titleBottom + (title ? 10 * u : 0), pref: F.legend,
+            top: titleTop, pref: F.legend, clean: clean,
             p: p, G: G, map: map, taken: taken.slice() })
       : null;
     if (legend) taken.push(legend.box);
@@ -413,26 +386,28 @@ var DossierMap = (function () {
        lines deep cannot all find free ground on the overview, so whatever is
        already standing gets overprinted instead. Measured at 1400px with the
        governorate names in: 21 collisions across 12 callouts, which is an
-       unreadable picture. Without them: see the number in DOSSIER_MAPS.md.
+       unreadable picture. Without them: see the number in DOSSIER_MAPS.md,
+       "Notes live on the FRONT"; the label rule itself is DOSSIER_LAYERS.md,
+       "Labels, pins and the governorate names".
        The province names are not lost - the plain picture of the same frame
        sits directly above this one on the page and in the deck, and carries
-       every one of them. */
+       every one of them.
+
+       A CLEAN map drops them too, for the opposite reason: it is not a map of
+       who holds what, and a province name over a sailing route asks a question
+       the picture does not answer. */
     var gov = F.gov || 1;
-    if (!notesOn) {
+    if (!notesOn && !clean) {
       R.govLabels(ctx, p, P, u, G,
         Math.max(size * Math.min(GOV_MIN, gov), 17 * u * ts * gov), taken, points);
     }
     if (notesOn) R.notes(ctx, p, P, u, ts, G, taken, W, H, size);
-    else R.zoneNames(ctx, p, P, u, W, H, G, size, taken);
+    else if (!clean) R.zoneNames(ctx, p, P, u, W, H, G, size, taken);
     labels.forEach(function (l) {
       var s = l.spec;
       R.text(ctx, P, s.str, s.x, s.y, { size: s.size, weight: l.quiet ? 500 : 600,
         halo: 3 * u, align: s.align, baseline: s.baseline, color: l.quiet ? P.govLabel : null });
     });
-    if (title) {
-      R.text(ctx, P, title, W - 16 * u, 16 * u, { size: titleSize, weight: 600,
-        halo: 4 * u, align: "right", baseline: "top" });
-    }
     if (legend) R.paintLegend(ctx, P, u, legend);
   }
 
@@ -467,10 +442,15 @@ var DossierMap = (function () {
     }
   }
 
-  function exportPng(mapId, theme, width, height, variant) {
+  /* `shape` is "wide" (or undefined) for the slide-sized picture and "square"
+     for the one that sits beside text on half a slide. It picks the FRAME, not
+     the canvas: the caller still says how many pixels it wants, and a square
+     frame drawn on a wide canvas would only gain longitude. */
+  function exportPng(mapId, theme, width, height, variant, shape) {
     var c = document.createElement("canvas");
     c.width = Math.round(width); c.height = Math.round(height);
-    paint(c.getContext("2d"), mapId, theme, c.width, c.height, TEXT_SLIDE, variant);
+    paint(c.getContext("2d"), mapId, theme, c.width, c.height, TEXT_SLIDE,
+          variant, shape);
     return c.toDataURL("image/png");
   }
 

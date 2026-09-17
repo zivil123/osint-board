@@ -16,7 +16,9 @@
    dossier_map.js owns the frames, the projection and the palette and calls in
    here at paint time, exactly as it calls the other three painter files; the
    shared helpers come from DossierMapDraw, looked up on each call so the files
-   may load in any order.
+   may load in any order. The zones' own rings, colours, glyphs and key rows
+   left for dossier_map_zones.js on 2026-09-17, when a colour per type would
+   have taken this file over its cap; it is looked up the same way.
 
    EVERY PAINTED STRING IS HEBREW AND DIGITS. A distance reads
    'כ-192 ק"מ / 104 מייל ימי' - the build refuses a Latin letter in any map
@@ -43,7 +45,6 @@ var DossierMapRoutes = (function () {
     km: 'ק"מ', nm: "מייל ימי",
     objective: "יעד שהוכרז", heights: "רכס הררי", port: "נמל",
     lane: "נתיב שיט ראשי", coastal: "נתיב חופי", measure: "מרחק בקו ישר",
-    reported: "אזור שדווח", assessed: "אזור משוער (הערכה)",
     claim: "טענה, ללא אימות עצמאי"
   };
 
@@ -122,34 +123,16 @@ var DossierMapRoutes = (function () {
 
   /* ---- zones --------------------------------------------------------------- */
 
-  /* A SECOND hatch, and it may never be read as the fighting one. The fronts
-     take 45-degree lines in the contested stroke; this takes 135 degrees at a
-     wider pitch in the muted ink, so the two are told apart by ANGLE, PITCH and
-     shade at once - texture again, never a new hue (DOSSIER_MAPS.md). */
-  function zoneHatch(ctx, color, u) {
-    var n = Math.max(9, Math.round(17 * u)), c = document.createElement("canvas");
-    c.width = c.height = n;
-    var g = c.getContext("2d");
-    g.strokeStyle = color; g.lineWidth = Math.max(1, 1.2 * u); g.lineCap = "square";
-    g.beginPath();
-    g.moveTo(0, 0); g.lineTo(n, n);
-    g.moveTo(-1, n - 1); g.lineTo(1, n + 1);
-    g.moveTo(n - 1, -1); g.lineTo(n + 1, 1);
-    g.stroke();
-    return ctx.createPattern(c, "repeat");
-  }
-  /* The ring's radius is the AUTHORED one in kilometres - the explicit
-     radius_km if the record carries it, otherwise the gazetteer's own for that
-     area key. A floor keeps a small area visible on the country frame. */
-  function zoneR(z, per, u) {
-    return Math.max(7 * u, (z.radius_km || 0) * per);
-  }
-  /* REPORTED takes a solid edge and ASSESSED a dotted one: a dated open report
-     with a link is a different claim from an analyst's view, and the map says
-     which without a second colour. */
-  function zoneEdge(z, P, u) {
-    return { stroke: P.muted, width: Math.max(1.4, 2 * u),
-             dash: z.kind === "assessed" ? [2.5 * u, 3.5 * u] : [] };
+  /* The rings themselves - their two colours, their hatch, their centre glyph
+     and their legend rows - moved to dossier_map_zones.js on 2026-09-17, when
+     `type` started choosing a colour and a glyph and this file was 48 lines
+     under its cap. What stays here is where a zone's NAME goes, because that
+     search shares `boxAt` and `free` with the route labels. */
+  function Z() {
+    if (!window.DossierMapZones) {
+      throw new Error("dossier_map_routes: dossier_map_zones.js is not on the page");
+    }
+    return window.DossierMapZones;
   }
 
   /* ---- routes and measures -------------------------------------------------- */
@@ -201,12 +184,7 @@ var DossierMapRoutes = (function () {
      so a pin is never buried by a line that merely passes through its port. */
   function mapUnder(ctx, p, P, u, map) {
     var R = D(), m = map || {}, per = kmPx(p);
-    var zones = m.zones || [], hatch = zones.length ? zoneHatch(ctx, P.muted, u) : null;
-    zones.forEach(function (z) {
-      var q = p(z.lon, z.lat), r = zoneR(z, per, u);
-      R.ringMark(ctx, q[0], q[1], r, { fill: hatch });
-      R.ringMark(ctx, q[0], q[1], r, zoneEdge(z, P, u));
-    });
+    if ((m.zones || []).length) Z().draw(ctx, p, P, u, m, per);
     (m.measure || []).forEach(function (mm) {
       var pts = (mm.path || []).map(function (c) { return p(c[0], c[1]); });
       if (pts.length < 2) return;
@@ -308,7 +286,7 @@ var DossierMapRoutes = (function () {
     var R = D(), per = kmPx(p);
     (list || []).forEach(function (z) {
       if (!z.label_he) return;
-      var q = p(z.lon, z.lat), r = zoneR(z, per, u), spot = null;
+      var q = p(z.lon, z.lat), r = Z().radius(z, per, u), spot = null;
       var w = R.width(ctx, z.label_he, size, 500) + 6 * u, h = size * 1.3, cands = [];
       if (2 * r >= w * 1.05) cands.push([q[0], q[1]]);
       [0, 1, 2, 3, 4].forEach(function (ring) {
@@ -367,13 +345,20 @@ var DossierMapRoutes = (function () {
      the same order the painter already gives the governorate names against the
      fighting zones (dossier_map.js). */
   function mapOver(ctx, p, P, u, map, taken, W, H, size, legend) {
-    var m = map || {}, per = kmPx(p);
+    var m = map || {}, per = kmPx(p), routes = m.routes || [];
+    /* A MAP OF ONE CROSSING SAYS HOW FAR IT IS, once and large. Ziv asked for
+       the Mocha-Djibouti picture stripped to a single line with its length
+       (2026-09-17), and a lone distance set at the same size as a town name
+       reads as a caption to nothing. With two routes on one frame the label is
+       kept at the map's own size: there the question is which line is which,
+       and two large blocks would be the loudest thing on the picture. */
+    var only = routes.length === 1 && !(m.measure || []).length;
     zoneLabels(ctx, p, P, u, m.zones, taken, W, H, size);
-    (m.routes || []).forEach(function (rt) {
+    routes.forEach(function (rt) {
       var pts = (rt.path || []).map(function (c) { return p(c[0], c[1]); });
       if (pts.length >= 2) {
-        pathLabel(ctx, P, u, [rt.label_he, distLabel(pathKm(rt.path))], pts, size,
-          taken, W, H);
+        pathLabel(ctx, P, u, [rt.label_he, distLabel(pathKm(rt.path))], pts,
+          only ? size * 1.3 : size, taken, W, H);
       }
     });
     (m.measure || []).forEach(function (mm) {
@@ -404,16 +389,11 @@ var DossierMapRoutes = (function () {
     ["objective", "heights", "port"].forEach(function (k) {
       if (kinds[k]) rows.push({ draw: glyph(k), label: HE[k] });
     });
-    (m.zones || []).forEach(function (z) {
-      var kind = z.kind === "assessed" ? "assessed" : "reported";
-      if (seen[kind]) return;
-      seen[kind] = true;
-      rows.push({ label: HE[kind], draw: function (c, Q, uu, x, cy, sw, sh) {
-        var r = sh * 0.46;
-        R.ringMark(c, x + sw / 2, cy, r, { fill: zoneHatch(c, Q.muted, uu) });
-        R.ringMark(c, x + sw / 2, cy, r, zoneEdge(z, Q, uu));
-      } });
-    });
+    /* The zones' own rows - one per TYPE plus the dotted-edge line - are built
+       by the file that paints them, for the same reason this file builds these:
+       a row carries its own swatch, so nobody has to learn a mark they do not
+       own. */
+    if ((m.zones || []).length) rows = rows.concat(Z().legendRows(ctx, P, u, m));
     (m.routes || []).forEach(function (rt) {
       var kind = rt.kind === "coastal" ? "coastal" : "lane";
       if (seen[kind]) return;

@@ -186,28 +186,70 @@
 
   /* ---- map slides --------------------------------------------------------- */
 
-  /* A map slide is the map, edge to edge: the picture carries its own legend, so
-     a heading, caption and footer would only shrink it (Ziv, 2026-09-11: "make
-     everything bigger"), and he struck both headings on 12 and 13 September. Only
-     a failed export falls back to a titled slide saying so.
+  /* A MAP SLIDE IS A TITLE BAND AND THE PICTURE UNDER IT (2026-09-17). It used
+     to be the picture edge to edge, with its own heading painted into the
+     canvas; Ziv, reviewing the three newest maps, asked for the header OUTSIDE
+     the picture, so the painter stopped writing one and the slide writes it
+     instead - as a real text box he can edit, in the deck's own type, above a
+     picture fitted to what is left. The picture still carries its own legend,
+     and "make everything bigger" (2026-09-11) is kept by fitting it to the
+     WHOLE remaining height rather than to a margin box. Only a failed export
+     falls back to a slide saying so.
      THE PLAIN OVERVIEW AND CLOSE-UP ARE IN THE DECK TWICE since 2026-09-14 - the
      picture, and then the same map as objects he can edit, because he asked for
      both: "put it as a picture and also put it as stuff that I can edit on the
      PowerPoint slide." The editable one is dossier_deck_map.js; if that file is
      not on the page the deck simply loses that slide and keeps every picture. */
+  /* THE TWIN CARRIES THE SAME TITLE AS THE PICTURE SLIDE (2026-09-17). Every
+     other map slide gained a real title text box the day the painter stopped
+     writing one into the canvas; the editable twin was drawing the map alone,
+     so the deck read as a titled picture followed by an anonymous one. The twin
+     paints edge to edge and has no room reserved above it, so the title goes on
+     a band of the deck's own ground laid over the map's top strip - the same
+     height the picture slides reserve, and over the emptiest part of both
+     frames (Saudi desert on the overview, open sea on the close-up). */
+  function titleBand(slide, text) {
+    slide.addShape("rect", { x: 0, y: 0, w: W, h: PIC_TOP,
+      fill: { color: T.bg }, line: { color: T.bg, width: 0 } });
+    heading(slide, text);
+  }
   function vectorPage(pages, map) {
     if (!window.DossierDeckMap) return;
     pages.push({ draw: (slide) => {
       const s = DossierDeckMap.slide(null, slide, map.id, T.name);
+      titleBand(slide, titleFor(map, "plain"));
       if (s) META.vector.push(Object.assign({ id: map.id }, s));
     } });
   }
-  function mapPage(pages, map, png) {
+  /* The page's own heading rule, so a slide and the block on the tab are named
+     the same thing: the map's title, or its caption's first clause, and a
+     variant's own caption where it has one. */
+  function clauseOf(text) {
+    const t = String(text || "").trim();
+    const m = /[.。]|\s[—–-]\s/.exec(t);
+    return (m ? t.slice(0, m.index) : t).replace(/[,،]\s*$/, "").trim();
+  }
+  function titleFor(map, variant) {
+    const v = variant && variant !== "plain" && map.variants ? map.variants[variant] : null;
+    const own = String(map.title_he || "").trim() || clauseOf(map.caption_he);
+    return v ? (clauseOf(v.caption_he) || own) : own;
+  }
+  /* The picture keeps its own 16:9 shape - the export is always 2560x1440 - and
+     is fitted to the band that is left, centred. Fitted by HEIGHT here, which
+     is what a 16:9 picture under a title band always comes to on a 16:9 slide;
+     the width branch is kept so a squarer export could not overflow the slide. */
+  const PIC_TOP = 1.12, PIC_PAD = 0.18;
+  function picBox(png) {
+    const h = H - PIC_TOP - PIC_PAD, w = Math.min(W, h * 16 / 9);
+    const fit = w === W ? { w: W, h: W * 9 / 16 } : { w: w, h: h };
+    return { data: png.replace(/^data:/, ""), x: (W - fit.w) / 2, y: PIC_TOP,
+             w: fit.w, h: fit.h };
+  }
+  function mapPage(pages, map, png, variant) {
     pages.push({ draw: (slide) => {
       ground(slide);
-      if (png) {
-        slide.addImage({ data: png.replace(/^data:/, ""), x: 0, y: 0, w: W, h: H }); return; }
-      heading(slide, map.title_he || "");
+      heading(slide, titleFor(map, variant));
+      if (png) { slide.addImage(picBox(png)); return; }
       box(slide, [run(NO_MAP, { fontSize: 20, color: T.muted, align: "center" })],
         { x: M, y: H / 2 - 0.25, w: W - 2 * M, h: 0.5 }, { align: "center" });
     } });
@@ -242,12 +284,15 @@
   /* ---- the deck ----------------------------------------------------------- */
 
   /* One picture per (map, variant) in DOSSIER.maps order, every variant of a map
-     together; the editable twin follows the plain picture of the frames it knows. */
+     together; the editable twin follows the plain picture of the frames it knows.
+     A map that lives on the מפות tab (`tab: "maps"`) is NOT in the deck: Ziv
+     moved those three off the document and out of its presentation on
+     2026-09-17, and the tab's own PNG buttons are how they reach a slide. */
   function wantedPictures() {
     const maps = Array.isArray(DOSSIER.maps) ? DOSSIER.maps : [];
     const out = [];
     maps.forEach(map => {
-      if (!map || !map.id) return;
+      if (!map || !map.id || map.tab === "maps") return;
       variantsOf(map.id).forEach(variant => out.push({ map: map, variant: variant }));
     });
     return out;
@@ -265,7 +310,7 @@
         const pages = [];
         pages.push({ draw: slide => { ground(slide); titleSlide(slide); } });
         wanted.forEach((w, i) => {
-          mapPage(pages, w.map, pngs[i]);
+          mapPage(pages, w.map, pngs[i], w.variant);
           META.pictures.push({ id: w.map.id, variant: w.variant, png: !!pngs[i] });
           if (w.variant === "plain" && EDITABLE.indexOf(w.map.id) >= 0) vectorPage(pages, w.map);
         });
