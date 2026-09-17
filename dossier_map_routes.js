@@ -18,7 +18,10 @@
    shared helpers come from DossierMapDraw, looked up on each call so the files
    may load in any order. The zones' own rings, colours, glyphs and key rows
    left for dossier_map_zones.js on 2026-09-17, when a colour per type would
-   have taken this file over its cap; it is looked up the same way.
+   have taken this file over its cap; it is looked up the same way. WHERE A
+   ROUTE'S NAME GOES left for dossier_map_route_label.js the same day, when the
+   authored anchor and its leader line would have done the same - this file
+   draws the LINES, that one places their WORDS.
 
    EVERY PAINTED STRING IS HEBREW AND DIGITS. A distance reads
    'כ-192 ק"מ / 104 מייל ימי' - the build refuses a Latin letter in any map
@@ -134,6 +137,16 @@ var DossierMapRoutes = (function () {
     }
     return window.DossierMapZones;
   }
+  /* Where a name STANDS - on a line, beside it, or at an authored point with a
+     leader back to the route. Split out the same day and looked up the same
+     way; `boxAt` and `free` come back from it so one definition of "does this
+     box fit" serves the zone names here and every route name there. */
+  function L() {
+    if (!window.DossierMapRouteLabel) {
+      throw new Error("dossier_map_routes: dossier_map_route_label.js is not on the page");
+    }
+    return window.DossierMapRouteLabel;
+  }
 
   /* ---- routes and measures -------------------------------------------------- */
 
@@ -143,6 +156,22 @@ var DossierMapRoutes = (function () {
      names them. */
   var ROUTE_W = { lane: 3.4, coastal: 2.0 };
   var HEAD_GAP = 100;             /* px at BASE_W between arrowheads along a route */
+  /* A CLEAN MAP DRAWS ITS ROUTE TWICE AS THICK (2026-09-17). Ziv, of the
+     Mocha-Djibouti picture: *"make the naval route look bigger."* A plain map
+     carries belts, arrows and a line of contact and a route has to sit among
+     them; a clean one carries the route and two port names, and at whole-area
+     reach - the crossing frame spans twelve degrees of latitude - the line it
+     is entirely about was a hairline. The heads, the halo under the line and
+     the legend's own swatch all take the same factor, so the key never shows a
+     weight the picture does not draw. One number, read by mapUnder and by
+     legendRows. */
+  var CLEAN_ROUTE = 2;
+
+  function routeK(m) { return m && m.clean ? CLEAN_ROUTE : 1; }
+  function routeW(kind, u, k) { return (ROUTE_W[kind] || 2.4) * k * u; }
+  function headW(kind, u, k) {
+    return Math.max(6 * k, (kind === "lane" ? 10 : 8) * k * u);
+  }
 
   function poly(ctx, pts) {
     ctx.beginPath();
@@ -194,134 +223,20 @@ var DossierMapRoutes = (function () {
       R.paintShape(ctx, { stroke: P.muted, width: Math.max(1.2, 1.7 * u),
         dash: [7 * u, 5 * u] });
     });
+    var k = routeK(m);
     (m.routes || []).forEach(function (rt) {
       var pts = (rt.path || []).map(function (c) { return p(c[0], c[1]); });
       if (pts.length < 2) return;
-      var w = (ROUTE_W[rt.kind] || 2.4) * u;
+      var w = routeW(rt.kind, u, k);
       poly(ctx, pts);
-      R.paintShape(ctx, { stroke: P.halo, width: w + 4 * u });
+      R.paintShape(ctx, { stroke: P.halo, width: w + 4 * u * k });
       poly(ctx, pts);
       R.paintShape(ctx, { stroke: P.ink, width: w });
-      heads(ctx, P, u, pts, Math.max(6, (rt.kind === "lane" ? 10 : 8) * u));
+      heads(ctx, P, u, pts, headW(rt.kind, u, k));
     });
   }
 
   /* ---- what goes OVER them --------------------------------------------------- */
-
-  function boxAt(cx, cy, w, h) {
-    return { x: cx, y: cy,
-             box: { x0: cx - w / 2, y0: cy - h / 2, x1: cx + w / 2, y1: cy + h / 2 } };
-  }
-  /* `pad` is a margin off the canvas rim, and only a side-placed block asks for
-     one: a name that ends 2% from the edge of a 2048px picture is not cut, but
-     it reads as though the picture were trimmed. */
-  function free(b, taken, W, H, pad) {
-    var R = D(), m = pad || 0;
-    return b.x0 >= m && b.x1 <= W - m && b.y0 >= m && b.y1 <= H - m &&
-      !taken.some(function (t) { return R.overlaps(b, t); });
-  }
-  /* A point at fraction `t` of the path's OWN length, with the unit normal of
-     the leg it lands on. By length and not by vertex index: a route's waypoints
-     sit wherever the channel bends, so the middle vertex is rarely the middle
-     of the line. */
-  function along(pts, t) {
-    var d = [0], total = 0, i, k, dx, dy, run = 0;
-    for (i = 1; i < pts.length; i++) {
-      d[i] = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
-      total += d[i];
-    }
-    for (i = 1; i < pts.length; i++) {
-      if (run + d[i] >= total * t || i === pts.length - 1) {
-        k = d[i] ? Math.max(0, Math.min(1, (total * t - run) / d[i])) : 0;
-        dx = pts[i][0] - pts[i - 1][0]; dy = pts[i][1] - pts[i - 1][1];
-        return { x: pts[i - 1][0] + dx * k, y: pts[i - 1][1] + dy * k,
-                 nx: -dy / (d[i] || 1), ny: dx / (d[i] || 1) };
-      }
-      run += d[i];
-    }
-    return { x: pts[0][0], y: pts[0][1], nx: 0, ny: -1 };
-  }
-
-  /* A block of one or two lines beside the path, pushed off it on whichever
-     side is free - the arrows' own bargain (dossier_map_extra.js), but searched
-     ALONG the line as well as across it. Across alone was measured on the first
-     fixture: a route and the straight line beside it share a midpoint, six
-     perpendicular offsets were all taken, and both fell through to the clamp and
-     printed over each other and over a town name. A clamp rather than a drop is
-     still right at the end - the distance IS what this map is for. */
-  var ALONG = [0.5, 0.38, 0.62, 0.26, 0.74, 0.14, 0.86, 0.06, 0.94];
-  var ACROSS = [1, -1, 2, -2, 3.2, -3.2, 4.6, -4.6, 6.4, -6.4, 8.6, -8.6, 11, -11];
-
-  /* BESIDE THE LINE, NOT ON IT (2026-09-17). Ziv, of the crossing picture:
-     "move that text that you put in the line to the side." A route may name the
-     side - `label_side`, "w" or "e" - and then the block is pushed clear of the
-     line onto that side with no leader drawn: the gap is measured from the line
-     to the EDGE of the block (the box's own reach along the leg's normal) and
-     never to its centre, so a two-line block at slide size cannot come down
-     half on top of the route it names.
-
-     A wide frame can leave too little room on the chosen side for the block at
-     full size - measured on the crossing's whole-area frame, where the route's
-     name at the clean text scale is a third of the canvas wide - so the block
-     STEPS DOWN in size until it fits. Not flipping to the other side, and not
-     falling back onto the line: both answer a different question from the one
-     that was asked. */
-  var SIDE_GAP = [11, 17, 26, 38, 54], SIDE_SIZE = [1, 0.88, 0.76, 0.66, 0.58];
-  var SIDE_ALONG = [0.5, 0.44, 0.56, 0.38, 0.62, 0.3, 0.7];
-
-  function sideSpot(ctx, R, u, lines, pts, size, taken, W, H, side) {
-    var found = null;
-    SIDE_SIZE.some(function (k) {
-      var s = size * k, w = 0;
-      lines.forEach(function (t) { w = Math.max(w, R.width(ctx, t, s, 600)); });
-      w += 8 * u;
-      var h = lines.length * s * 1.28;
-      SIDE_ALONG.some(function (t) {
-        var a = along(pts, t);
-        /* The box's own reach along the normal, so the gap is a real gap. */
-        var ext = Math.abs(a.nx) * w / 2 + Math.abs(a.ny) * h / 2;
-        var sign = (a.nx < 0) === (side === "w") ? 1 : -1;
-        return SIDE_GAP.some(function (g) {
-          var d = ext + g * u;
-          var b = boxAt(a.x + a.nx * sign * d, a.y + a.ny * sign * d, w, h);
-          if (free(b.box, taken, W, H, 14 * u)) found = { spot: b, size: s };
-          return !!found;
-        });
-      });
-      return !!found;
-    });
-    return found;
-  }
-
-  function pathLabel(ctx, P, u, lines, pts, size, taken, W, H, side) {
-    var R = D();
-    lines = lines.filter(Boolean);
-    if (!lines.length || pts.length < 2) return;
-    var fit = side ? sideSpot(ctx, R, u, lines, pts, size, taken, W, H, side) : null;
-    if (fit) size = fit.size;
-    var lineH = size * 1.28, w = 0, spot = fit && fit.spot, off = 17 * u;
-    lines.forEach(function (s) { w = Math.max(w, R.width(ctx, s, size, 600)); });
-    w += 8 * u;
-    var h = lines.length * lineH;
-    if (!spot) ALONG.some(function (t) {
-      var a = along(pts, t);
-      return ACROSS.some(function (k) {
-        var s = boxAt(a.x + a.nx * off * k, a.y + a.ny * off * k, w, h);
-        if (free(s.box, taken, W, H)) spot = s;
-        return !!spot;
-      });
-    });
-    if (!spot) {
-      var a0 = along(pts, 0.5);
-      spot = boxAt(Math.min(Math.max(a0.x + a0.nx * off, w / 2), W - w / 2),
-                   Math.min(Math.max(a0.y + a0.ny * off, h / 2), H - h / 2), w, h);
-    }
-    lines.forEach(function (s, i) {
-      R.text(ctx, P, s, spot.x, spot.box.y0 + (i + 0.5) * lineH,
-        { size: size, weight: i ? 500 : 600, halo: 4 * u, color: i ? P.muted : null });
-    });
-    taken.push(spot.box);
-  }
 
   /* A zone names itself INSIDE its ring when the ring can hold the name and
      beside it when it cannot - the same bargain the plain picture's fighting
@@ -329,7 +244,7 @@ var DossierMapRoutes = (function () {
      before it is dropped, and dropping is honest here: the hatch and the legend
      still say what the shape is. */
   function zoneLabels(ctx, p, P, u, list, taken, W, H, size) {
-    var R = D(), per = kmPx(p);
+    var R = D(), boxAt = L().boxAt, free = L().free, per = kmPx(p);
     (list || []).forEach(function (z) {
       if (!z.label_he) return;
       var q = p(z.lon, z.lat), r = Z().radius(z, per, u), spot = null;
@@ -421,14 +336,17 @@ var DossierMapRoutes = (function () {
     routes.forEach(function (rt) {
       var pts = (rt.path || []).map(function (c) { return p(c[0], c[1]); });
       if (pts.length >= 2) {
-        pathLabel(ctx, P, u, [rt.label_he, distLabel(pathKm(rt.path))], pts,
-          (only ? size * 1.3 : size) * big, taken, W, H, rt.label_side);
+        /* `label_at` is an authored point and beats `label_side`; the build
+           refuses a route carrying both, so the painter never has to choose. */
+        L().pathLabel(ctx, P, u, [rt.label_he, distLabel(pathKm(rt.path))], pts,
+          (only ? size * 1.3 : size) * big, taken, W, H, rt.label_side, p,
+          rt.label_at);
       }
     });
     (m.measure || []).forEach(function (mm) {
       var pts = (mm.path || []).map(function (c) { return p(c[0], c[1]); });
       if (pts.length >= 2) {
-        pathLabel(ctx, P, u, [(mm.label_he ? mm.label_he + ": " : "") +
+        L().pathLabel(ctx, P, u, [(mm.label_he ? mm.label_he + ": " : "") +
           distLabel(pathKm(mm.path))], pts, size * big, taken, W, H);
       }
     });
@@ -461,10 +379,15 @@ var DossierMapRoutes = (function () {
       var kind = rt.kind === "coastal" ? "coastal" : "lane";
       if (seen[kind]) return;
       seen[kind] = true;
+      /* The swatch takes the map's own route weight, clean factor included, so
+         the key can never show a thinner line than the picture draws. The head
+         follows it but is capped at the swatch's own width: a doubled head in a
+         26px box would be a triangle with a stub behind it. */
       rows.push({ label: HE[kind], draw: function (c, Q, uu, x, cy, sw) {
-        var head = Math.max(5, 8 * uu);
+        var kk = routeK(m);
+        var head = Math.min(sw * 0.45, Math.max(5 * kk, 8 * kk * uu));
         c.beginPath(); c.moveTo(x, cy); c.lineTo(x + sw - head, cy);
-        R.paintShape(c, { stroke: Q.ink, width: (ROUTE_W[kind] || 2.4) * uu });
+        R.paintShape(c, { stroke: Q.ink, width: routeW(kind, uu, kk) });
         arrowHead(c, Q, uu, [x, cy], [x + sw, cy], head);
       } });
     });
