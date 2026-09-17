@@ -22,12 +22,15 @@
   /* The honest limit, said once and on the tab itself (ROADS.md). */
   const NOTE = "אין מקור פתוח שסופר משאיות לפי כביש. הזרימות הן הערכות שפורסמו, " +
     "כל אחת עם המקור והתאריך שלה.";
-  const LAYER_HE = { attacks: "פיגועים", status: "מצב", control: "שליטה",
+  /* The fighting layer's honest limit, said on the tab (ROADS.md). */
+  const FIGHT_NOTE = "השכבה הפותחת מראה איפה הפיגועים והלחימה נמצאים לאורך הכבישים. " +
+    "באילו כבישים הכוחות נוסעים בפועל - זה לא מתפרסם.";
+  const LAYER_HE = { fighting: "חשיבות ללחימה היום", attacks: "פיגועים", status: "מצב", control: "שליטה",
                      importance: "חשיבות", flows: "מטענים" };
   const WIN_HE = { week: "השבוע", all: "הכול" };
   const MISSING = "נתוני הכבישים אינם זמינים.";
 
-  const state = { layer: "attacks", win: "week", selected: "" };
+  const state = { layer: "fighting", win: "week", selected: "", hot: "" };
 
   function data() { return (typeof ROADS !== "undefined" && ROADS) ? ROADS : null; }
 
@@ -42,22 +45,32 @@
   function render() {
     const D = data();
     const head = '<header class="rd-head"><h1 class="rd-title">' + esc(TITLE) + "</h1>" +
-      '<p class="rd-note">' + esc(NOTE) + "</p></header>";
+      '<p class="rd-note">' + esc(NOTE) + " " + esc(FIGHT_NOTE) + "</p></header>";
     if (!D || !window.RoadsMap || !window.RoadsCards || !window.DossierMapDraw) {
       pane.innerHTML = head + '<div class="empty"><p>' + esc(MISSING) + "</p></div>";
       return;
     }
     const network = (typeof ROADS_GEO !== "undefined" && ROADS_GEO) ? ROADS_GEO : {};
-    pane.innerHTML = head +
+    /* National totals only - never where a collection point stands (ROADS.md). */
+    const tolls = D.tolls && D.tolls.note_he
+      ? '<p class="rd-tolls">' + esc(D.tolls.note_he) + (D.tolls.src || []).map(function (s) {
+          return ' <a href="' + esc(s.url) + '" target="_blank" rel="noopener noreferrer">' +
+            esc(s.publisher) + "</a>";
+        }).join("") + "</p>"
+      : "";
+    pane.innerHTML = head + tolls +
       '<div class="rd-controls">' +
       switchRow("rd-layers", "צבע הכבישים לפי", LAYER_HE, state.layer, "data-layer") +
       switchRow("rd-window", "תקופת הפיגועים", WIN_HE, state.win, "data-win") +
       "</div>" +
-      '<figure class="rd-map"><canvas class="rd-canvas" aria-label="מפת הכבישים"></canvas>' +
+      '<div class="rd-stage">' +
+      '<figure class="rd-map"><div class="rd-canvas-box">' +
+      '<canvas class="rd-canvas" aria-label="מפת הכבישים"></canvas></div>' +
       '<figcaption><ul class="rd-legend"></ul>' +
       '<p class="rd-credit">רשת הכבישים: ' + esc(network.attribution || "") +
       (network.snapshot ? ", " + esc(network.snapshot) : "") + ". פני השטח: SRTM.</p>" +
       "</figcaption></figure>" +
+      '<aside class="rd-top" aria-label="הכבישים העמוסים ביותר עכשיו"></aside></div>' +
       '<div class="rd-cards"></div>';
     wire();
     refresh();
@@ -68,6 +81,7 @@
     if (!ul) return;
     ul.innerHTML = RoadsMap.legend(state).map(function (r) {
       const w = r.w || 5;
+      if (r.note) return '<li class="rd-legend-note">' + esc(r.l) + "</li>";
       const line = r.dot
         ? '<span class="rd-sw-dot" style="background:' + r.c + '"></span>'
         : '<span class="rd-sw" style="border-block-start:' + w + "px " +
@@ -82,10 +96,38 @@
     if (box) box.innerHTML = RoadsCards.html(data().corridors, state);
   }
 
+  /* The five busiest stretches of the fighting layer, beside the map. */
+  function top() {
+    const box = pane.querySelector(".rd-top"), F = data().fighting;
+    if (!box) return;
+    box.hidden = state.layer !== "fighting" || !F;
+    pane.querySelector(".rd-stage").classList.toggle("with-top", !box.hidden);
+    if (box.hidden) return;
+    const day = RoadsMap.day;
+    box.innerHTML = "<h2 class=\"rd-top-title\">הכבישים העמוסים ביותר עכשיו</h2>" +
+      '<p class="rd-muted">עד ' + esc(day(F.anchor)) + ", הפיגוע האחרון בנתונים</p>" +
+      '<ol class="rd-top-list">' + F.top.map(function (r, k) {
+        const on = String(k) === String(state.hot);
+        const count = r.n30
+          ? (r.n7 === 1 ? "פיגוע אחד" : r.n7 + " פיגועים") + " ב-7 ימים · " +
+            (r.n30 === 1 ? "פיגוע אחד" : r.n30 + " פיגועים") + " ב-30 ימים"
+          : "אין פיגועים ב-30 הימים";
+        const tags = [r.front ? "באזור לחימה" : "", r.cross ? "חוצה את קו המגע" : ""]
+          .filter(Boolean).join(" · ");
+        return '<li><button type="button" class="rd-top-item rd-band-' + esc(r.band) +
+          '" data-top="' + k + '" aria-pressed="' + (on ? "true" : "false") + '">' +
+          '<span class="rd-top-rank">' + (k + 1) + "</span>" +
+          '<span class="rd-top-body"><strong>' + esc(r.name_he) + "</strong>" +
+          "<span>" + esc(RoadsMap.BAND_HE[r.band] || r.band) + " · " + esc(count) + "</span>" +
+          (r.last ? "<span>האחרון: " + esc(day(r.last)) + "</span>" : "") +
+          (tags ? "<span>" + esc(tags) + "</span>" : "") + "</span></button></li>";
+      }).join("") + "</ol>";
+  }
+
   function drawMap() {
     const canvas = pane.querySelector(".rd-canvas");
     if (!canvas || !document.body.classList.contains("view-roads")) return;
-    const width = canvas.parentElement.clientWidth;
+    const width = canvas.parentElement.clientWidth;  /* .rd-canvas-box */
     if (width > 0) RoadsMap.draw(canvas, width, state);
   }
 
@@ -100,13 +142,22 @@
 
   function refresh() {
     pressed();
+    top();
     legend();
     cards();
     drawMap();
   }
 
+  function selectTop(k) {
+    state.hot = String(state.hot) === String(k) ? "" : String(k);
+    state.selected = "";
+    state.layer = "fighting";
+    refresh();
+  }
+
   function select(key, fromMap) {
     state.selected = state.selected === key ? "" : key;
+    state.hot = "";
     refresh();
     if (fromMap && state.selected) {
       const card = pane.querySelector('.rd-card[data-road="' + state.selected + '"]');
@@ -124,6 +175,10 @@
       if (b.dataset.win) state.win = b.dataset.win;
       refresh();
     });
+    pane.querySelector(".rd-top").addEventListener("click", function (ev) {
+      const b = ev.target.closest("[data-top]");
+      if (b) selectTop(b.dataset.top);
+    });
     pane.querySelector(".rd-cards").addEventListener("click", function (ev) {
       /* A source link or the sources toggle does its own job, not a selection. */
       if (ev.target.closest("a, summary, details")) return;
@@ -134,8 +189,10 @@
     canvas.addEventListener("click", function (ev) {
       const box = canvas.getBoundingClientRect();
       const key = RoadsMap.hit(canvas, ev.clientX - box.left, ev.clientY - box.top);
-      if (key) select(key, true);
+      if (key.indexOf("top:") === 0) selectTop(key.slice(4));
+      else if (key) select(key, true);
       else if (state.selected) select(state.selected, false);
+      else if (state.hot !== "") selectTop(state.hot);
     });
   }
 
@@ -160,6 +217,6 @@
     }
     /* A hook for the headless picture dump: the state is settable from outside
        without pressing anything that saves a file. */
-    window.RoadsTab = { state: state, refresh: refresh, select: select };
+    window.RoadsTab = { state: state, refresh: refresh, select: select, selectTop: selectTop };
   })();
 })();

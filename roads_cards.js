@@ -43,11 +43,14 @@ var RoadsCards = (function () {
   }
 
   function flows(c) {
-    if (!(c.flows || []).length) return '<p class="rd-muted">אין נתוני זרימה.</p>';
-    return "<ul class=\"rd-list\">" + c.flows.map(function (f) {
+    /* The corridor's own caveat about its numbers comes FIRST, so a figure is
+       never read before what it does and does not measure. */
+    var note = c.flows_note_he ? '<p class="rd-muted">' + e(c.flows_note_he) + "</p>" : "";
+    if (!(c.flows || []).length) return note || '<p class="rd-muted">אין נתוני זרימה.</p>';
+    return note + "<ul class=\"rd-list\">" + c.flows.map(function (f) {
       var amount = typeof f.amount === "number"
         ? Number(f.amount).toLocaleString("he-IL") + " " + f.unit_he
-        : "אין נתון כמות מפורסם";
+        : "לא פורסמו כמויות";
       return "<li><strong>" + e(f.from_he) + " ← " + e(f.to_he) + "</strong>: " +
         e(f.what_he) + " · " + e(amount) + badge(f) + "</li>";
     }).join("") + "</ul>";

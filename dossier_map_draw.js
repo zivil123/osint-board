@@ -34,14 +34,14 @@ var DossierMapDraw = (function () {
      thing on a map about a sea route. SPACE is a fraction of the size. */
   var COUNTRY_TEXT = 1.35, COUNTRY_SPACE = 0.12;
   /* What a CLEAN map draws at the edges of countries. Ziv, 2026-09-17: *"make
-     the borders in Africa a lot more visible, right now it's pretty weird"*,
-     then *"make the borders in Africa black... make sure it looks like one
-     line."* TWO LINES, BECAUSE AN OUTLINE IS TWO THINGS: a COAST, which keeps
-     the shoreline stroke, and a BORDER, drawn ONCE in black over a light casing
-     from the stretches geo_borders.py cuts out (it holds why, and what the
-     doubling was). Governorate and Saudi region lines stay faint, or the
-     picture becomes a political map of somewhere it is not about. */
-  var CLEAN_COAST = 1.6, CLEAN_BORDER = 5.5, CLEAN_BORDER_HALO = 3,
+     the borders in Africa black... make sure it looks like one line."* TWO
+     LINES, BECAUSE AN OUTLINE IS TWO THINGS: a COAST, which keeps the shoreline
+     stroke, and a BORDER, drawn ONCE in black over a light casing from the
+     stretches geo_borders.py cuts out (it holds why, and what the doubling was).
+     Governorate and Saudi lines stay faint, or the picture becomes a political
+     map of somewhere it is not about. The weight answers two asks of that hour:
+     "a lot more visible" took it to 5.5, *"less big"* to 60% of that, 3.3. */
+  var CLEAN_COAST = 1.6, CLEAN_BORDER = 3.3, CLEAN_BORDER_HALO = 3,
     CLEAN_BORDER_INK = "#000";
 
   /* ---- colours ---------------------------------------------------------------- */
@@ -297,7 +297,7 @@ var DossierMapDraw = (function () {
        terrain shading, the dark ink on top. Both sides of every border sit in
        this one path on purpose - see CLEAN_BORDER above. */
     if (o.clean && G.nbr_borders) {
-      var bw = Math.max(3, CLEAN_BORDER * u);
+      var bw = Math.max(2, CLEAN_BORDER * u);
       strokeLines(ctx, p, G.nbr_borders, { stroke: P.halo,
         width: bw + CLEAN_BORDER_HALO * u });
       strokeLines(ctx, p, G.nbr_borders, { stroke: CLEAN_BORDER_INK, width: bw });

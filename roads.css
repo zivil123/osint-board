@@ -27,6 +27,7 @@ body.view-roads .wrap { display: none; }
 .rd-head { max-width: 960px; }
 .rd-title { font-size: 42px; font-weight: 600; line-height: 1.15; }
 .rd-note { font-size: 18px; color: var(--ink-muted); margin-block-start: 8px; }
+.rd-tolls { max-width: 960px; font-size: 16px; color: var(--ink-muted); margin-block: 8px 0; }
 
 /* ---- the switches ---------------------------------------------------------- */
 
@@ -50,7 +51,34 @@ body.view-roads .wrap { display: none; }
 
 /* ---- the map ------------------------------------------------------------------ */
 
-.rd-map { margin: 0; }
+.rd-map { margin: 0; min-inline-size: 0; }
+/* The busiest-roads list sits beside the map on a wide screen and under it on
+   a narrow one; it exists only on the fighting layer. */
+.rd-stage { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px 24px; }
+@media (min-width: 1280px) {
+  .rd-stage.with-top { grid-template-columns: minmax(0, 1fr) 300px; }
+}
+.rd-top-title { font-size: 20px; font-weight: 600; margin: 0; }
+.rd-top-list { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 8px; }
+.rd-top-item {
+  display: flex; gap: 10px; align-items: flex-start; inline-size: 100%;
+  min-height: 44px; padding: 8px 10px; text-align: start; cursor: pointer;
+  font: inherit; font-size: 15px; color: var(--ink-muted); background: transparent;
+  border: 1px solid var(--line); border-inline-start: 5px solid var(--ink-faint);
+  border-radius: 6px;
+}
+.rd-top-item[aria-pressed="true"] { background: var(--accent-tint); border-color: var(--accent-text); }
+.rd-band-low { border-inline-start-color: #FDE68A; }
+.rd-band-active { border-inline-start-color: var(--v-partial); }
+.rd-band-heavy { border-inline-start-color: var(--geo-front-mark); }
+.rd-top-rank {
+  flex: none; inline-size: 26px; block-size: 26px; border-radius: 50%;
+  display: grid; place-items: center; font-weight: 700; color: var(--ink);
+  border: 2px solid var(--ink);
+}
+.rd-top-body { display: grid; gap: 2px; }
+.rd-top-body strong { color: var(--ink); font-size: 17px; font-weight: 600; }
+.rd-legend .rd-legend-note { flex-basis: 100%; }
 .rd-canvas {
   display: block; inline-size: 100%;
   border: 1px solid var(--line); border-radius: 10px;

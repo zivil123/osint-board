@@ -1,5 +1,11 @@
 /* The roads map (the כבישים tab): Yemen's main road network on the terrain,
-   the key corridors drawn thick over it, and five ways to colour them.
+   the key corridors over it, the line of contact over everything, and six ways
+   to colour them.
+
+   RULE (Ziv, 2026-09-17): a score is shown by COLOUR, never by line width. Every
+   key corridor is one fixed width on every layer; importance and the fighting
+   score each carry a colour scale with a legend. The flow arrows are the one
+   width that varies, and only because each carries its tonnage written beside it.
 
    It is a dossier-style canvas map, not a Leaflet one, because every new map on
    this board is drawn on the terrain (DOSSIER_EXPORT.md) and the terrain lives
@@ -29,11 +35,16 @@
 var RoadsMap = (function () {
   var BASE_W = 1280, ASPECT = 16 / 9, TS_SCREEN = 1.15, TS_SLIDE = 1.5;
   /* The frame: every corridor with room round it - Hodeidah on the west coast
-     to al-Ghaydah in al-Mahrah. Inside the overview frame's relief raster
+     to Shehen on the Oman border (its road north of Thamud reaches 18.24N). Inside the overview frame's relief raster
      (41.0-55.3E, 11.6-20.4N), so no new terrain picture is needed. */
-  var FRAME = { lat: [12.4, 18.2], lonMid: 47.6 };
+  var FRAME = { lat: [12.1, 18.5], lonMid: 47.6 };
   var RELIEF_MAP = { frame: "overview", ground: "relief" };
-  var LAYERS = ["attacks", "status", "control", "importance", "flows"];
+  var LAYERS = ["fighting", "attacks", "status", "control", "importance", "flows"];
+  var BANDS = ["low", "active", "heavy"];
+  var BAND_HE = { quiet: "שקט", low: "נמוך", active: "פעיל", heavy: "כבד" };
+  /* Importance 1-5 as a stepped scale, slate - blue - gold - orange - magenta, so
+     neighbouring scores stay apart at half scale; none is a fighting colour. */
+  var IMP = ["#6B7A8F", "#7FB3D5", "#F5C445", "#F28C28", "#E0457B"];
   var STATE_HE = { open: "פתוח", closed: "סגור", frontline: "קו חזית", reopened: "נפתח מחדש" };
   var HOLDER_HE = { houthi: "בשליטת החות'ים", government: "בשליטת הכוחות הלגיטימיים",
                     none: "מחוץ לשטח תימן" };
@@ -53,10 +64,16 @@ var RoadsMap = (function () {
       /* The board's two territory colours at full strength: its fills are a
          light wash (Houthi-held) and a dark wash (government-held), so a road
          stretch is a light line or a dark line in a light casing. */
-      houthi: "#E9F0F8", gov: "#061424"
+      houthi: "#E9F0F8", gov: "#061424",
+      low: "#FDE68A", active: css("--v-partial", "#FB923C"),
+      heavy: css("--geo-front-mark", "#FF2D20")
     };
   }
 
+  function day(iso) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || "");
+    return m ? m[3] + "." + m[2] + "." + m[1] : (iso || "");
+  }
   function roads() { return (typeof ROADS !== "undefined" && ROADS) ? ROADS : null; }
   function network() { return (typeof ROADS_GEO !== "undefined" && ROADS_GEO) ? ROADS_GEO : null; }
   function geo() { return (typeof GEO !== "undefined" && GEO) ? GEO : null; }
@@ -126,8 +143,8 @@ var RoadsMap = (function () {
       stroke(ctx, p, c.p, st ? C[st.state] : C.quiet, w,
              st && st.state === "frontline" ? [10 * u, 5 * u] : null);
     } else if (layer === "importance") {
-      var sc = (c.importance || {}).score || 1;
-      stroke(ctx, p, c.p, C.gold, Math.max(2, (1.5 + sc * 1.6) * u * 1.4));
+      var sc = Math.max(1, Math.min(5, (c.importance || {}).score || 1));
+      stroke(ctx, p, c.p, IMP[sc - 1], w);
     } else if (layer === "attacks") {
       stroke(ctx, p, c.p, attackColour(C, attacksIn(c, state.win).length), w);
     } else {
@@ -136,113 +153,63 @@ var RoadsMap = (function () {
     ctx.globalAlpha = 1;
   }
 
-  function attackMarks(ctx, p, P, C, u, list, state, size) {
-    var groups = {}, seen = {};
-    list.forEach(function (c) {
-      if (state.selected && state.selected !== c.key) return;
-      attacksIn(c, state.win).forEach(function (a) {
-        /* One attack near two corridors is still one attack. */
-        if (seen[a.event_key]) return;
-        seen[a.event_key] = true;
-        var g = groups[a.place_key] = groups[a.place_key] || { a: a, n: 0 };
-        g.n += 1;
+  /* The fighting layer: every scored stretch of the whole network, coloured by
+     band, one width; the entry picked in the busiest list gets an ink casing and
+     every listed stretch its rank number. */
+  function slice(N, i, v0, v1) {
+    return ((N.lines[i] || {}).p || []).slice(2 * v0, 2 * v1 + 2);
+  }
+  function paintFighting(ctx, p, P, C, u, N, F, state) {
+    var w = Math.max(4, 6.5 * u);
+    var hot = F.top[state.hot === "" ? -1 : Number(state.hot)];
+    if (hot) stroke(ctx, p, slice(N, hot.i, hot.v0, hot.v1), P.ink, w + 8 * u);
+    BANDS.forEach(function (b) {
+      F.pieces.forEach(function (q) {
+        if (q[3] !== b) return;
+        var flat = slice(N, q[0], q[1], q[2]);
+        stroke(ctx, p, flat, P.sea, w + 2.5 * u);
+        stroke(ctx, p, flat, C[b], w);
       });
     });
-    Object.keys(groups).forEach(function (k) {
-      var g = groups[k], q = p(g.a.lon, g.a.lat), r = Math.max(9, 11 * u);
-      ctx.beginPath(); ctx.arc(q[0], q[1], r, 0, Math.PI * 2);
-      ctx.fillStyle = C.fire; ctx.fill();
-      ctx.lineWidth = Math.max(1.5, 2 * u); ctx.strokeStyle = P.halo; ctx.stroke();
-      window.DossierMapDraw.text(ctx, P, String(g.n), q[0], q[1],
-        { size: Math.max(11, size * 0.75), weight: 600, halo: 0, color: "#fff" });
+  }
+  function rankMarks(ctx, p, P, u, N, F, state) {
+    F.top.forEach(function (r, k) {
+      var flat = slice(N, r.i, r.v0, r.v1), m = 2 * Math.floor(flat.length / 4);
+      var q = p(flat[m], flat[m + 1]), rad = Math.max(10, 13 * u);
+      var on = String(k) === String(state.hot);
+      ctx.beginPath(); ctx.arc(q[0], q[1], rad, 0, Math.PI * 2);
+      ctx.fillStyle = on ? P.ink : P.sea; ctx.fill();
+      ctx.lineWidth = Math.max(2, 2.2 * u); ctx.strokeStyle = P.ink; ctx.stroke();
+      ctx.font = "700 " + Math.round(Math.max(12, rad * 1.2)) + "px Heebo, Segoe UI, sans-serif";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillStyle = on ? P.sea : P.ink; ctx.fillText(String(k + 1), q[0], q[1] + rad * 0.06);
     });
   }
-
-  function flowArrows(ctx, p, P, C, u, list, state, size, taken) {
-    var R = window.DossierMapDraw, all = [];
-    list.forEach(function (c) {
-      (c.flows || []).forEach(function (f) { all.push({ f: f, c: c }); });
-    });
-    var max = {};
-    all.forEach(function (o) {
-      if (typeof o.f.amount === "number") {
-        max[o.f.unit_he] = Math.max(max[o.f.unit_he] || 0, o.f.amount);
-      }
-    });
-    var seen = {};
-    all.forEach(function (o) {
-      var f = o.f, pair = f.from + ">" + f.to;
-      var nth = seen[pair] = (seen[pair] || 0) + 1;
-      var a = p(f.a[0], f.a[1]), b = p(f.b[0], f.b[1]);
-      var dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy) || 1;
-      var bend = (0.12 + 0.08 * (nth - 1)) * len;
-      var cx = (a[0] + b[0]) / 2 - dy / len * bend, cy = (a[1] + b[1]) / 2 + dx / len * bend;
-      var known = typeof f.amount === "number";
-      var w = known ? (3 + 9 * Math.sqrt(f.amount / max[f.unit_he])) * u : 3 * u;
-      w = Math.max(2.5, w);
-      var dim = state.selected && state.selected !== o.c.key;
-      ctx.globalAlpha = dim ? 0.35 : 1;
-      ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.quadraticCurveTo(cx, cy, b[0], b[1]);
-      ctx.strokeStyle = C.flow; ctx.lineWidth = w; ctx.lineCap = "round";
-      ctx.setLineDash(known ? [] : [8 * u, 6 * u]); ctx.stroke(); ctx.setLineDash([]);
-      /* The head points along the curve's last tangent, at the destination. */
-      var tx = b[0] - cx, ty = b[1] - cy, tl = Math.hypot(tx, ty) || 1;
-      var hx = tx / tl, hy = ty / tl, hs = Math.max(9, w * 2.4 + 6 * u);
-      ctx.beginPath(); ctx.moveTo(b[0], b[1]);
-      ctx.lineTo(b[0] - hx * hs - hy * hs * 0.55, b[1] - hy * hs + hx * hs * 0.55);
-      ctx.lineTo(b[0] - hx * hs + hy * hs * 0.55, b[1] - hy * hs - hx * hs * 0.55);
-      ctx.closePath(); ctx.fillStyle = C.flow; ctx.fill();
-      /* The label sits off the arc's crown, on its outer side, so it neither
-         covers the arrow nor lands on the road the arrow runs beside. */
-      var mx = 0.25 * a[0] + 0.5 * cx + 0.25 * b[0] - dy / len * size * 0.9;
-      var my = 0.25 * a[1] + 0.5 * cy + 0.25 * b[1] + dx / len * size * 0.9;
-      var label = known ? Number(f.amount).toLocaleString("he-IL") + " " + f.unit_he
-        : "אין נתון";
-      R.text(ctx, P, label, mx, my, { size: size * 0.85, weight: 600, halo: 4 * u,
-                                       color: P.ink });
-      var half = R.width(ctx, label, size * 0.85, 600) / 2;
-      taken.push({ x0: mx - half, y0: my - size * 0.6, x1: mx + half, y1: my + size * 0.6 });
-      ctx.globalAlpha = 1;
-    });
-  }
-
-  function placeLabels(ctx, p, P, u, W, H, list, state, size, taken) {
-    var R = window.DossierMapDraw, done = {};
-    var pinR = Math.max(3, 3.4 * u);
-    list.forEach(function (c) {
-      (c.waypoints || []).forEach(function (wp) {
-        if (done[wp.key]) return;
-        done[wp.key] = true;
-        var q = p(wp.lon, wp.lat);
-        ctx.beginPath(); ctx.arc(q[0], q[1], pinR + 1.5 * u, 0, Math.PI * 2);
-        ctx.fillStyle = P.halo; ctx.fill();
-        ctx.beginPath(); ctx.arc(q[0], q[1], pinR, 0, Math.PI * 2);
-        ctx.fillStyle = P.ink; ctx.fill();
-        ["n", "s", "e", "w"].some(function (anchor) {
-          var o = R.place(ctx, wp.he, q[0], q[1], anchor, size, pinR, u, W, H);
-          if (taken.some(function (t) { return R.overlaps(o.box, t); })) return false;
-          taken.push(o.box);
-          R.text(ctx, P, o.str, o.x, o.y, { size: size, weight: 600, halo: 4 * u,
-                                             align: o.align, baseline: o.baseline });
-          return true;
+  /* The line of contact, the board's own GEO.control_line in the board's own
+     style (light dashes), over every road on every layer, on a dark casing so it
+     reads across a light road. */
+  function contactLine(ctx, p, P, u, G) {
+    var feats = (G.control_line && G.control_line.features) || [];
+    ctx.beginPath();
+    feats.forEach(function (f) {
+      var g = f.geometry || {};
+      var parts = g.type === "LineString" ? [g.coordinates] :
+        g.type === "MultiLineString" ? g.coordinates : [];
+      parts.forEach(function (line) {
+        line.forEach(function (c, i) {
+          var q = p(c[0], c[1]);
+          if (i) ctx.lineTo(q[0], q[1]); else ctx.moveTo(q[0], q[1]);
         });
       });
     });
-    /* The corridor's own name, at the middle of its line: every road on a wide
-       canvas, only the selected one on a narrow one. */
-    list.forEach(function (c) {
-      if (W < 700 && state.selected !== c.key) return;
-      var n = c.p.length / 2, i = Math.floor(n / 2) * 2, q = p(c.p[i], c.p[i + 1]);
-      ["s", "n", "e", "w"].some(function (anchor) {
-        var o = R.place(ctx, c.name_he, q[0], q[1], anchor, size * 0.95, 14 * u, u, W, H);
-        if (taken.some(function (t) { return R.overlaps(o.box, t); })) return false;
-        taken.push(o.box);
-        R.text(ctx, P, o.str, o.x, o.y, { size: size * 0.95, weight: 500, halo: 4 * u,
-                                           align: o.align, baseline: o.baseline,
-                                           color: P.muted });
-        return true;
-      });
+    var cw = Math.max(1.8, (P.controlW || 2) * 1.2 * u);
+    ctx.lineJoin = "round"; ctx.lineCap = "butt";
+    ctx.strokeStyle = "rgba(6,20,36,0.85)"; ctx.lineWidth = cw + 2.5 * u; ctx.stroke();
+    var dash = String(P.controlDash || "6 4").split(/[ ,]+/).map(function (d) {
+      return Number(d) * 1.3 * u;
     });
+    ctx.setLineDash(dash); ctx.strokeStyle = P.control || "#E6EDF5"; ctx.lineWidth = cw;
+    ctx.stroke(); ctx.setLineDash([]);
   }
 
   /* ---- the picture ----------------------------------------------------------- */
@@ -272,9 +239,20 @@ var RoadsMap = (function () {
     var size = Math.max(15, 16 * u * ts), taken = [];
     list.forEach(function (c) { if (c.key !== state.selected) paintCorridor(ctx, p, P, C, u, c, state); });
     list.forEach(function (c) { if (c.key === state.selected) paintCorridor(ctx, p, P, C, u, c, state); });
-    if (state.layer === "attacks") attackMarks(ctx, p, P, C, u, list, state, size);
-    if (state.layer === "flows") flowArrows(ctx, p, P, C, u, list, state, size, taken);
-    placeLabels(ctx, p, P, u, W, H, list, state, size, taken);
+    var F = D && D.fighting;
+    if (state.layer === "fighting" && N && F) paintFighting(ctx, p, P, C, u, N, F, state);
+    contactLine(ctx, p, P, u, G);
+    var M = window.RoadsMarks;
+    var lines = M.samples(p, list), fl = { pending: [], lines: [] };
+    if (state.layer === "flows") fl = M.flowArrows(ctx, p, P, C, u, list, state, size, lines);
+    var all = lines.concat(fl.lines);
+    M.placeLabels(ctx, p, P, u, W, H, list, state, size, taken, lines);
+    /* Figures before corridor names, so a name gives way to a figure. */
+    M.flowLabels(ctx, P, u, W, H, fl.pending, size, taken, all);
+    M.corridorLabels(ctx, P, u, W, H, list, state, size, taken, all);
+    /* Last, so a count is never under a name. */
+    if (state.layer === "attacks") M.attackMarks(ctx, p, P, C, u, list, state, size);
+    if (state.layer === "fighting" && N && F) rankMarks(ctx, p, P, u, N, F, state);
     return p;
   }
 
@@ -286,7 +264,7 @@ var RoadsMap = (function () {
     var ctx = canvas.getContext("2d");
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     var p = paint(ctx, W, H, TS_SCREEN, state);
-    last.set(canvas, { p: p, W: W });
+    last.set(canvas, { p: p, W: W, layer: state.layer });
   }
 
   function exportPng(width, height, state) {
@@ -300,8 +278,15 @@ var RoadsMap = (function () {
   function hit(canvas, x, y) {
     var m = last.get(canvas), D = roads();
     if (!m || !D) return "";
-    var best = "", bestD = Math.max(14, m.W / 60);
-    (D.corridors || []).forEach(function (c) {
+    var best = "", bestD = Math.max(14, m.W / 60), N = network();
+    /* On the fighting layer a listed stretch answers first, as "top:<rank-1>". */
+    var items = (D.corridors || []).map(function (c) { return { key: c.key, p: c.p }; });
+    if (m.layer === "fighting" && D.fighting && N) {
+      items = D.fighting.top.map(function (r, k) {
+        return { key: "top:" + k, p: slice(N, r.i, r.v0, r.v1) };
+      }).concat(items);
+    }
+    items.forEach(function (c) {
       for (var i = 0; i + 3 < c.p.length; i += 2) {
         var a = m.p(c.p[i], c.p[i + 1]), b = m.p(c.p[i + 2], c.p[i + 3]);
         var dx = b[0] - a[0], dy = b[1] - a[1], L = dx * dx + dy * dy;
@@ -320,8 +305,19 @@ var RoadsMap = (function () {
   /* The key under the map, per layer: [{colour, dash, label}]. HTML, not
      painted - a phone-width canvas has no room for it. */
   function legend(state) {
-    var C = colours(), rows = [];
-    if (state.layer === "attacks") {
+    var C = colours(), rows = [], D = roads() || {}, F = D.fighting;
+    var P = window.DossierMap ? window.DossierMap.palette("dark") : {};
+    if (state.layer === "fighting") {
+      rows = [{ c: P.faint || "#8FA3B8", w: 2, l: BAND_HE.quiet + " (0)" },
+              { c: C.low, l: BAND_HE.low + " (1-2)" }, { c: C.active, l: BAND_HE.active + " (3-5)" },
+              { c: C.heavy, l: BAND_HE.heavy + " (6 ומעלה)" },
+              { note: true, l: "ניקוד לכל קטע כביש: פיגוע ב-7 הימים 3, פיגוע ב-30 הימים 1, " +
+                "באזור לחימה 2, חוצה את קו המגע 1. פיגוע נספר עד 10 ק\"מ מהכביש." }];
+      if (F) {
+        rows.push({ note: true, l: "הימים נספרים אחורה מהפיגוע האחרון בנתונים, " +
+          day(F.anchor) + " - לא מהיום, כדי שעדכון מאוחר לא ייראה כשקט." });
+      }
+    } else if (state.layer === "attacks") {
       rows = [{ c: C.quiet, l: "אין פיגועים ליד הכביש" }, { c: C.warm, l: "1-2 פיגועים" },
               { c: C.hot, l: "3-5 פיגועים" }, { c: C.fire, l: "6 פיגועים ומעלה" },
               { c: C.fire, dot: true, l: "מקום הפיגוע ומספר הפיגועים בו" }];
@@ -334,18 +330,20 @@ var RoadsMap = (function () {
               { c: C.gov, ring: C.houthi, l: HOLDER_HE.government },
               { c: C.fire, dash: true, l: "עובר באזור לחימה פעיל" }];
     } else if (state.layer === "importance") {
-      rows = [{ c: C.gold, w: 3, l: "חשיבות 1 - קו דק" }, { c: C.gold, w: 10, l: "חשיבות 5 - קו עבה" }];
+      rows = IMP.map(function (c, k) { return { c: c, l: "חשיבות " + (k + 1) + " מתוך 5" }; });
     } else {
       rows = [{ c: C.flow, l: "זרימה בין ערים - עובי לפי הכמות שפורסמה" },
-              { c: C.flow, dash: true, l: "אין נתון כמות מפורסם" }];
+              { c: C.flow, dash: true, l: "לא פורסמה כמות - החץ אומר מה עובר" }];
     }
     rows.push({ c: "rgba(143,163,184,0.7)", w: 1.5, l: "כביש ראשי" });
+    rows.push({ c: P.control || "#E6EDF5", w: 2, dash: true,
+                l: "קו המגע" + (D.control_as_of ? ", נכון ל-" + day(D.control_as_of) : "") });
     return rows;
   }
 
   return { draw: draw, exportPng: exportPng, hit: hit, attacksIn: attacksIn,
            latest: latest, legend: legend, ready: ready, LAYERS: LAYERS,
-           STATE_HE: STATE_HE, HOLDER_HE: HOLDER_HE };
+           STATE_HE: STATE_HE, HOLDER_HE: HOLDER_HE, BAND_HE: BAND_HE, day: day };
 })();
 
 window.RoadsMap = RoadsMap;
