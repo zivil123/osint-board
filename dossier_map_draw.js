@@ -19,33 +19,32 @@
 
 var DossierMapDraw = (function () {
   var FONT = '"Heebo", "Segoe UI", sans-serif';
-  /* A CLEAN map carries almost no text - two port names and one route name on
-     the crossing picture - so its few names are set larger than a map crowded
-     with towns could afford. Ziv, 2026-09-17: "put the Mocha and Djibouti
-     bigger in text". ONE factor, read by dossier_map.js for the place names and
-     by dossier_map_routes.js for the route's own block, so the two can never
-     drift apart into a per-label hack. */
+  /* A CLEAN map carries almost no text - two port names on the crossing - so
+     its few names are set larger than a crowded map could afford. Ziv,
+     2026-09-17: "put the Mocha and Djibouti bigger in text". ONE factor, read
+     by dossier_map.js for the place names and by dossier_map_routes.js for a
+     route's own block, so the two can never drift into a per-label hack. */
   var CLEAN_TEXT = 1.6;
   /* A COUNTRY NAME IS SET IN ITS OWN STYLE (2026-09-17). Ziv, of the crossing:
      *"show the names of the other countries, including Somaliland."* An atlas
-     tells a country from a town by the setting and not by the size alone, so a
-     `kind: "country"` label is set larger than the map's own names, letter-
-     spaced, in the quieter governorate ink, and carries no mark of any kind.
-     The factor multiplies the map's BASE label size and never the clean one: on
-     the crossing picture the two ports already take CLEAN_TEXT, and a country
-     name stacked on top of that would be the loudest thing on a map that is
-     about a sea route. SPACE is a fraction of the size. */
+     tells a country from a town by the setting, so a `kind: "country"` label is
+     larger than the map's own names, letter-spaced, in the quieter governorate
+     ink, and carries no mark. The factor multiplies the map's BASE size, never
+     the clean one - stacked on CLEAN_TEXT a country name would be the loudest
+     thing on a map about a sea route. SPACE is a fraction of the size. */
   var COUNTRY_TEXT = 1.35, COUNTRY_SPACE = 0.12;
-  /* The weight a CLEAN map draws its borders at. Ziv, 2026-09-17: *"make the
-     borders in Africa more visible."* On the plain maps the neighbours are a
-     hairline, because there the picture is about Yemen's own ground and the
-     coast already shows by the land/sea step; on the crossing map the Horn is
-     half the picture and its countries were a wash of land with no lines in it.
-     So a clean map draws the neighbour outlines AND the Yemen and Saudi outer
-     borders at one weight, about that of the line of contact - the governorate
-     and Saudi region lines stay faint, or the picture becomes a political map
-     of somewhere it is not about. */
-  var CLEAN_BORDER = 2.2;
+  /* What a CLEAN map draws at the edges of countries. Ziv, 2026-09-17: *"make
+     the borders in Africa a lot more visible, right now it's pretty weird."*
+     TWO LINES, BECAUSE AN OUTLINE IS TWO THINGS: a COAST, which needs only the
+     shoreline stroke, and a BORDER, which is what he asked to see. Stroking
+     the whole outline drew every border twice, once from each side, with sea
+     showing through the gap - that was the weird, doubling and not thinness.
+     So the land-to-land stretches are cut out at build time and stroked bold
+     in ONE path, both sides together, so the pair merges into a single band
+     that covers the sliver (why, and the measurements: scripts\geo_borders.py).
+     Governorate and Saudi region lines stay faint, or the picture becomes a
+     political map of somewhere it is not about. */
+  var CLEAN_COAST = 1.6, CLEAN_BORDER = 5.5, CLEAN_BORDER_HALO = 3;
 
   /* ---- colours ---------------------------------------------------------------- */
 
@@ -284,13 +283,10 @@ var DossierMapDraw = (function () {
     }
     fillCollection(ctx, p, G.yem_adm1, { stroke: P.adm1, width: Math.max(0.8, u) });
     fillCollection(ctx, p, G.sau_adm1, { stroke: P.adm1, width: Math.max(0.8, u) });
-    /* THE BORDERS A CLEAN MAP DRAWS. One weight for the neighbours' outlines
-       and for the Yemen and Saudi outer border, so no line on the picture says
-       "this frontier matters more than that one"; the governorate and region
-       lines above are left faint, and are what keeps it from reading as a
-       political map. On every other map the neighbours stay a hairline - see
-       CLEAN_BORDER, and landPath() for why the coast needs no more than one. */
-    var edge = o.clean ? { stroke: P.border, width: Math.max(1.6, CLEAN_BORDER * u) }
+    /* THE COAST FIRST - every outline, at the shoreline weight. On a clean map
+       the neighbours get Yemen's and Saudi's dark ink (they are half the
+       picture there); elsewhere they stay the hairline landPath() explains. */
+    var edge = o.clean ? { stroke: P.border, width: Math.max(1.2, CLEAN_COAST * u) }
       : { stroke: P.adm1, width: Math.max(0.8, u) };
     landPath(ctx, p, G, false);
     paintShape(ctx, { stroke: P.border,
@@ -298,6 +294,15 @@ var DossierMapDraw = (function () {
     ctx.beginPath();
     eachFeature(G.nbr_adm0, function (f) { polyPath(ctx, p, f.geometry); });
     paintShape(ctx, edge);
+    /* THEN THE LAND BORDERS, bold: a light casing so the line reads across the
+       terrain shading, the dark ink on top. Both sides of every border sit in
+       this one path on purpose - see CLEAN_BORDER above. */
+    if (o.clean && G.nbr_borders) {
+      var bw = Math.max(3, CLEAN_BORDER * u);
+      strokeLines(ctx, p, G.nbr_borders, { stroke: P.halo,
+        width: bw + CLEAN_BORDER_HALO * u });
+      strokeLines(ctx, p, G.nbr_borders, { stroke: P.border, width: bw });
+    }
     /* The boundary itself. A merged map is drawn FOR it - it is the one line
        Ziv asked to see - so `clean` does not take it off there. */
     if (!o.clean || merged) {
