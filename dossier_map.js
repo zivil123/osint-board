@@ -371,8 +371,7 @@ var DossierMap = (function () {
          town (Ziv: "put a PIN so people can see where that city is... in the
          actual exact location"). A disc of the GROUND colour under a dot of the
          ink reads over violet, over either side's territory and over the sea,
-         and adds no hue - every hue on this board is spoken for by a front, a
-         verdict or a side.
+         and adds no hue - every hue here is spoken for by a front or a side.
 
          The mark that first carried that was 4.2px, and Ziv called it weird the
          same day ("I don't like the pins that you did. They look weird"). Asked
@@ -403,11 +402,10 @@ var DossierMap = (function () {
        decision - Ziv has twice objected to a province losing its name. It is
        made here because a note is NEVER dropped: twelve callouts four text
        lines deep cannot all find free ground on the overview, so whatever is
-       already standing gets overprinted instead. Measured at 1400px with the
-       governorate names in: 21 collisions across 12 callouts, which is an
-       unreadable picture. Without them: see the number in DOSSIER_MAPS.md,
-       "Notes live on the FRONT"; the label rule itself is DOSSIER_LAYERS.md,
-       "Labels, pins and the governorate names".
+       already standing gets overprinted instead. Measured at 1400px with them
+       in: 21 collisions across 12 callouts, an unreadable picture. Without
+       them: the number is in DOSSIER_MAPS.md, "Notes live on the FRONT"; the
+       label rule is in DOSSIER_LAYERS.md.
        The province names are not lost - the plain picture of the same frame
        sits directly above this one on the page and in the deck, and carries
        every one of them.
@@ -422,6 +420,12 @@ var DossierMap = (function () {
     }
     if (notesOn) R.notes(ctx, p, P, u, ts, G, taken, W, H, size);
     else if (!clean) R.zoneNames(ctx, p, P, u, W, H, G, size, taken);
+    /* A map's own NOTES - one line about a place with an arrow to it - drawn
+       only on `note_arrows: true`, which nothing sets: Ziv stopped the nine
+       Marib callouts on sight, "too much text". DOSSIER_ROUTES.md. */
+    if (map.note_arrows && window.DossierMapNotes) {
+      DossierMapNotes.draw(ctx, p, P, u, ts, map, taken, W, H, size);
+    }
     labels.forEach(function (l) {
       var s = l.spec;
       R.text(ctx, P, s.str, s.x, s.y, { size: s.size, weight: l.quiet ? 500 : 600,

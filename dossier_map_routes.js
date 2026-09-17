@@ -380,7 +380,13 @@ var DossierMapRoutes = (function () {
     /* A map that draws NO legend box (`legend: false`) still puts the bar where
        the box would have sent it - opposite the corner the legend prefers - so
        taking the key off the picture does not move the furniture as well. */
-    if (m.ground) {
+    /* THE SCALE BAR IS OFF UNLESS A MAP ASKS FOR IT (2026-09-17). Ziv, having
+       seen it on all nine pictures: *"remove the 200 from the maps and stuff
+       like that."* It used to go on every terrain map; now `scale: true` in the
+       record turns it on and nothing carries one. The code is untouched below
+       and still reserves its corner first, so a map that wants it is one JSON
+       line away. */
+    if (m.scale === true) {
       scaleBar(ctx, P, u, W, H, size, per,
         legend || (m.legend === false ? { at: "tl" } : null), taken);
     }

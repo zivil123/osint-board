@@ -104,13 +104,12 @@ var DossierMapExtra = (function () {
      included, where the 17px floor makes the text proportionally largest. */
   var NOTE_W = 230, NOTE_LINES = 3;
   /* Under this canvas width the callout prints the front's NAME ALONE. Twelve
-     notes four text lines deep need room, and the 17px floor grows them
-     relative to a narrow map rather than shrinking them, so below some width
-     they cannot all be placed and the ones that lose overprint what is under
-     them - a note is never dropped. Measured 2026-09-15, boxes overlapping
-     across the twelve: ZERO at 814px and every width above it to 2560, then 4
-     at 720, 14 at 640, 35 at 400. The break is 800, which is where the painted
-     legend stands down too - the two agree by measurement, not by copying. */
+     notes four lines deep need room, and the 17px floor grows them relative to
+     a narrow map, so below some width they cannot all be placed and the losers
+     overprint - a note is never dropped. Measured 2026-09-15, boxes
+     overlapping across the twelve: ZERO at 814px and up to 2560, then 4 at 720,
+     14 at 640, 35 at 400. The break is 800, where the painted legend stands
+     down too - the two agree by measurement, not by copying. */
   var NOTE_MIN_W = 800;
   /* And under THIS width the name is shortened to its distinguishing half
      (2026-09-16). At a 325px canvas - the notes map on a 375px phone - three
@@ -125,11 +124,10 @@ var DossierMapExtra = (function () {
   var DIAG = ["ne", "nw", "se", "sw"];
   var REPORT = null;       /* what the last notes() paint measured - read in console */
   /* What a crossed leader costs when a candidate is scored against how far it
-     sits from its belt, as a fraction of the canvas width; indexed by how
-     clean the leader is - [crosses a callout, crosses a town name, clean].
-     Tuned 2026-09-16 at 2560, where the callouts cover about 48% of the slide:
-     always buying a clean leader flung notes 53% of the width away, never
-     buying one left nine lines through other people's sentences. */
+     sits from its belt, as a fraction of the canvas width; indexed by how clean
+     the leader is - [crosses a callout, crosses a town name, clean]. Tuned
+     2026-09-16 at 2560, callouts covering about 48% of the slide: always buying
+     a clean leader flung notes 53% away, never buying one left nine crossings. */
   var PEN = [0.16, 0.06, 0];
 
   /* The leading word a reader can already see from the hatch under the name. */
@@ -137,10 +135,9 @@ var DossierMapExtra = (function () {
     return String(str || "").replace(/^(?:חזית|שולי)\s+/, "");
   }
 
-  /* Greedy wrap to at most `max` lines; an overrun is cut with an ellipsis
-     rather than allowed to run, because the box is measured from these lines
-     and an extra line would sit on top of whatever is under the callout. With
-     the numbers above that is the backstop and not the normal path. */
+  /* Greedy wrap to at most `max` lines; an overrun is cut with an ellipsis, not
+     allowed to run, because the box is measured from these lines and an extra
+     one would sit on whatever is under the callout. A backstop, not the path. */
   function wrap(ctx, str, size, maxW, max) {
     var R = D(), words = String(str || "").split(/\s+/).filter(Boolean);
     var lines = [], line = "";
@@ -490,7 +487,13 @@ var DossierMapExtra = (function () {
     });
   }
 
+  /* `kit` is this file's callout SEARCH, handed out so the place notes of
+     2026-09-17 (dossier_map_notes.js, which had to be a new file - this one is
+     at the 500-line cap) run the same search rather than a copy of it. */
   return { relief: relief, notes: notes, arrows: arrows,
+           kit: { findSpot: findSpot, wrap: wrap, leaderSeg: leaderSeg,
+                  leader: leader, boxAt: boxAt, segLen: segLen,
+                  edgeness: edgeness, NOTE_W: NOTE_W, NOTE_LINES: NOTE_LINES },
            report: function () { return REPORT; } };
 })();
 
