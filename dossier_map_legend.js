@@ -227,6 +227,14 @@ var DossierMapLegend = (function () {
       L.rows.push({ line: P.lane, dash: [8 * u, 6 * u], width: 2 * u, label: words.lane });
     }
     if (opt.arrows) L.rows.push({ arrow: true, label: words.axis });
+    /* Routes, measures, zones, the marker a label chose and a map that says it
+       is a CLAIM each bring their own row, built by the file that paints them
+       (dossier_map_routes.js) - a row carries its own `draw`, so nothing here
+       has to learn a swatch it does not own. A row appears only when the map
+       carries the thing it names. */
+    if (window.DossierMapRoutes) {
+      L.rows = L.rows.concat(DossierMapRoutes.legendRows(ctx, P, u, opt.map));
+    }
     var textW = Math.max.apply(null, L.rows.map(function (r) {
       return R.width(ctx, r.label, L.size, 500);
     }));
@@ -265,7 +273,9 @@ var DossierMapLegend = (function () {
     var y = L.y0 + L.pad, sh = 16 * L.k;
     L.rows.forEach(function (r) {
       var cy = y + L.rowH / 2, sx = L.x1 - L.pad - L.sw, sy = cy - sh / 2;
-      if (r.arrow) {
+      if (r.draw) {
+        r.draw(ctx, P, u, sx, cy, L.sw, sh);
+      } else if (r.arrow) {
         arrowSwatch(ctx, P, u, sx, cy, L.sw);
       } else if (r.line) {
         ctx.beginPath(); ctx.moveTo(sx, cy); ctx.lineTo(sx + L.sw, cy);

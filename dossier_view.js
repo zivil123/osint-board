@@ -315,6 +315,7 @@
     parts.push('<p class="ds-written">נכתב: ' + fmtDate(DOSSIER.written) + "</p>");
     pane.innerHTML = parts.join("");
     wireButtons();
+    if (window.DossierPng) DossierPng.mount(pane);
     wireDays();
     repaintWhenReady();
   }
@@ -393,6 +394,9 @@
     setTimeout(() => a.remove(), 2000);
     setTimeout(() => URL.revokeObjectURL(url), 60000);
   }
+  /* The per-map PNG buttons save through this same helper (dossier_png.js): one
+     save path on the page, so a WebKit fix here reaches every download. */
+  window.DossierSave = saveByLink;
 
   /* The built file, waiting for the tap that will share it. */
   let pending = null;

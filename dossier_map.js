@@ -115,7 +115,8 @@ var DossierMap = (function () {
     if (PAINTERS) return PAINTERS;
     var need = [["dossier_map_draw.js", window.DossierMapDraw],
                 ["dossier_map_legend.js", window.DossierMapLegend],
-                ["dossier_map_extra.js", window.DossierMapExtra]];
+                ["dossier_map_extra.js", window.DossierMapExtra],
+                ["dossier_map_routes.js", window.DossierMapRoutes]];
     var missing = need.filter(function (n) { return !n[1]; });
     if (missing.length) {
       throw new Error("dossier_map: " + missing.map(function (n) { return n[0]; })
@@ -199,6 +200,9 @@ var DossierMap = (function () {
      line of code in either. */
   function variantsOf(mapId) {
     var m = mapOf(mapId);
+    /* A `ground` map IS its picture - the terrain is the base, not a second
+       view of the same frame - so it offers no variants to the page or deck. */
+    if (m && m.ground) return ["plain"];
     return ["plain"].concat(Object.keys((m && m.variants) || {}));
   }
 
@@ -223,7 +227,10 @@ var DossierMap = (function () {
   function reliefFrames() {
     var D = dossier(), seen = {};
     (D && D.maps || []).forEach(function (m) {
-      if (m.frame && m.variants && m.variants.relief) seen[m.frame] = true;
+      /* A `ground: "relief"` map has no variant to ask with, and the terrain is
+         the only ground it ever draws - so it asks by the flag instead. */
+      var wants = (m.variants && m.variants.relief) || m.ground === "relief";
+      if (m.frame && wants) seen[m.frame] = true;
     });
     return Object.keys(seen);
   }
@@ -263,7 +270,7 @@ var DossierMap = (function () {
   /* What ground() needs for this map, or null: the picture, where it goes, and
      how far back to wash the territory fills over it. */
   function reliefOpt(map, theme, variant) {
-    if (variant !== "relief") return null;
+    if (variant !== "relief" && (map || {}).ground !== "relief") return null;
     var key = theme === "light" ? "light" : "dark";
     var meta = reliefMeta(), m = meta && meta[map.frame];
     var img = (reliefImg[key] || {})[map.frame];
@@ -297,6 +304,9 @@ var DossierMap = (function () {
     var notesOn = kind === "notes";
     R.ground(ctx, p, P, u, W, H, G, reliefOpt(map, theme, kind));
     R.gains(ctx, p, P, u, D, G, mapId);
+    /* Zones, sea routes and straight-line measures go down WITH the ground: a
+       town's pin belongs on top of a line that passes through its port. */
+    R.mapUnder(ctx, p, P, u, map);
     /* Labels: the dossier's own first (they are the point of the map), then the
        lane names and the governorate names fitted around them and around the
        legend box, which is measured now and painted last. Every town and port
@@ -345,12 +355,15 @@ var DossierMap = (function () {
     (map.labels || []).forEach(function (l) {
       if (((W < 700 || notesOn) && l.tier === 2) || !p.inside(l.lon, l.lat, 0)) return;
       var q = p(l.lon, l.lat), isGain = !!gainKeys[l.place], spec = null;
+      /* `kind` picks the mark - objective, ridge, port or town - and the name's
+         gap is read off the SAME number, so the two cannot disagree. */
+      var markR = R.markClear(pinR, l.kind);
       /* Anchor "c" names a country: centred on its point, no dot, in the
          quieter governorate ink, and dropped rather than moved or cut. */
       var quiet = l.anchor === "c";
       /* An ISLAND gain on the overview is drawn as a 7px ring by gains(); the
          name clears that ring rather than the pin inside it. */
-      var clear = isGain ? Math.max(pinR, 7 * u) : pinR;
+      var clear = isGain ? Math.max(markR, 7 * u) : markR;
       (quiet ? ["c"] : [l.anchor, OPPOSITE[l.anchor], "n", "s", "e", "w"]).some(function (a) {
         var s = R.place(ctx, l.he, q[0], q[1], a, size, clear, u, W, H);
         var b = s.box, free = !taken.some(function (t) { return R.overlaps(b, t); }) &&
@@ -378,10 +391,7 @@ var DossierMap = (function () {
          ("especially on the islands, there's no reason to put a point, not even
          a city"). A country name already says so with anchor "c"; the two
          islands and the strait say it with `pin: false` in the label. */
-      if (!quiet && l.pin !== false) {
-        R.ringMark(ctx, q[0], q[1], pinR, { fill: P.halo });
-        R.ringMark(ctx, q[0], q[1], pinR * 0.62, { fill: P.ink });
-      }
+      if (!quiet && l.pin !== false) R.mark(ctx, P, q[0], q[1], markR, u, l.kind);
       taken.push(spec.box);
       labels.push({ pt: q, spec: spec, quiet: quiet });
     });
@@ -390,6 +400,9 @@ var DossierMap = (function () {
       ? (map.lanes || []).map(function (l) { return { path: l.path, label_he: "" }; })
       : map.lanes;
     R.lanes(ctx, p, P, u, W, H, lanes, size, taken, legend && legend.box);
+    /* Their names and distances, plus the scale bar a terrain map keeps in the
+       corner the legend did not take. */
+    R.mapOver(ctx, p, P, u, map, taken, W, H, size, legend);
     /* The governorate names go down BEFORE the fighting zones: each has one
        anchor point and no second choice, while a zone name has a whole shape to
        find room in.

@@ -195,6 +195,30 @@ body.view-dossier .wrap { display: none; }
   border-color: var(--f-internal);
 }
 
+/* The picture's own control, written in by dossier_png.js: this map as a PNG at
+   slide size. A QUIET secondary control - the page's primary action is the deck
+   in the header, and six identical bright buttons down the page would outrank
+   it. Same family as .ds-btn (44px, 6px radius, 1px hairline, no fill, the same
+   press scale), one shade down: the softer --line border and muted ink, which
+   both step up on hover. Hierarchy from weight and shade, never a second
+   colour. */
+.ds-map-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-block-start: 12px; }
+.ds-png-btn {
+  min-height: 44px; padding-inline: 16px;
+  background: transparent; border: 1px solid var(--line);
+  border-radius: 6px; color: var(--ink-muted);
+  font-size: 18px; font-weight: 500; line-height: 1.2; cursor: pointer;
+  transition: color 200ms var(--ease-tap), border-color 200ms var(--ease-tap),
+              transform 100ms var(--ease-tap);
+}
+.ds-png-btn:hover:not(:disabled) { border-color: var(--line-strong); color: var(--ink); }
+.ds-png-btn:active:not(:disabled) { transform: scale(0.97); }
+.ds-png-btn:disabled { opacity: 0.55; cursor: default; }
+/* The picture's own status line: the dry run's Hebrew result, or a failure.
+   Takes no room while empty, exactly as the header's does. */
+.ds-map-status { font-size: 18px; color: var(--ink-muted); margin-block-start: 8px; }
+.ds-map-status:empty { display: none; }
+
 /* ---- Sources and the closing line ---------------------------------------- */
 .ds-sources {
   padding-inline-start: 1.6em; margin-block-start: 14px;
@@ -222,5 +246,5 @@ body.view-dossier .wrap { display: none; }
   .ds-h2 { font-size: 28px; }
   .ds-h3, .ds-map-h { font-size: 22px; }
   /* The one button takes the row, held on one line. */
-  .ds-btn { flex: 1 1 100%; white-space: nowrap; }
+  .ds-btn, .ds-png-btn { flex: 1 1 100%; white-space: nowrap; }
 }
