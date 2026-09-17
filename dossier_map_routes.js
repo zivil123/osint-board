@@ -177,13 +177,16 @@ var DossierMapRoutes = (function () {
   var CLEAN_ROUTE = 1.4;
 
   /* A DOTTED ROUTE (2026-09-17). Ziv, of the crossing: *"make the naval route
-     dotted instead."* Round dots at the line's own weight with one dot of water
-     between them: paintShape rounds every cap, so a dash of almost nothing
-     draws a circle and a pitch of twice the weight leaves the gap. The legend
-     swatch reads this same helper, so the key is never solid over a dotted
-     line. */
+     dotted instead"*, and then, of the string of beads that made: *"make the
+     dotted thing less dotted, fewer dots, right now there are too many."* So it
+     is a SPARSE DASH - about three stroke widths of ink and two of water. The
+     pair written here is [2w, 3w] and not [3w, 2w] because paintShape rounds
+     every cap, and a round cap hands half a width back to the dash at each end:
+     drawn 2w and 3w, the eye gets 3w of line and 2w of gap. The value is still
+     called `dotted` - it is what he calls it. The legend swatch reads this same
+     helper, so a key is never solid over a broken line. */
   function dashOf(rt, w) {
-    return rt && rt.stroke === "dotted" ? [0.1, w * 2] : null;
+    return rt && rt.stroke === "dotted" ? [w * 2, w * 3] : null;
   }
   /* THE LENGTH CALLOUT IS SET SMALLER THAN THE MAP'S OTHER CLEAN TEXT, and that
      is measurement, not taste. At CLEAN_TEXT the one-line block measures 890 px
