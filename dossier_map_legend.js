@@ -223,17 +223,27 @@ var DossierMapLegend = (function () {
        so it is given none of their rows: a key to something that is not on the
        picture is noise, and on the crossing map it would be five rows of it.
        What is left is what this layer's own painters hand back below - the
-       route and the ports. */
-    L.rows = opt.clean ? [] : [
+       route and the ports.
+
+       A MERGED one draws three of those five again and takes back exactly three
+       rows (2026-09-17): the two territories and the boundary between them.
+       There is no GAINS row on it and that is the point - Ziv asked for the new
+       ground to read as "just part of the Houthis", so a row telling the reader
+       to look for a separate colour would name a colour that is not there. */
+    var control = [
       { fill: P.houthi, label: words.houthi },
       { fill: P.gov, label: words.gov },
+      { line: P.control, dash: R.dashOf(P.controlDash, u), width: P.controlW * u,
+        label: words.front }
+    ];
+    L.rows = !opt.clean ? [
+      control[0], control[1],
       { fill: P.contested, hatch: R.hatch(ctx, P.contestedStroke, u),
         stroke: P.contestedStroke,
         dash: [3 * u, 3 * u], width: u, mark: true, label: words.contested },
       { gain: R.gainStyle(P, u), label: words.gained },
-      { line: P.control, dash: R.dashOf(P.controlDash, u), width: P.controlW * u,
-        label: words.front }
-    ];
+      control[2]
+    ] : opt.control === "merged" ? control : [];
     if (hasLanes) {
       L.rows.push({ line: P.lane, dash: [8 * u, 6 * u], width: 2 * u, label: words.lane });
     }

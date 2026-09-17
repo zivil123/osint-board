@@ -275,10 +275,18 @@ var DossierMap = (function () {
        the key all stay. It is a per-map flag and not a variant: the crossing
        has no second picture of the same frame. */
     var clean = !!map.clean;
+    /* A MERGED clean map puts the two territories and the boundary between them
+       back (Ziv, 2026-09-17: "show the boundaries between the Houthis and the
+       Yemeni government"), and ground() paints the gains itself, in the Houthi
+       fill, so they arrive with the territory rather than over the boundary
+       line - which is why the record's gains are handed over with it. */
     var gOpt = reliefOpt(map, theme, kind) || {};
-    gOpt.clean = clean;
+    gOpt.clean = clean; gOpt.control = map.control || null; gOpt.D = D;
     R.ground(ctx, p, P, u, W, H, G, gOpt);
     if (!clean) R.gains(ctx, p, P, u, D, G, mapId);
+    /* A clean picture carries two or three names, so it sets them larger - one
+       factor, in dossier_map_draw.js, which the route's own block reads too. */
+    var labelSize = clean ? size * R.CLEAN_TEXT : size;
     /* Zones, sea routes and straight-line measures go down WITH the ground: a
        town's pin belongs on top of a line that passes through its port. */
     R.mapUnder(ctx, p, P, u, map);
@@ -312,7 +320,7 @@ var DossierMap = (function () {
     var legend = W >= 800
       ? R.legendLayout(ctx, P, u, W, H, !!(map.lanes && map.lanes.length), WORDS,
           { size: size, arrows: !!(map.arrows && map.arrows.length),
-            top: titleTop, pref: F.legend, clean: clean,
+            top: titleTop, pref: F.legend, clean: clean, control: map.control,
             p: p, G: G, map: map, taken: taken.slice() })
       : null;
     if (legend) taken.push(legend.box);
@@ -338,7 +346,7 @@ var DossierMap = (function () {
          name clears that ring rather than the pin inside it. */
       var clear = isGain ? Math.max(markR, 7 * u) : markR;
       (quiet ? ["c"] : [l.anchor, OPPOSITE[l.anchor], "n", "s", "e", "w"]).some(function (a) {
-        var s = R.place(ctx, l.he, q[0], q[1], a, size, clear, u, W, H);
+        var s = R.place(ctx, l.he, q[0], q[1], a, labelSize, clear, u, W, H);
         var b = s.box, free = !taken.some(function (t) { return R.overlaps(b, t); }) &&
           (!quiet || (b.x0 >= 0 && b.x1 <= W && b.y0 >= 0 && b.y1 <= H));
         if (free) spec = s;

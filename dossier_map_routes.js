@@ -212,9 +212,12 @@ var DossierMapRoutes = (function () {
     return { x: cx, y: cy,
              box: { x0: cx - w / 2, y0: cy - h / 2, x1: cx + w / 2, y1: cy + h / 2 } };
   }
-  function free(b, taken, W, H) {
-    var R = D();
-    return b.x0 >= 0 && b.x1 <= W && b.y0 >= 0 && b.y1 <= H &&
+  /* `pad` is a margin off the canvas rim, and only a side-placed block asks for
+     one: a name that ends 2% from the edge of a 2048px picture is not cut, but
+     it reads as though the picture were trimmed. */
+  function free(b, taken, W, H, pad) {
+    var R = D(), m = pad || 0;
+    return b.x0 >= m && b.x1 <= W - m && b.y0 >= m && b.y1 <= H - m &&
       !taken.some(function (t) { return R.overlaps(b, t); });
   }
   /* A point at fraction `t` of the path's OWN length, with the unit normal of
@@ -249,15 +252,58 @@ var DossierMapRoutes = (function () {
   var ALONG = [0.5, 0.38, 0.62, 0.26, 0.74, 0.14, 0.86, 0.06, 0.94];
   var ACROSS = [1, -1, 2, -2, 3.2, -3.2, 4.6, -4.6, 6.4, -6.4, 8.6, -8.6, 11, -11];
 
-  function pathLabel(ctx, P, u, lines, pts, size, taken, W, H) {
+  /* BESIDE THE LINE, NOT ON IT (2026-09-17). Ziv, of the crossing picture:
+     "move that text that you put in the line to the side." A route may name the
+     side - `label_side`, "w" or "e" - and then the block is pushed clear of the
+     line onto that side with no leader drawn: the gap is measured from the line
+     to the EDGE of the block (the box's own reach along the leg's normal) and
+     never to its centre, so a two-line block at slide size cannot come down
+     half on top of the route it names.
+
+     A wide frame can leave too little room on the chosen side for the block at
+     full size - measured on the crossing's whole-area frame, where the route's
+     name at the clean text scale is a third of the canvas wide - so the block
+     STEPS DOWN in size until it fits. Not flipping to the other side, and not
+     falling back onto the line: both answer a different question from the one
+     that was asked. */
+  var SIDE_GAP = [11, 17, 26, 38, 54], SIDE_SIZE = [1, 0.88, 0.76, 0.66, 0.58];
+  var SIDE_ALONG = [0.5, 0.44, 0.56, 0.38, 0.62, 0.3, 0.7];
+
+  function sideSpot(ctx, R, u, lines, pts, size, taken, W, H, side) {
+    var found = null;
+    SIDE_SIZE.some(function (k) {
+      var s = size * k, w = 0;
+      lines.forEach(function (t) { w = Math.max(w, R.width(ctx, t, s, 600)); });
+      w += 8 * u;
+      var h = lines.length * s * 1.28;
+      SIDE_ALONG.some(function (t) {
+        var a = along(pts, t);
+        /* The box's own reach along the normal, so the gap is a real gap. */
+        var ext = Math.abs(a.nx) * w / 2 + Math.abs(a.ny) * h / 2;
+        var sign = (a.nx < 0) === (side === "w") ? 1 : -1;
+        return SIDE_GAP.some(function (g) {
+          var d = ext + g * u;
+          var b = boxAt(a.x + a.nx * sign * d, a.y + a.ny * sign * d, w, h);
+          if (free(b.box, taken, W, H, 14 * u)) found = { spot: b, size: s };
+          return !!found;
+        });
+      });
+      return !!found;
+    });
+    return found;
+  }
+
+  function pathLabel(ctx, P, u, lines, pts, size, taken, W, H, side) {
     var R = D();
     lines = lines.filter(Boolean);
     if (!lines.length || pts.length < 2) return;
-    var lineH = size * 1.28, w = 0, spot = null, off = 17 * u;
+    var fit = side ? sideSpot(ctx, R, u, lines, pts, size, taken, W, H, side) : null;
+    if (fit) size = fit.size;
+    var lineH = size * 1.28, w = 0, spot = fit && fit.spot, off = 17 * u;
     lines.forEach(function (s) { w = Math.max(w, R.width(ctx, s, size, 600)); });
     w += 8 * u;
     var h = lines.length * lineH;
-    ALONG.some(function (t) {
+    if (!spot) ALONG.some(function (t) {
       var a = along(pts, t);
       return ACROSS.some(function (k) {
         var s = boxAt(a.x + a.nx * off * k, a.y + a.ny * off * k, w, h);
@@ -318,7 +364,13 @@ var DossierMapRoutes = (function () {
   var NICE = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000];
   var OPPOSITE = { tr: "bl", br: "tl", tl: "br", bl: "tr" };
 
-  function scaleBar(ctx, P, u, W, H, size, per, legend) {
+  /* It goes down FIRST and reserves its own box (2026-09-17). It used to be
+     painted last, after every name, and nothing had told the names it was
+     coming: measured on the crossing's whole-area frame, the route's block took
+     the corner the legend had left free and the bar was drawn straight through
+     it. The bar cannot move - it is pinned to the corner opposite the legend -
+     so it is the one that must be placed while the ground is still empty. */
+  function scaleBar(ctx, P, u, W, H, size, per, legend, taken) {
     var R = D(), want = W / 6, km = NICE[0], i;
     for (i = 0; i < NICE.length; i++) { if (NICE[i] * per <= want) km = NICE[i]; }
     var len = km * per;
@@ -335,8 +387,13 @@ var DossierMapRoutes = (function () {
     };
     draw({ stroke: P.halo, width: w + 3 * u });
     draw({ stroke: P.ink, width: w });
-    R.text(ctx, P, km + " " + HE.km, x0 + len / 2, y - cap - 3 * u,
+    var caption = km + " " + HE.km;
+    R.text(ctx, P, caption, x0 + len / 2, y - cap - 3 * u,
       { size: size * 0.9, weight: 500, halo: 3 * u, align: "center", baseline: "bottom" });
+    if (!taken) return;
+    var tw = Math.max(len, R.width(ctx, caption, size * 0.9, 500));
+    taken.push({ x0: x0 + len / 2 - tw / 2 - 4 * u, x1: x0 + len / 2 + tw / 2 + 4 * u,
+                 y0: y - cap - 3 * u - size * 1.2, y1: y + 4 * u });
   }
 
   /* ZONE NAMES GO DOWN FIRST. A zone has one anchor and a ring of candidates
@@ -353,22 +410,28 @@ var DossierMapRoutes = (function () {
        kept at the map's own size: there the question is which line is which,
        and two large blocks would be the loudest thing on the picture. */
     var only = routes.length === 1 && !(m.measure || []).length;
+    /* A CLEAN map's few names are set larger, by the one factor the place names
+       take (dossier_map_draw.js), so the route's own block grows with them
+       rather than shrinking beside them. The scale bar and a zone's name are
+       left at the map's own size: they are the map's furniture, not its
+       subject. */
+    var big = m.clean ? D().CLEAN_TEXT : 1;
+    if (m.ground) scaleBar(ctx, P, u, W, H, size, per, legend, taken);
     zoneLabels(ctx, p, P, u, m.zones, taken, W, H, size);
     routes.forEach(function (rt) {
       var pts = (rt.path || []).map(function (c) { return p(c[0], c[1]); });
       if (pts.length >= 2) {
         pathLabel(ctx, P, u, [rt.label_he, distLabel(pathKm(rt.path))], pts,
-          only ? size * 1.3 : size, taken, W, H);
+          (only ? size * 1.3 : size) * big, taken, W, H, rt.label_side);
       }
     });
     (m.measure || []).forEach(function (mm) {
       var pts = (mm.path || []).map(function (c) { return p(c[0], c[1]); });
       if (pts.length >= 2) {
         pathLabel(ctx, P, u, [(mm.label_he ? mm.label_he + ": " : "") +
-          distLabel(pathKm(mm.path))], pts, size, taken, W, H);
+          distLabel(pathKm(mm.path))], pts, size * big, taken, W, H);
       }
     });
-    if (m.ground) scaleBar(ctx, P, u, W, H, size, per, legend);
   }
 
   /* ---- the legend rows this layer owns ----------------------------------------- */

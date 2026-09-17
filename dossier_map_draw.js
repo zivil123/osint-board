@@ -19,6 +19,13 @@
 
 var DossierMapDraw = (function () {
   var FONT = '"Heebo", "Segoe UI", sans-serif';
+  /* A CLEAN map carries almost no text - two port names and one route name on
+     the crossing picture - so its few names are set larger than a map crowded
+     with towns could afford. Ziv, 2026-09-17: "put the Mocha and Djibouti
+     bigger in text". ONE factor, read by dossier_map.js for the place names and
+     by dossier_map_routes.js for the route's own block, so the two can never
+     drift apart into a per-label hack. */
+  var CLEAN_TEXT = 1.6;
 
   /* ---- colours ---------------------------------------------------------------- */
 
@@ -199,9 +206,18 @@ var DossierMapDraw = (function () {
      diamonds, and the line of contact are all skipped, and what is left is the
      sea, the land, the terrain, the governorate outlines and the coast - the
      ground a sailing route is read on. Without either this paints exactly what
-     it painted before the raster existed. */
+     it painted before the raster existed.
+
+     AND `control: "merged"` PUTS TWO OF THEM BACK (2026-09-17). Ziv, of the
+     same crossing picture: "show the boundaries between the Houthis and the
+     Yemeni government, make the new territory gains just part of the Houthis."
+     So on a merged map the two control fills and the line of contact are drawn
+     although `clean` is on, and the dossier's gains are folded into the Houthi
+     fill by mergedGains() below. The fighting belts and their diamonds stay
+     off: the picture answers who holds which side of one boundary, and where
+     the fighting is happening today is a different question. */
   function ground(ctx, p, P, u, W, H, G, opt) {
-    var X = window.DossierMapExtra, o = opt || {};
+    var X = window.DossierMapExtra, o = opt || {}, merged = o.control === "merged";
     ctx.fillStyle = P.sea; ctx.fillRect(0, 0, W, H);
     landPath(ctx, p, G, true);
     paintShape(ctx, { fill: P.land });
@@ -209,13 +225,16 @@ var DossierMapDraw = (function () {
        carries meaning, and clipped to the coastline that was just drawn. */
     if (o.img && X) X.relief(ctx, p, o.img, o.bounds);
     var byControl = function (c) { return function (f) { return f.properties.control === c; }; };
-    var zones = o.clean ? null : G.control_zones;
+    var zones = (o.clean && !merged) ? null : G.control_zones;
     /* On the light deck the three fills are opaque; over the terrain they would
        erase it, so they are washed back. The dark palette's fills already carry
        their own alpha and are left alone. */
     if (o.fade) ctx.globalAlpha = o.fade;
     fillCollection(ctx, p, zones, { fill: P.gov }, byControl("government"));
     fillCollection(ctx, p, zones, { fill: P.houthi }, byControl("houthi"));
+    /* In the SAME pass and at the same alpha, so a gain and the ground it has
+       joined are one colour and not two tones of it. */
+    if (merged) mergedGains(ctx, p, P, u, o.D, G);
     ctx.globalAlpha = 1;
     /* The ACTIVE FIGHTING zones are their own layer (data\fronts.json ->
        GEO.fronts), drawn over the territory instead of replacing a district's
@@ -242,7 +261,9 @@ var DossierMapDraw = (function () {
     ctx.beginPath();
     eachFeature(G.afr_adm0, function (f) { polyPath(ctx, p, f.geometry); });
     paintShape(ctx, { stroke: P.adm1, width: Math.max(0.8, u) });
-    if (!o.clean) {
+    /* The boundary itself. A merged map is drawn FOR it - it is the one line
+       Ziv asked to see - so `clean` does not take it off there. */
+    if (!o.clean || merged) {
       strokeLines(ctx, p, G.control_line, { stroke: P.control, width: P.controlW * u,
         dash: dashOf(P.controlDash, u) });
     }
@@ -282,6 +303,27 @@ var DossierMapDraw = (function () {
     var part = geom.type === "MultiPolygon" ? c[g.part_index]
       : (geom.type === "Polygon" && g.part_index === 0) ? c : null;
     return part ? { type: "Polygon", coordinates: part } : null;
+  }
+  /* THE SAME GROUND, IN THE SAME COLOUR (2026-09-17). On a `control: "merged"`
+     map a gain is not a third thing on the picture: Ziv asked for the new
+     ground to be "just part of the Houthis", so it is painted with the Houthi
+     control fill and nothing else - no violet, no stroke, and none of the plain
+     land the violet needs underneath it. Called from ground() between the two
+     control fills and the alpha reset, so it is washed back with them on the
+     light deck and a reader cannot tell a gain from the ground beside it.
+     Which places were taken, and when, is still said in the text under the map;
+     this picture is about one boundary and does not answer that. */
+  function mergedGains(ctx, p, P, u, D, G) {
+    ((D && D.gains) || []).forEach(function (g) {
+      var geom = gainPart(G, g);
+      if (geom) {
+        ctx.beginPath(); polyPath(ctx, p, geom);
+        paintShape(ctx, { fill: P.houthi });
+      } else if (typeof g.lon === "number") {
+        var q = p(g.lon, g.lat);
+        ringMark(ctx, q[0], q[1], 7 * u, { fill: P.houthi });
+      }
+    });
   }
   function gains(ctx, p, P, u, D, G, mapId) {
     (D.gains || []).forEach(function (g) {
@@ -406,7 +448,8 @@ var DossierMapDraw = (function () {
     mix: mix, alpha: alpha, text: text, width: width, overlaps: overlaps,
     place: place, ringMark: ringMark, setFont: setFont, paintShape: paintShape,
     hatch: hatch, dashOf: dashOf, eachFeature: eachFeature, gainStyle: gainStyle,
-    ground: ground, gains: gains, lanes: lanes, govLabels: govLabels
+    ground: ground, gains: gains, lanes: lanes, govLabels: govLabels,
+    CLEAN_TEXT: CLEAN_TEXT
   };
 })();
 

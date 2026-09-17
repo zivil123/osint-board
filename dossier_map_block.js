@@ -45,6 +45,14 @@ var DossierMapBlock = (function () {
 
   function legendHtml(m) {
     var rows = (m && m.clean) ? CLEAN_LEGEND : LEGEND;
+    /* A MERGED clean map puts the two territories and the boundary between them
+       back (Ziv, 2026-09-17), and takes back exactly those three rows - never
+       the gains row, because he asked for the new ground to read as part of
+       Houthi ground and a row naming a colour that is no longer on the picture
+       would send the reader hunting for it. Same three the painted key adds. */
+    if (m && m.clean && m.control === "merged") {
+      rows = [LEGEND[0], LEGEND[1], LEGEND[4]].concat(CLEAN_LEGEND);
+    }
     return '<div class="ds-legend" aria-label="מקרא המפה">' +
       rows.map(function (r) {
         return '<span class="ds-lg-row"><span class="' + r.cls + '"' +
