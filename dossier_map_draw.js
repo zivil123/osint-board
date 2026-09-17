@@ -182,18 +182,20 @@ var DossierMapDraw = (function () {
 
   /* ---- ground: sea, land, territory, boundaries, front line ------------------- */
 
-  /* The coastline: Saudi Arabia, Yemen and the African shore of the strait
-     (Eritrea, Djibouti, Ethiopia - `afr_adm0`). Africa is plain land and a
-     coastline only, no territory fill: it is there so the strait reads as a
-     strait and its narrowness can be seen, and nobody on it is party to the map.
-     Its outline is a hairline, not the border stroke: the coast already shows
-     by the land/sea step, and geoBoundaries' Eritrea and Ethiopia do not share
-     one border line, so the full stroke drew that border twice (measured). */
+  /* The coastline: Saudi Arabia, Yemen and the NEIGHBOUR LAND around the frame
+     (Eritrea, Djibouti, Ethiopia, Oman, Somalia, Sudan - `nbr_adm0`, called
+     `afr_adm0` until 2026-09-17, when Oman stopped it being an African list).
+     The neighbours are plain land and a coastline only, no territory fill: they
+     are there so the strait reads as a strait and its narrowness can be seen,
+     and nobody on them is party to the map. The outline is a hairline, not the
+     border stroke: the coast already shows by the land/sea step, and
+     geoBoundaries' Eritrea and Ethiopia do not share one border line, so the
+     full stroke drew that border twice (measured). */
   function landPath(ctx, p, G, shore) {
     ctx.beginPath();
     polyPath(ctx, p, G.sau_adm0.features[0].geometry);
     polyPath(ctx, p, G.yem_adm0.features[0].geometry);
-    if (shore) eachFeature(G.afr_adm0, function (f) { polyPath(ctx, p, f.geometry); });
+    if (shore) eachFeature(G.nbr_adm0, function (f) { polyPath(ctx, p, f.geometry); });
   }
   /* `opt` carries the relief variant's business - `{img, bounds}` lays the
      terrain picture inside the coastline and `fade` washes the three territory
@@ -259,7 +261,7 @@ var DossierMapDraw = (function () {
     landPath(ctx, p, G, false);
     paintShape(ctx, { stroke: P.border, width: P.borderW * u });
     ctx.beginPath();
-    eachFeature(G.afr_adm0, function (f) { polyPath(ctx, p, f.geometry); });
+    eachFeature(G.nbr_adm0, function (f) { polyPath(ctx, p, f.geometry); });
     paintShape(ctx, { stroke: P.adm1, width: Math.max(0.8, u) });
     /* The boundary itself. A merged map is drawn FOR it - it is the one line
        Ziv asked to see - so `clean` does not take it off there. */

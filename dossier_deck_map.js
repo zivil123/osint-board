@@ -254,7 +254,7 @@ var DossierDeckMap = (function () {
     var LAND = { fill: { color: LANDC }, line: { color: hex(P.border, SEA), width: 1 } };
     collection(slide, G.yem_adm0, p, LAND, null, null, sx, sy);
     collection(slide, G.sau_adm0, p, LAND, null, null, sx, sy);
-    collection(slide, G.afr_adm0, p,
+    collection(slide, G.nbr_adm0, p,
       { fill: { color: LANDC }, line: { color: hex(P.adm1, SEA), width: 0.5 } },
       null, null, sx, sy);
 
