@@ -256,13 +256,12 @@ var DossierMap = (function () {
      whole picture below is then painted into the map area through a translated
      and CLIPPED context, at the map area's own size - so the projector, the
      legend's corner search, the label placement and every measurement in pixels
-     are done on the rectangle the map really occupies. The rectangle is cut to
-     the FRAME's own aspect, so a panel picture shows exactly the longitude the
-     plain wide one does: nothing is cropped, and no point that passed the
-     build's in-frame rule can fall off an edge here. dossier_map_key.js owns
-     the split, the numbered discs and the panel; the map area is always the
-     WIDE frame, the square shape putting its panel underneath rather than
-     making the map 1:1. */
+     are done on the rectangle the map really occupies. dossier_map_key.js owns
+     the split, the numbered discs and the panel, and it also says WHICH SHAPE's
+     frame the area is to be projected with (`a.frame`) - the opposite of the
+     canvas's, because the wide canvas's area is the taller rectangle and the
+     square canvas's is the wider one. An area wider than the shape it reads
+     only gains longitude, so nothing the build passed can fall off an edge. */
   function paint(ctx, mapId, theme, W, H, ts, variant, shape) {
     var map = mapOf(mapId), K = window.DossierMapKey;
     var a = map && map.key === "panel"
@@ -274,7 +273,7 @@ var DossierMap = (function () {
     ctx.save();
     ctx.beginPath(); ctx.rect(a.map.x, a.map.y, a.map.w, a.map.h); ctx.clip();
     ctx.translate(a.map.x, a.map.y);
-    paintMap(ctx, mapId, theme, a.map.w, a.map.h, ts, variant, null);
+    paintMap(ctx, mapId, theme, a.map.w, a.map.h, ts, variant, a.frame);
     ctx.restore();
     K.panel(ctx, P, u, ts, map, a, W);
   }

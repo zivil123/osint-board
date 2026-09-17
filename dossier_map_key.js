@@ -23,11 +23,20 @@
    passed the build's in-frame rule falls off the edge here.
 
    The two shapes, as asked for:
-     wide   - the map on the left, about 68% of the width; the panel a full-
-              height column on the right.
+     wide   - the map on the left, about 68% of the width and the FULL canvas
+              height; the panel a full-height column on the right.
      square - the map on top, 16:9 of the full width; the panel below it, in
               TWO columns, because nine rows in one column at 2048 wide would
               be a column of air.
+
+   NO EMPTY BANDS, AND THAT IS WHY EACH SHAPE READS A DIFFERENT LAT RANGE. The
+   wide map area is 1741x1440 - about 1.2:1 - and cutting a 16:9 rectangle into
+   it left a 230px white mat above and below, a third of the picture's height
+   empty. So the area keeps the whole canvas height and is projected with the
+   frame's SQUARE range (`square.lat`, `square.lonMid`), which is authored and
+   validated for a 1:1 area: an area WIDER than 1:1 shows more longitude of it
+   and cannot cut anything the build passed. The square shape's own map area is
+   16:9, so it reads the wide frame for exactly the same reason.
 
    NO ES modules - the page runs from file://. One global:
 
@@ -81,15 +90,14 @@ var DossierMapKey = (function () {
   }
   /* There is NO canvas-widening helper here any more, and that is the point.
      It returned the map's share of the width so `DossierMap.aspect` could hand
-     the page a 2.61:1 canvas on which the map area came out 16:9 with no band
-     above or below it - and the page then drew a picture shaped like nothing
-     the PNG buttons save, while the panel, squeezed into a third of a 470px
-     canvas, dropped its note to 11px against this board's 17px floor. The
-     canvas is the download's shape now; the mat `fitRect` leaves above and
-     below the map is the price, and `card` paints it as a mat on purpose. */
+     the page a 2.61:1 canvas on which the map area came out 16:9 - and the page
+     then drew a picture shaped like nothing the PNG buttons save, while the
+     panel, squeezed into a third of a 470px canvas, dropped its note to 11px
+     against this board's 17px floor. The canvas is the download's shape now,
+     and the map area is NOT cut to 16:9 inside it: see the head of this file. */
 
-  /* The largest rectangle of aspect `ar` inside a region, centred in it. The
-     region is where the map may go; the rectangle is where it does go. */
+  /* The largest rectangle of aspect `ar` inside a region, centred in it - the
+     square shape's map area, where the region already is 16:9. */
   function fitRect(x, y, w, h, ar) {
     var rw = w, rh = w / ar;
     if (rh > h) { rh = h; rw = h * ar; }
@@ -98,20 +106,24 @@ var DossierMapKey = (function () {
 
   /* The split, or null when this map is not a panel one - the caller then
      paints the canvas exactly as it always has. `ar` is the FRAME's aspect,
-     handed in because the frames live in dossier_map.js. */
+     handed in because the frames live in dossier_map.js. `frame` is the SHAPE
+     the caller must project the map area with, and it is the OPPOSITE of the
+     canvas's on each: see the head of this file. */
   function area(map, W, H, shape, ar) {
     if (modeOf(map) !== "panel") return null;
-    var a = ar > 0 ? ar : 16 / 9, top = Math.round(W / SQ_ASPECT);
+    var a = ar > 0 ? ar : SQ_ASPECT, top = Math.round(W / SQ_ASPECT);
     /* A square canvas puts the panel underneath; a wide one puts it beside.
        The fallback is the wide split, for a canvas too short to hold a row of
        panel under a 16:9 map - a picture with a panel two rows tall is worse
        than one with a narrow column. */
     if (shape === "square" && H - top > H * 0.2) {
-      return { map: fitRect(0, 0, W, top, a),
+      return { map: fitRect(0, 0, W, top, a), frame: null,
                panel: { x: 0, y: top, w: W, h: H - top, cols: 2 } };
     }
+    /* THE FULL CANVAS HEIGHT, never a 16:9 cut of it: the band a cut leaves
+       above and below the map is a third of the picture's height empty. */
     var mw = Math.round(W * MAP_FRAC);
-    return { map: fitRect(0, 0, mw, H, a),
+    return { map: { x: 0, y: 0, w: mw, h: H }, frame: "square",
              panel: { x: mw, y: 0, w: W - mw, h: H, cols: 1 } };
   }
 
