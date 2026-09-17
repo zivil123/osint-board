@@ -176,6 +176,24 @@ var DossierMapRoutes = (function () {
      clearance is 5.9 km. */
   var CLEAN_ROUTE = 1.4;
 
+  /* A DOTTED ROUTE (2026-09-17). Ziv, of the crossing: *"make the naval route
+     dotted instead."* Round dots at the line's own weight with one dot of water
+     between them: paintShape rounds every cap, so a dash of almost nothing
+     draws a circle and a pitch of twice the weight leaves the gap. The legend
+     swatch reads this same helper, so the key is never solid over a dotted
+     line. */
+  function dashOf(rt, w) {
+    return rt && rt.stroke === "dotted" ? [0.1, w * 2] : null;
+  }
+  /* THE LENGTH CALLOUT IS SET SMALLER THAN THE MAP'S OTHER CLEAN TEXT, and that
+     is measurement, not taste. At CLEAN_TEXT the one-line block measures 890 px
+     on a 2560 px slide - 4.06 deg of an 11.68 deg frame - and the two things it
+     must do cross each other: to clear the route to its west it must stand east
+     of 45.88E, to stay off the square picture's eastern rim it must stand west
+     of 45.30E. At 1.15 the block is 2.92 deg and does both with about 90 px to
+     spare, and still reads at arm's length on a slide (59 px). */
+  var CALLOUT_TEXT = 1.15;
+
   function routeK(m) { return m && m.clean ? CLEAN_ROUTE : 1; }
   function routeW(kind, u, k) { return (ROUTE_W[kind] || 2.4) * k * u; }
   function headW(kind, u, k) {
@@ -243,7 +261,7 @@ var DossierMapRoutes = (function () {
     (m.routes || []).forEach(function (rt) {
       var pts = (rt.path || []).map(function (c) { return p(c[0], c[1]); });
       if (pts.length < 2) return;
-      var w = routeW(rt.kind, u, k);
+      var w = routeW(rt.kind, u, k), dash = dashOf(rt, w);
       poly(ctx, pts);
       /* THE CASING DOES NOT TAKE THE CLEAN FACTOR (2026-09-17). It is there so
          the line reads over terrain, and 4*u either side does that at any
@@ -251,10 +269,12 @@ var DossierMapRoutes = (function () {
          either side of the centre on a 2560 px slide, and the western channel
          at its narrowest leaves 13.3 px of water - so the casing, not the line,
          was what sat on both shores. Ziv: *"right now it touches the land all
-         the way."* */
-      R.paintShape(ctx, { stroke: P.halo, width: w + 4 * u });
+         the way."* A DOTTED line takes a thinner casing still: at 4*u the white
+         blobs almost meet and close the gaps the dots are there for. */
+      R.paintShape(ctx, { stroke: P.halo, width: w + (dash ? 2.5 : 4) * u,
+        dash: dash });
       poly(ctx, pts);
-      R.paintShape(ctx, { stroke: P.ink, width: w });
+      R.paintShape(ctx, { stroke: P.ink, width: w, dash: dash });
       heads(ctx, P, u, pts, headW(rt.kind, u, k), !!m.clean);
     });
   }
@@ -354,7 +374,13 @@ var DossierMapRoutes = (function () {
        left at the map's own size: they are the map's furniture, not its
        subject. */
     var big = m.clean ? D().CLEAN_TEXT : 1;
-    if (m.ground) scaleBar(ctx, P, u, W, H, size, per, legend, taken);
+    /* A map that draws NO legend box (`legend: false`) still puts the bar where
+       the box would have sent it - opposite the corner the legend prefers - so
+       taking the key off the picture does not move the furniture as well. */
+    if (m.ground) {
+      scaleBar(ctx, P, u, W, H, size, per,
+        legend || (m.legend === false ? { at: "tl" } : null), taken);
+    }
     zoneLabels(ctx, p, P, u, m.zones, taken, W, H, size);
     routes.forEach(function (rt) {
       var pts = (rt.path || []).map(function (c) { return p(c[0], c[1]); });
@@ -363,6 +389,17 @@ var DossierMapRoutes = (function () {
          line is the whole statement. The legend row still names what the line
          is, and the HTML caption under the picture still carries the length,
          because neither of those is painted on the map. */
+      /* THE LENGTH ON ITS OWN, at an authored point (2026-09-17). Ziv asked for
+         two pictures of this crossing: *"one with just these changes, and one
+         with a line to the side that says how long the route is, placed well."*
+         So a route may carry `length_callout`, a point the build has checked is
+         inside both shapes, and the painter writes the measured distance there
+         with a leader back to the line - no route name, no second line. The
+         number is measured from the drawn path and never authored. */
+      if (rt.length_callout && pts.length >= 2) {
+        L().pathLabel(ctx, P, u, [distLabel(pathKm(rt.path))], pts,
+          size * CALLOUT_TEXT, taken, W, H, null, p, rt.length_callout);
+      }
       if (rt.label === false) return;
       if (pts.length >= 2) {
         /* `label_at` is an authored point and beats `label_side`; the build
@@ -415,8 +452,9 @@ var DossierMapRoutes = (function () {
       rows.push({ label: HE[kind], draw: function (c, Q, uu, x, cy, sw) {
         var kk = routeK(m);
         var head = Math.min(sw * 0.45, Math.max(5 * kk, 8 * kk * uu));
+        var lw = routeW(kind, uu, kk);
         c.beginPath(); c.moveTo(x, cy); c.lineTo(x + sw - head, cy);
-        R.paintShape(c, { stroke: Q.ink, width: routeW(kind, uu, kk) });
+        R.paintShape(c, { stroke: Q.ink, width: lw, dash: dashOf(rt, lw) });
         arrowHead(c, Q, uu, [x, cy], [x + sw, cy], head);
       } });
     });

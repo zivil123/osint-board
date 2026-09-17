@@ -34,17 +34,15 @@ var DossierMapDraw = (function () {
      thing on a map about a sea route. SPACE is a fraction of the size. */
   var COUNTRY_TEXT = 1.35, COUNTRY_SPACE = 0.12;
   /* What a CLEAN map draws at the edges of countries. Ziv, 2026-09-17: *"make
-     the borders in Africa a lot more visible, right now it's pretty weird."*
-     TWO LINES, BECAUSE AN OUTLINE IS TWO THINGS: a COAST, which needs only the
-     shoreline stroke, and a BORDER, which is what he asked to see. Stroking
-     the whole outline drew every border twice, once from each side, with sea
-     showing through the gap - that was the weird, doubling and not thinness.
-     So the land-to-land stretches are cut out at build time and stroked bold
-     in ONE path, both sides together, so the pair merges into a single band
-     that covers the sliver (why, and the measurements: scripts\geo_borders.py).
-     Governorate and Saudi region lines stay faint, or the picture becomes a
-     political map of somewhere it is not about. */
-  var CLEAN_COAST = 1.6, CLEAN_BORDER = 5.5, CLEAN_BORDER_HALO = 3;
+     the borders in Africa a lot more visible, right now it's pretty weird"*,
+     then *"make the borders in Africa black... make sure it looks like one
+     line."* TWO LINES, BECAUSE AN OUTLINE IS TWO THINGS: a COAST, which keeps
+     the shoreline stroke, and a BORDER, drawn ONCE in black over a light casing
+     from the stretches geo_borders.py cuts out (it holds why, and what the
+     doubling was). Governorate and Saudi region lines stay faint, or the
+     picture becomes a political map of somewhere it is not about. */
+  var CLEAN_COAST = 1.6, CLEAN_BORDER = 5.5, CLEAN_BORDER_HALO = 3,
+    CLEAN_BORDER_INK = "#000";
 
   /* ---- colours ---------------------------------------------------------------- */
 
@@ -283,16 +281,17 @@ var DossierMapDraw = (function () {
     }
     fillCollection(ctx, p, G.yem_adm1, { stroke: P.adm1, width: Math.max(0.8, u) });
     fillCollection(ctx, p, G.sau_adm1, { stroke: P.adm1, width: Math.max(0.8, u) });
-    /* THE COAST FIRST - every outline, at the shoreline weight. On a clean map
-       the neighbours get Yemen's and Saudi's dark ink (they are half the
-       picture there); elsewhere they stay the hairline landPath() explains. */
+    /* THE COAST FIRST, at the shoreline weight and in Yemen's own dark ink on a
+       clean map (the neighbours are half that picture) - and there it is their
+       SHORELINE only, never their borders: those go down once, bold, below. */
     var edge = o.clean ? { stroke: P.border, width: Math.max(1.2, CLEAN_COAST * u) }
       : { stroke: P.adm1, width: Math.max(0.8, u) };
     landPath(ctx, p, G, false);
     paintShape(ctx, { stroke: P.border,
       width: o.clean ? edge.width : P.borderW * u });
     ctx.beginPath();
-    eachFeature(G.nbr_adm0, function (f) { polyPath(ctx, p, f.geometry); });
+    eachFeature(o.clean && G.nbr_coasts ? G.nbr_coasts : G.nbr_adm0,
+      function (f) { polyPath(ctx, p, f.geometry); linePath(ctx, p, f.geometry); });
     paintShape(ctx, edge);
     /* THEN THE LAND BORDERS, bold: a light casing so the line reads across the
        terrain shading, the dark ink on top. Both sides of every border sit in
@@ -301,7 +300,7 @@ var DossierMapDraw = (function () {
       var bw = Math.max(3, CLEAN_BORDER * u);
       strokeLines(ctx, p, G.nbr_borders, { stroke: P.halo,
         width: bw + CLEAN_BORDER_HALO * u });
-      strokeLines(ctx, p, G.nbr_borders, { stroke: P.border, width: bw });
+      strokeLines(ctx, p, G.nbr_borders, { stroke: CLEAN_BORDER_INK, width: bw });
     }
     /* The boundary itself. A merged map is drawn FOR it - it is the one line
        Ziv asked to see - so `clean` does not take it off there. */

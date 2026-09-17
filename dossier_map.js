@@ -317,7 +317,12 @@ var DossierMap = (function () {
        is drawn at 3:2 on the page and 16:9 on every slide and a fixed corner
        cannot be clean on both. `top` is the y a top corner takes - the plain
        inset since 2026-09-17, no title being painted above it any more. */
-    var legend = W >= 800
+    /* NO BOX AT ALL when the map says so (2026-09-17). Ziv, of the crossing:
+       *"remove the box that explains everything, there's no need for it."* It
+       is not painted AND its corner is not reserved, so a name or the route's
+       length may stand there; the HTML key under the canvas goes with it
+       (dossier_map_block.js) and the scale bar stays. */
+    var legend = W >= 800 && map.legend !== false
       ? R.legendLayout(ctx, P, u, W, H, !!(map.lanes && map.lanes.length), WORDS,
           { size: size, arrows: !!(map.arrows && map.arrows.length),
             top: titleTop, pref: F.legend, clean: clean, control: map.control,

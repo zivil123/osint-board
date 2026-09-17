@@ -44,6 +44,10 @@ var DossierMapBlock = (function () {
   var MISSING_MAP = "המפה אינה זמינה";
 
   function legendHtml(m) {
+    /* A map may carry NO key at all - `legend: false`, Ziv 2026-09-17: *"remove
+       the box that explains everything, there's no need for it."* The painted
+       box and this one are the same decision, so both read the one flag. */
+    if (m && m.legend === false) return "";
     var rows = (m && m.clean) ? CLEAN_LEGEND : LEGEND;
     /* A MERGED clean map puts the two territories and the boundary between them
        back (Ziv, 2026-09-17), and takes back exactly those three rows - never
