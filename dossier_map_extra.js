@@ -10,9 +10,8 @@
    zone write a few words so you can see everything on the map", topography
    "that looks presentable, with everything else still on it", and a zoom-in on
    Aden with arrows for where the Houthis could push - "an assessment". The
-   plain picture's `zoneNames` sat here beside `notes` until 2026-09-16 and now
-   lives in dossier_map_legend.js beside the diamond it explains; the room it
-   freed is the callouts' own search.
+   plain picture's `zoneNames` moved to dossier_map_legend.js on 2026-09-16,
+   beside the diamond it explains; the room it freed is the callouts' search.
 
    NO ES modules - the page runs from file://. One global:
 

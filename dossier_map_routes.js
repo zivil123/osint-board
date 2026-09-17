@@ -390,7 +390,12 @@ var DossierMapRoutes = (function () {
       scaleBar(ctx, P, u, W, H, size, per,
         legend || (m.legend === false ? { at: "tl" } : null), taken);
     }
-    zoneLabels(ctx, p, P, u, m.zones, taken, W, H, size);
+    /* MARKS ONLY, NO TEXT ON THE MAP - `zone_text: false` (2026-09-17, Ziv of
+       the strait picture). Every SIGN still paints with the ground in mapUnder,
+       and every place name too; what comes off is the five zone names, stacked
+       two deep over the channel the picture is about. Absent means true, and
+       the key under the canvas names all three signs (dossier_map_block.js). */
+    if (m.zone_text !== false) zoneLabels(ctx, p, P, u, m.zones, taken, W, H, size);
     routes.forEach(function (rt) {
       var pts = (rt.path || []).map(function (c) { return p(c[0], c[1]); });
       /* A SILENT ROUTE - `label: false` in the record (Ziv, 2026-09-17:

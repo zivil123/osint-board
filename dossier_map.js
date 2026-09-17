@@ -19,23 +19,20 @@
    for on 2026-09-17, a whole slide and one that sits beside text. It picks the
    authored frame, never the canvas.
 
-   mapId is any id in DOSSIER.maps ("overview" | "mandab" | "aden"); theme is
-   "dark" | "light"; variant is "plain" (or undefined) | "notes" | "relief".
-   Pure function of DOSSIER + GEO + theme: the only DOM it touches is the canvas
-   it is handed, the :root tokens of style.css (the dark palette is READ from
-   them, never written here; the light palette has no tokens on the board and is
-   authored below) and the relief images it loads. The layer painters live in
-   dossier_map_draw.js, dossier_map_legend.js and dossier_map_extra.js, looked
-   up at paint time so the files may load in any order. Every string painted is
+   mapId is any id in DOSSIER.maps; theme is "dark" | "light"; variant is
+   "plain" (or undefined) | "notes" | "relief". Pure function of DOSSIER + GEO +
+   theme: the only DOM it touches is the canvas it is handed, the :root tokens of
+   style.css (the dark palette is READ from them, never written here; the light
+   one has no tokens on the board and is authored below) and the relief images.
+   The layer painters live in dossier_map_draw.js, dossier_map_legend.js,
+   dossier_map_extra.js and the two the `key` field asks for, all looked up at
+   paint time so the files may load in any order. Every string painted is
    Hebrew - the build refuses Latin in any map string.
 
    FRAMES ARE AUTHORED, in data\dossier_maps.json, and reach here as
-   DOSSIER.frames. A frame is a latitude range and a longitude CENTRE; the
-   longitude span FOLLOWS from the canvas aspect through an equirectangular
-   projection with a cos(mid-latitude) correction, so any canvas shows the whole
-   latitude range and only more or less longitude. That is what lets the same
-   frame serve a 640px pane, a 1400px page and a 2560px slide. The rubric -
-   what each frame is cut to and why - is in DOSSIER_LAYERS.md, "Frames". */
+   DOSSIER.frames: a latitude range and a longitude CENTRE, the longitude span
+   following from the aspect of the rectangle being painted, so nothing is ever
+   cropped. The rubric is in DOSSIER_LAYERS.md, "Frames". */
 "use strict";
 
 var DossierMap = (function () {
@@ -44,19 +41,15 @@ var DossierMap = (function () {
      little on screen, half again on a slide, which is read from across a room
      and is nothing but this picture. */
   var TEXT_SCREEN = 1.15, TEXT_SLIDE = 1.5;
-  /* The smallest step a governorate name keeps above a town name. It exists
-     because the frame's `gov` factor grows with the CANVAS and not off the 17px
-     reading floor: that floor is there so a name stays legible on a small map,
-     and multiplying it handed a phone governorate names a quarter of the map
-     wide - measured at 345px, where "ד'מאר" outweighed everything the frame is
-     about. Wide canvases reach the frame's own factor; narrow ones keep a step
-     and no more. */
+  /* The smallest step a governorate name keeps above a town name. The frame's
+     `gov` factor grows with the CANVAS and not off the 17px reading floor, and
+     multiplying that floor handed a phone governorate names a quarter of the
+     map wide - measured at 345px. Wide canvases reach the frame's own factor;
+     narrow ones keep a step and no more. */
   var GOV_MIN = 1.2;
   /* The PIN radius, written for BASE_W and floored the way the 17px text floor
-     is: a mark that shrinks with the canvas stops being a mark. Read `place()`
-     with it - the name is offset by the pin's own radius plus a gap, so the two
-     can never sit on top of each other. 4.2 on the day it was built and 3.0
-     since 2026-09-14: see the mark itself, painted below the labels. */
+     is: a mark that shrinks with the canvas stops being a mark. 4.2 on the day
+     it was built and 3.0 since 2026-09-14 (DOSSIER_LAYERS.md, "Labels"). */
   var PIN_R = 3.0, PIN_MIN = 3;
   var OPPOSITE = { e: "w", w: "e", n: "s", s: "n" };
   /* The board's own legend words, so the painted legend matches the one under
@@ -133,6 +126,12 @@ var DossierMap = (function () {
     PAINTERS = all;
     return all;
   }
+  /* The two OPTIONAL painters, each needed only by the map whose `key` asks for
+     it - named when missing, for the same reason the four above are. */
+  function need(file, mod) {
+    if (!mod) throw new Error("dossier_map: " + file + " is not on the page");
+    return mod;
+  }
 
   function palette(theme) {
     if (theme === "light") return LIGHT;
@@ -192,15 +191,11 @@ var DossierMap = (function () {
     var D = dossier();
     return (D && (D.maps || []).filter(function (m) { return m.id === mapId; })[0]) || null;
   }
-  /* TWO SHAPES OF EVERY PICTURE (2026-09-17). Ziv puts some of these maps on a
-     half slide with text beside them and asked for "a shape that fits", so the
-     PNG button offers a WIDE picture (the whole slide) and a SQUARE one (beside
-     the text). The square is never derived: `frames.<name>.square` is authored
-     with its own latitude range and longitude centre, because a square cut out
-     of a 16:9 frame either loses the story's two ends or keeps empty ground.
-     The frame's own `aspect` stays the wide one - the page's canvas and the
-     deck's slide are both wide - and a record that has no `square` yet falls
-     back to the wide frame, which a 1:1 canvas simply shows less longitude of. */
+  /* TWO SHAPES OF EVERY PICTURE (2026-09-17): a WIDE one for a whole slide and
+     a SQUARE one to sit beside text. The square is never derived -
+     `frames.<name>.square` is authored, a 1:1 crop of a 16:9 frame losing the
+     story's two ends - and a record without one falls back to the wide frame.
+     DOSSIER_LAYERS.md, "Every frame has TWO shapes". */
   function frameOf(mapId, shape) {
     var D = dossier(), m = mapOf(mapId);
     var f = (D && m && D.frames && D.frames[m.frame]) || null;
@@ -210,28 +205,34 @@ var DossierMap = (function () {
     return { lat: sq.lat, aspect: [1, 1], legend: f.legend, gov: f.gov,
              lonMid: typeof sq.lonMid === "number" ? sq.lonMid : f.lonMid };
   }
-  function aspect(mapId) {
+  /* A caller cutting the map's own rectangle asks `frameAspect`; a caller
+     sizing a canvas asks `aspect`, AND THE TWO ARE THE SAME NUMBER on purpose:
+     widening the canvas by the key panel's share left the page drawing a 2.61:1
+     picture the button never saved, and starved the panel to an 11px note
+     (DOSSIER_MAPS.md, "The key panel's picture is the download's shape"). */
+  function frameAspect(mapId) {
     var f = frameOf(mapId);
     return (f && f.aspect && f.aspect[1]) ? f.aspect[0] / f.aspect[1] : 16 / 9;
   }
+  function aspect(mapId) {
+    return frameAspect(mapId);
+  }
   /* The pictures this painter can draw for a frame, PLAIN FIRST. The page and
      the deck both ask, so a variant added to the record reaches both without a
-     line of code in either. */
+     line of code in either. A `ground` map IS its picture - the terrain is the
+     base, not a second view of the same frame - so it offers none. */
   function variantsOf(mapId) {
     var m = mapOf(mapId);
-    /* A `ground` map IS its picture - the terrain is the base, not a second
-       view of the same frame - so it offers no variants to the page or deck. */
     if (m && m.ground) return ["plain"];
     return ["plain"].concat(Object.keys((m && m.variants) || {}));
   }
 
   /* ---- the relief pictures ------------------------------------------------------ */
 
-  /* Loading them, and deciding which frame needs one, moved to
-     dossier_map_relief.js on 2026-09-17 to make room here for the two picture
-     shapes. It is OPTIONAL at runtime, exactly as the terrain itself is: a
-     board with no relief file draws every map on plain ground, so a missing
-     script costs the terrain and never the picture. */
+  /* Loading them, and deciding which frame needs one, is dossier_map_relief.js.
+     OPTIONAL at runtime, exactly as the terrain itself is: a board with no
+     relief file draws on plain ground, so a missing script costs the terrain
+     and never the picture. */
   function reliefFile() { return window.DossierMapRelief || null; }
   function ready(theme) {
     var R = reliefFile();
@@ -250,7 +251,35 @@ var DossierMap = (function () {
       { size: Math.max(20, 22 * u), weight: 600, halo: 0 });
   }
 
+  /* THE CANVAS IS NOT ALWAYS THE MAP (2026-09-17). A record carrying
+     `key: "panel"` splits the canvas into a MAP AREA and a KEY PANEL, and the
+     whole picture below is then painted into the map area through a translated
+     and CLIPPED context, at the map area's own size - so the projector, the
+     legend's corner search, the label placement and every measurement in pixels
+     are done on the rectangle the map really occupies. The rectangle is cut to
+     the FRAME's own aspect, so a panel picture shows exactly the longitude the
+     plain wide one does: nothing is cropped, and no point that passed the
+     build's in-frame rule can fall off an edge here. dossier_map_key.js owns
+     the split, the numbered discs and the panel; the map area is always the
+     WIDE frame, the square shape putting its panel underneath rather than
+     making the map 1:1. */
   function paint(ctx, mapId, theme, W, H, ts, variant, shape) {
+    var map = mapOf(mapId), K = window.DossierMapKey;
+    var a = map && map.key === "panel"
+      ? need("dossier_map_key.js", K).area(map, W, H, shape, frameAspect(mapId))
+      : null;
+    if (!a) { paintMap(ctx, mapId, theme, W, H, ts, variant, shape); return; }
+    var P = palette(theme), u = W / BASE_W;
+    K.card(ctx, P, u, a, W, H);
+    ctx.save();
+    ctx.beginPath(); ctx.rect(a.map.x, a.map.y, a.map.w, a.map.h); ctx.clip();
+    ctx.translate(a.map.x, a.map.y);
+    paintMap(ctx, mapId, theme, a.map.w, a.map.h, ts, variant, null);
+    ctx.restore();
+    K.panel(ctx, P, u, ts, map, a, W);
+  }
+
+  function paintMap(ctx, mapId, theme, W, H, ts, variant, shape) {
     var R = painters(), P = palette(theme), G = geo(), D = dossier(), u = W / BASE_W;
     var map = mapOf(mapId), F = frameOf(mapId, shape), kind = variant || "plain";
     ctx.direction = "rtl";
@@ -263,23 +292,16 @@ var DossierMap = (function () {
     var pinR = Math.max(PIN_MIN, PIN_R * u * ts);
     /* The NOTES picture is the same map with a sentence at every fighting zone,
        so it needs the room: the second-rank place names and the lane's name come
-       off, and what is left is the ground, the fronts and what is happening on
-       them. Nothing is added that the plain picture does not have. */
+       off, and nothing is added that the plain picture lacks. */
     var notesOn = kind === "notes";
-    /* A CLEAN map draws no war. Ziv, 2026-09-17, on the Mocha-Djibouti
-       crossing: strip everything unrelated - the fighting, the control colours,
-       the second route - and leave one line with its length. So `clean` on the
-       record takes the control fills, the fighting belts and their diamonds,
-       the line of contact, the gains and the governorate names off this one
-       picture; the terrain, the coast, the borders, the places, the route and
-       the key all stay. It is a per-map flag and not a variant: the crossing
-       has no second picture of the same frame. */
+    /* A CLEAN map draws no war: the control fills, the fighting belts and their
+       diamonds, the line of contact, the gains and the governorate names all
+       come off, and the terrain, coast, borders, places, route and key stay. A
+       MERGED one puts the two territories and the boundary between them back,
+       ground() folding the gains into the Houthi fill - which is why the
+       record's gains are handed over with it. Ziv's words and both rules are in
+       DOSSIER_LAYERS.md, "Colour, the legend and the marks". */
     var clean = !!map.clean;
-    /* A MERGED clean map puts the two territories and the boundary between them
-       back (Ziv, 2026-09-17: "show the boundaries between the Houthis and the
-       Yemeni government"), and ground() paints the gains itself, in the Houthi
-       fill, so they arrive with the territory rather than over the boundary
-       line - which is why the record's gains are handed over with it. */
     var gOpt = reliefOpt(map, theme, kind) || {};
     gOpt.clean = clean; gOpt.control = map.control || null; gOpt.D = D;
     R.ground(ctx, p, P, u, W, H, G, gOpt);
@@ -292,36 +314,21 @@ var DossierMap = (function () {
     R.mapUnder(ctx, p, P, u, map);
     /* Labels: the dossier's own first (they are the point of the map), then the
        lane names and the governorate names fitted around them and around the
-       legend box, which is measured now and painted last. Every town and port
-       gets a PIN, so the name is anchored to a place and not to a shape; an
-       island, the strait and a country name carry the name alone. */
+       legend box, which is measured now and painted last. */
     var gainKeys = {};
     (D.gains || []).forEach(function (g) { gainKeys[g.place_key] = true; });
-    /* Under 800px the legend box (17px rows, six of them) would cover a
-       third of the map and squeeze the strait's name off the close-up
-       (measured at 700px), so it is left to the HTML legend the view prints
-       under the canvas; the export is always wider and always carries it. */
-    /* NO TITLE IS PAINTED INTO A PICTURE (2026-09-17). Ziv, reviewing the three
-       new maps: the header goes OUTSIDE the picture, not into it. The page has
-       always printed the heading as an <h3> above the canvas, so a painted one
-       said the same words twice; the deck now writes it as a slide text box
-       above the picture (dossier_deck.js). What the canvas gains is the top
-       inset back: every floating thing on it - the legend, the scale bar - now
-       starts at the same 16*u edge as everything else. */
+    /* NO TITLE IS PAINTED INTO A PICTURE (2026-09-17, Ziv: the header goes
+       outside it). So every floating thing on the canvas - the legend, the
+       scale bar - starts at the same 16*u edge as everything else. */
     var titleTop = 16 * u;
     var taken = [];
     /* WHICH CORNER the legend takes is decided per render, by what would be
-       under each of the four - the belts and their diamonds, the axes and the
-       map's own labels (dossier_map_legend.js). The frame's authored `legend`
-       is handed over as a PREFERENCE and only breaks a tie, because one frame
-       is drawn at 3:2 on the page and 16:9 on every slide and a fixed corner
-       cannot be clean on both. `top` is the y a top corner takes - the plain
-       inset since 2026-09-17, no title being painted above it any more. */
-    /* NO BOX AT ALL when the map says so (2026-09-17). Ziv, of the crossing:
-       *"remove the box that explains everything, there's no need for it."* It
-       is not painted AND its corner is not reserved, so a name or the route's
-       length may stand there; the HTML key under the canvas goes with it
-       (dossier_map_block.js) and the scale bar stays. */
+       under each of the four (dossier_map_legend.js); the frame's authored
+       `legend` is a PREFERENCE that only breaks a tie, one frame being drawn at
+       3:2 on the page and 16:9 on every slide. Under 800px there is no painted
+       box at all - six 17px rows would cover a third of the map - and none on a
+       map that says `legend: false`, whose corner is then not reserved either,
+       so a name may stand there. Both are in DOSSIER_LAYERS.md. */
     var legend = W >= 800 && map.legend !== false
       ? R.legendLayout(ctx, P, u, W, H, !!(map.lanes && map.lanes.length), WORDS,
           { size: size, arrows: !!(map.arrows && map.arrows.length),
@@ -364,24 +371,13 @@ var DossierMap = (function () {
         return free;
       });
       if (!spec) return;
-      /* A PIN under every town and port - the GAINS INCLUDED. Until 2026-09-14
-         the dot was drawn only for a label that was not a gain, so exactly the
-         places the map is about - Mokha, Dhubab, Hays, al-Khawkhah - were names
-         floating over a violet shape with nothing saying which pixel was the
-         town (Ziv: "put a PIN so people can see where that city is... in the
-         actual exact location"). A disc of the GROUND colour under a dot of the
-         ink reads over violet, over either side's territory and over the sea,
-         and adds no hue - every hue here is spoken for by a front or a side.
-
-         The mark that first carried that was 4.2px, and Ziv called it weird the
-         same day ("I don't like the pins that you did. They look weird"). Asked
-         what it should be instead he chose a small, tight dot under the name
-         marking the exact spot - hence 3.0 - and drew the line this condition
-         reads: "only on real towns and ports - never on islands, the strait, or
-         a country name", because those are areas and an area has no one pixel
-         ("especially on the islands, there's no reason to put a point, not even
-         a city"). A country name already says so with anchor "c"; the two
-         islands and the strait say it with `pin: false` in the label. */
+      /* A PIN under every town and port, the GAINS INCLUDED - a disc of the
+         ground colour under a dot of the ink, so it reads over violet, over
+         either side's territory and over the sea and adds no hue. ONLY on real
+         towns and ports: an island, the strait and a country name are areas and
+         an area has no one pixel, so they carry `pin: false` or anchor "c".
+         Ziv's own words, and why the mark went from 4.2 to 3.0, are in
+         DOSSIER_LAYERS.md, "Labels, pins and the governorate names". */
       if (!quiet && l.pin !== false) R.mark(ctx, P, q[0], q[1], markR, u, l.kind);
       taken.push(spec.box);
       labels.push({ pt: q, spec: spec, quiet: quiet });
@@ -398,33 +394,31 @@ var DossierMap = (function () {
        anchor point and no second choice, while a zone name has a whole shape to
        find room in.
 
-       ON THE NOTES PICTURE THEY COME OFF ALTOGETHER, and that is not a small
-       decision - Ziv has twice objected to a province losing its name. It is
-       made here because a note is NEVER dropped: twelve callouts four text
-       lines deep cannot all find free ground on the overview, so whatever is
-       already standing gets overprinted instead. Measured at 1400px with them
-       in: 21 collisions across 12 callouts, an unreadable picture. Without
-       them: the number is in DOSSIER_MAPS.md, "Notes live on the FRONT"; the
-       label rule is in DOSSIER_LAYERS.md.
-       The province names are not lost - the plain picture of the same frame
-       sits directly above this one on the page and in the deck, and carries
-       every one of them.
-
-       A CLEAN map drops them too, for the opposite reason: it is not a map of
-       who holds what, and a province name over a sailing route asks a question
-       the picture does not answer. */
+       ON THE NOTES PICTURE THEY COME OFF ALTOGETHER (21 collisions across 12
+       callouts with them in, measured at 1400px - a note is never dropped, so
+       what was standing got overprinted), and on a CLEAN one they come off for
+       the opposite reason: it is not a map of who holds what. Both decisions,
+       and why nothing is lost by the first, are in DOSSIER_MAPS.md, "Notes live
+       on the FRONT" and DOSSIER_LAYERS.md. */
     var gov = F.gov || 1;
     if (!notesOn && !clean) {
       R.govLabels(ctx, p, P, u, G,
         Math.max(size * Math.min(GOV_MIN, gov), 17 * u * ts * gov), taken, points);
     }
     if (notesOn) R.notes(ctx, p, P, u, ts, G, taken, W, H, size);
-    else if (!clean) R.zoneNames(ctx, p, P, u, W, H, G, size, taken);
-    /* A map's own NOTES - one line about a place with an arrow to it - drawn
-       only on `note_arrows: true`, which nothing sets: Ziv stopped the nine
-       Marib callouts on sight, "too much text". DOSSIER_ROUTES.md. */
-    if (map.note_arrows && window.DossierMapNotes) {
-      DossierMapNotes.draw(ctx, p, P, u, ts, map, taken, W, H, size);
+    else if (!clean) R.zoneNames(ctx, p, P, u, W, H, G, size, taken, map);
+    /* A MAP'S OWN NOTES, ONE OF TWO WAYS, and `key` on the record says which
+       (2026-09-17). Ziv saw the nine Marib callouts and answered "too much
+       text", so the notes come as CALLOUTS with arrows to their places
+       (dossier_map_notes.js) or as numbered DISCS read off a key panel beside
+       the map (dossier_map_key.js, which also split this canvas). Painted after
+       every place name, so a note goes where nothing else is. */
+    if (map.key === "callouts") {
+      need("dossier_map_notes.js", window.DossierMapNotes)
+        .draw(ctx, p, P, u, ts, map, taken, W, H, size);
+    } else if (map.key === "panel") {
+      need("dossier_map_key.js", window.DossierMapKey)
+        .discs(ctx, p, P, u, ts, map, taken, W, H);
     }
     labels.forEach(function (l) {
       var s = l.spec;
@@ -469,9 +463,8 @@ var DossierMap = (function () {
   }
 
   /* `shape` is "wide" (or undefined) for the slide-sized picture and "square"
-     for the one that sits beside text on half a slide. It picks the FRAME, not
-     the canvas: the caller still says how many pixels it wants, and a square
-     frame drawn on a wide canvas would only gain longitude. */
+     for the one beside text on half a slide. It picks the FRAME, not the
+     canvas: the caller still says how many pixels it wants. */
   function exportPng(mapId, theme, width, height, variant, shape) {
     var c = document.createElement("canvas");
     c.width = Math.round(width); c.height = Math.round(height);
@@ -480,16 +473,18 @@ var DossierMap = (function () {
     return c.toDataURL("image/png");
   }
 
+  /* The frame's own rectangle, never the canvas's: a default height comes off
+     `frameAspect`, so a key-panel map reports the ground its MAP AREA shows. */
   function frame(mapId, width, height) {
     var f = frameOf(mapId);
     if (!f) return null;
-    return projector(f, width || BASE_W, height || BASE_W / aspect(mapId)).extent;
+    return projector(f, width || BASE_W,
+      height || BASE_W / frameAspect(mapId)).extent;
   }
 
   /* The deck's EDITABLE map slide (dossier_deck_map.js) paints the same picture
-     out of PowerPoint shapes, so it must use this file's own projection and this
-     file's own palette - copied, the two slides would drift apart on the first
-     frame change and nobody would know which was right. */
+     out of PowerPoint shapes, so it must use this file's own projection and
+     palette - copied, the two would drift apart on the first frame change. */
   function project(mapId, W, H) {
     var f = frameOf(mapId);
     return f ? projector(f, W, H) : null;

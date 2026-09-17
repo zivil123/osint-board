@@ -6,6 +6,14 @@
    it is."* The picture already named nine objectives; it did not say what any of
    them IS, so the reader had nine place names and no reason for any of them.
 
+   THIS IS THE PICTURE THE RECORD CALLS `key: "callouts"`. Ziv saw the nine
+   boxes on the map and answered "too much text", so the notes now come two
+   ways and the map record says which: `key: "panel"` puts a numbered disc at
+   each place and the reading in a panel beside the map
+   (dossier_map_key.js), and `key: "callouts"` is this file. The field replaced
+   a `note_arrows` bool that nothing ever set - one field, two pictures, and no
+   flag that can be true for both.
+
    A NEW FILE, not a new function in dossier_map_extra.js: that file sits at the
    500-line cap every authored file here keeps. What it does NOT hold is the
    search - `DossierMapExtra.kit` hands this file the very same ring search,
@@ -51,10 +59,28 @@ var DossierMapNotes = (function () {
      that name is already in `taken` - this is only the dot's own room. */
   var MARK = 7;
   /* Text steps tried, in order, before overprinting is accepted. 1.0 is the
-     fighting notes' own note size; two steps down is still legible at the
-     17px floor, which is what a 400px phone canvas paints at. */
-  var STEPS = [1, 0.88, 0.78];
+     fighting notes' own note size - one step under the map's own place names,
+     which is what a callout beside a named place should be.
+     EIGHT STEPS AND NOT THREE (2026-09-17): the step also narrows the wrap
+     width, so a smaller box is smaller in both directions and the ring search
+     has more room at every one. Nine callouts on the Marib frame overlapped at
+     three steps on the SQUARE picture, where the map area is 2048 wide against
+     a 16:9 height and the nine objectives cluster in its middle; the whole set
+     is placed again at each step and the BEST pass wins, not the last one, so
+     a step that happens to be worse can never be what gets painted. */
+  var STEPS = [1, 0.92, 0.84, 0.76, 0.68, 0.6, 0.52, 0.45];
   var ARROW = 7.5;         /* arrowhead length in u */
+  /* HOW FAR OFF THE CANVAS RIM A BOX MUST STAY (2026-09-17). `fits` in the
+     shared kit only asks that a box be INSIDE the canvas, which put two of the
+     nine Marib callouts flush against the top edge - 7px of 1440 on the slide
+     and 3.6px of 692 on the page, so the halo was cut and the top-right one
+     read as a heading painted into the picture, which is the one thing Ziv
+     asked those maps not to have. The inset is fed to the search as four edge
+     BARS, local to this painter, so the fighting notes' own measured placement
+     is untouched. 14 at BASE_W is 36px on a slide: clear of the 4u halo and
+     under the 16u inset the legend and the scale bar already keep. */
+  var RIM = 14;
+  var REPORT = null;       /* what the last draw() measured - read in console */
 
   function shapeAt(q, u) {
     var m = MARK * u;
@@ -86,6 +112,11 @@ var DossierMapNotes = (function () {
     var noteSize = size * 0.8 * scale;
     var maxW = kit.NOTE_W * u * ts * scale;
     var leaders = [], mine = [], bars = taken.slice(), queue = [];
+    var rim = RIM * u;
+    bars.push({ x0: 0, y0: 0, x1: W, y1: rim });
+    bars.push({ x0: 0, y0: H - rim, x1: W, y1: H });
+    bars.push({ x0: 0, y0: 0, x1: rim, y1: H });
+    bars.push({ x0: W - rim, y0: 0, x1: W, y1: H });
     list.forEach(function (n) { bars.push(shapeAt(n.q, u)); });
     list.slice().sort(function (a, b) {
       return kit.edgeness(shapeAt(b.q, u), W, H) - kit.edgeness(shapeAt(a.q, u), W, H);
@@ -120,9 +151,11 @@ var DossierMapNotes = (function () {
       return { note_he: n.note_he, q: p(n.lon, n.lat) };
     });
     if (!list.length) return null;
-    var best = null, i;
+    var best = null, i, try_;
     for (i = 0; i < STEPS.length; i++) {
-      best = pass(ctx, p, P, u, ts, list, taken, W, H, size, STEPS[i]);
+      try_ = pass(ctx, p, P, u, ts, list, taken, W, H, size, STEPS[i]);
+      try_.scale = STEPS[i];
+      if (!best || try_.over < best.over) best = try_;
       if (!best.over) break;
     }
     best.queue.forEach(function (q) {
@@ -136,12 +169,25 @@ var DossierMapNotes = (function () {
       });
       taken.push(q.box);
     });
-    return { notes: best.queue.length, overlaps: best.over };
+    /* What this paint achieved, for the console and never for the page: the
+       step it settled on, how far each callout ended from its place, and how
+       many boxes overlap - which is the number that must be zero.
+       DossierMapNotes.report(). */
+    var far = 0;
+    best.queue.forEach(function (q) {
+      q.dist = Math.round(Math.hypot((q.box.x0 + q.box.x1) / 2 - q.g[2],
+                                     (q.box.y0 + q.box.y1) / 2 - q.g[3]));
+      far = Math.max(far, q.dist);
+    });
+    REPORT = { width: W, height: H, scale: best.scale, overlaps: best.over,
+      notes: best.queue.length, maxDist: far, maxDistPct: Math.round(far / W * 100),
+      boxes: best.queue.map(function (q) { return q.box; }) };
+    return REPORT;
   }
   function kitLen(g, u) { return K().segLen(g) >= 4 * u; }
   function leaderOf(ctx, P, u, g) { K().leader(ctx, P, u, g); }
 
-  return { draw: draw };
+  return { draw: draw, report: function () { return REPORT; } };
 })();
 
 window.DossierMapNotes = DossierMapNotes;

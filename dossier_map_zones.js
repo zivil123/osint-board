@@ -188,8 +188,18 @@ var DossierMapZones = (function () {
     seg({ stroke: k.edge, width: w + 1.6 * uu, dash: dash });
     seg({ stroke: k.ink, width: w, dash: dash });
   }
-  function legendRows(ctx, P, u, map) {
-    var list = (map || {}).zones || [], rows = [], seen = {}, dashed = false;
+  /* THE ROWS AS WORDS, in one list, so the two keys can never disagree. The
+     canvas key below and the HTML key under the canvas (dossier_map_block.js)
+     are both built from this - one row per TYPE on the picture plus the dashed
+     row, each with the `key` its swatch is chosen by. A second copy of these
+     strings would read the same until the first day one of them changed.
+
+     IT IS WHAT LETS `legend: false` KEEP ITS EXPLANATION (2026-09-17). Ziv
+     asked the strait picture for *"marks only, no text on the map"* - no zone
+     names, no key box - and a sign nobody can read is not an improvement, so
+     the words move UNDER the picture instead of going away. */
+  function rowWords(map) {
+    var list = (map || {}).zones || [], out = [], seen = {}, dashed = false;
     list.forEach(function (z) {
       var type = typeOf(z);
       if (z.kind === "assessed") dashed = true;
@@ -198,23 +208,33 @@ var DossierMapZones = (function () {
       var reported = list.some(function (o) {
         return typeOf(o) === type && o.kind !== "assessed";
       });
-      rows.push({ label: HE[type] + " - " + (reported ? HE.reported : HE.assessed),
-        draw: function (c, Q, uu, x, cy, sw) {
-          /* 0.62 of the map's own scale: the sign is drawn by the same code,
-             and a swatch box is smaller than the sea it stands on. */
-          if (type === "mine") mineSign(c, Q, x + sw / 2, cy, uu * 0.62, skin(Q, "mine"));
-          else swatchLine(c, Q, uu, x, cy, sw, null);
-        } });
+      out.push({ key: type,
+        label: HE[type] + " - " + (reported ? HE.reported : HE.assessed) });
     });
-    if (dashed) {
-      rows.push({ label: HE.dotted, draw: function (c, Q, uu, x, cy, sw) {
-        swatchLine(c, Q, uu, x, cy, sw, [5 * uu, 4 * uu]);
-      } });
-    }
-    return rows;
+    if (dashed) out.push({ key: "dotted", label: HE.dotted });
+    return out;
   }
+  function legendRows(ctx, P, u, map) {
+    return rowWords(map).map(function (r) {
+      var key = r.key;
+      return { label: r.label, draw: function (c, Q, uu, x, cy, sw) {
+        /* 0.62 of the map's own scale: the sign is drawn by the same code,
+           and a swatch box is smaller than the sea it stands on. */
+        if (key === "mine") mineSign(c, Q, x + sw / 2, cy, uu * 0.62, skin(Q, "mine"));
+        else swatchLine(c, Q, uu, x, cy, sw,
+          key === "dotted" ? [5 * uu, 4 * uu] : null);
+      } };
+    });
+  }
+  /* THE COLOUR AN HTML SWATCH TAKES, out of the same table the sign is painted
+     from and for the theme the canvas beside it was drawn in - never a hex
+     copied into a stylesheet, which is how a key ends up naming a colour the
+     picture does not use. `dotted` is the fort's line in another style, so it
+     asks for the fort's ink. */
+  function ink(type, theme) { return skin({ theme: theme }, type).ink; }
 
-  return { draw: draw, radius: radius, legendRows: legendRows };
+  return { draw: draw, radius: radius, legendRows: legendRows,
+           legendWords: rowWords, ink: ink };
 })();
 
 window.DossierMapZones = DossierMapZones;

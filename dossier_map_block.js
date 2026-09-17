@@ -43,11 +43,44 @@ var DossierMapBlock = (function () {
   ];
   var MISSING_MAP = "המפה אינה זמינה";
 
+  /* THE ZONE SIGNS, NAMED UNDER THE PICTURE. The rows come from
+     dossier_map_zones.js - its words and its own colour table, read at call
+     time for the theme the canvas beside them was drawn in - so a sign and its
+     swatch can never be named differently or shown in a colour the picture
+     does not use. The swatches are the board's shared ones (`.sw` in
+     style.css): a ring for the mine, a bar for a fortified line, a dashed bar
+     for an assessed one. They RESEMBLE the signs rather than reproducing them
+     (the painted key draws the real thing, teeth and spikes included) and every
+     row says in words what it marks, which is what design-law asks of any mark
+     that carries meaning. Measured on the page's own ground #081A2F: the screen
+     skin's ochre #A8761F holds 4.4:1 and its mine red #D2530A 4.2:1, both past
+     the 3:1 a graphical mark needs. */
+  var ZONE_SW = { mine: "sw dot", fort: "sw line", dotted: "sw line dash" };
+
+  function zoneRows(m) {
+    var Z = window.DossierMapZones;
+    if (!m || !(m.zones || []).length) return [];
+    if (!Z || typeof Z.legendWords !== "function") return [];
+    var theme = (window.DossierMap && DossierMap.screenTheme) || "light";
+    return Z.legendWords(m).map(function (r) {
+      var c = Z.ink(r.key === "dotted" ? "fort" : r.key, theme);
+      return { cls: ZONE_SW[r.key] || "sw line", he: r.label,
+        style: r.key === "mine" ? "--sw: " + c
+          : "--sw-c: " + c + "; --sw-w: 3px" };
+    });
+  }
+
   function legendHtml(m) {
-    /* A map may carry NO key at all - `legend: false`, Ziv 2026-09-17: *"remove
-       the box that explains everything, there's no need for it."* The painted
-       box and this one are the same decision, so both read the one flag. */
-    if (m && m.legend === false) return "";
+    /* A map may carry NO key ON IT - `legend: false`, Ziv 2026-09-17: *"remove
+       the box that explains everything, there's no need for it."*
+       **ON A CLEAN MAP THAT TAKES THIS ONE OFF TOO, AND ONLY THERE.** A clean
+       picture draws a route and two ports and its caption names both in words,
+       which is what let him say there was no need for it. A plain one still
+       paints territory, fighting belts, a line of contact and, at the strait,
+       an ochre line with teeth - taking the words off the CANVAS (`legend`,
+       `zone_text`) cannot take away the need to know what they are, so the key
+       moves under the picture instead of vanishing with the box. */
+    if (m && m.legend === false && m.clean) return "";
     var rows = (m && m.clean) ? CLEAN_LEGEND : LEGEND;
     /* A MERGED clean map puts the two territories and the boundary between them
        back (Ziv, 2026-09-17), and takes back exactly those three rows - never
@@ -57,6 +90,9 @@ var DossierMapBlock = (function () {
     if (m && m.clean && m.control === "merged") {
       rows = [LEGEND[0], LEGEND[1], LEGEND[4]].concat(CLEAN_LEGEND);
     }
+    /* A row appears only when the map carries the thing it names, the same
+       bargain the painted key keeps: no zones, no zone rows. */
+    rows = rows.concat(zoneRows(m));
     return '<div class="ds-legend" aria-label="מקרא המפה">' +
       rows.map(function (r) {
         return '<span class="ds-lg-row"><span class="' + r.cls + '"' +

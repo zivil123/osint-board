@@ -395,8 +395,18 @@ var DossierMapLegend = (function () {
      This is the PLAIN picture's treatment. The notes variant in
      dossier_map_extra.js replaces it outright - there the name is the heading of
      a callout and the shape is named whatever its size, because a front with
-     nothing written at it is the one thing that picture exists to prevent. */
-  function zoneNames(ctx, p, P, u, W, H, G, size, taken) {
+     nothing written at it is the one thing that picture exists to prevent.
+
+     AND `zone_text: false` SILENCES THIS TOO (2026-09-17). Ziv asked the strait
+     picture for marks only, no text on the map except place names, and a front
+     name is not a place name: "front of al-Qadhah" is a description of what is
+     happening on ground the map already names. The flag came in for the map's
+     own zone labels (dossier_map_routes.js) and reached only those, so three
+     front names stayed on the picture - one of them clipped by the right rim at
+     2560. One flag, every painted name that is not a place: the diamonds and
+     the hatching stay, because a mark is not a word. */
+  function zoneNames(ctx, p, P, u, W, H, G, size, taken, map) {
+    if (map && map.zone_text === false) return;
     var R = D();
     ((G.fronts && G.fronts.features) || []).forEach(function (f) {
       var name = (f.properties || {}).name_he;
