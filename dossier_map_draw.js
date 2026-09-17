@@ -26,6 +26,26 @@ var DossierMapDraw = (function () {
      by dossier_map_routes.js for the route's own block, so the two can never
      drift apart into a per-label hack. */
   var CLEAN_TEXT = 1.6;
+  /* A COUNTRY NAME IS SET IN ITS OWN STYLE (2026-09-17). Ziv, of the crossing:
+     *"show the names of the other countries, including Somaliland."* An atlas
+     tells a country from a town by the setting and not by the size alone, so a
+     `kind: "country"` label is set larger than the map's own names, letter-
+     spaced, in the quieter governorate ink, and carries no mark of any kind.
+     The factor multiplies the map's BASE label size and never the clean one: on
+     the crossing picture the two ports already take CLEAN_TEXT, and a country
+     name stacked on top of that would be the loudest thing on a map that is
+     about a sea route. SPACE is a fraction of the size. */
+  var COUNTRY_TEXT = 1.35, COUNTRY_SPACE = 0.12;
+  /* The weight a CLEAN map draws its borders at. Ziv, 2026-09-17: *"make the
+     borders in Africa more visible."* On the plain maps the neighbours are a
+     hairline, because there the picture is about Yemen's own ground and the
+     coast already shows by the land/sea step; on the crossing map the Horn is
+     half the picture and its countries were a wash of land with no lines in it.
+     So a clean map draws the neighbour outlines AND the Yemen and Saudi outer
+     borders at one weight, about that of the line of contact - the governorate
+     and Saudi region lines stay faint, or the picture becomes a political map
+     of somewhere it is not about. */
+  var CLEAN_BORDER = 2.2;
 
   /* ---- colours ---------------------------------------------------------------- */
 
@@ -133,12 +153,18 @@ var DossierMapDraw = (function () {
 
   /* ---- text -------------------------------------------------------------------- */
 
-  function setFont(ctx, size, weight) {
+  /* `sp` is letter spacing in px, and it is set AFTER the font because some
+     engines reset it with the font. It is always written, so a caller that
+     asks for none clears whatever the last caller set. Where the canvas has no
+     letterSpacing at all the name is simply unspaced - a country label is still
+     larger and quieter than a town, which is the distinction that matters. */
+  function setFont(ctx, size, weight, sp) {
     ctx.font = (weight || 500) + " " + size + "px " + FONT;
+    if ("letterSpacing" in ctx) ctx.letterSpacing = (sp || 0) + "px";
   }
   /* Halo first, in the ground colour, so a name over a line stays legible. */
   function text(ctx, P, str, x, y, o) {
-    setFont(ctx, o.size, o.weight);
+    setFont(ctx, o.size, o.weight, o.spacing);
     ctx.textAlign = o.align || "center";
     ctx.textBaseline = o.baseline || "middle";
     if (o.halo > 0) {
@@ -147,8 +173,8 @@ var DossierMapDraw = (function () {
     }
     ctx.fillStyle = o.color || P.ink; ctx.fillText(str, x, y);
   }
-  function width(ctx, str, size, weight) {
-    setFont(ctx, size, weight);
+  function width(ctx, str, size, weight, sp) {
+    setFont(ctx, size, weight, sp);
     return ctx.measureText(str).width;
   }
   function overlaps(a, b) {
@@ -158,8 +184,8 @@ var DossierMapDraw = (function () {
      and c centres it on the point (a country name, never flipped).
      A name that would run off the canvas on its authored side flips to the
      other side - at 600px the Perim name, anchored west, was cut at the edge. */
-  function place(ctx, str, x, y, anchor, size, r, u, W, H) {
-    var w = width(ctx, str, size, 500), h = size * 1.25, g = r + 5 * u;
+  function place(ctx, str, x, y, anchor, size, r, u, W, H, sp) {
+    var w = width(ctx, str, size, 500, sp), h = size * 1.25, g = r + 5 * u;
     var side = function (a) {
       if (a === "c") return { x: x, y: y, align: "center", baseline: "middle",
                               box: { x0: x - w / 2, y0: y - h / 2, x1: x + w / 2, y1: y + h / 2 } };
@@ -173,10 +199,10 @@ var DossierMapDraw = (function () {
                box: { x0: x + g, y0: y - h / 2, x1: x + g + w, y1: y + h / 2 } };
     };
     var o = side(anchor), b = o.box;
-    if (anchor === "c") { o.str = str; o.size = size; return o; }
+    if (anchor === "c") { o.str = str; o.size = size; o.spacing = sp; return o; }
     if (b.x0 < 0) o = side("e"); else if (b.x1 > W) o = side("w");
     else if (b.y0 < 0) o = side("s"); else if (b.y1 > H) o = side("n");
-    o.str = str; o.size = size;
+    o.str = str; o.size = size; o.spacing = sp;
     return o;
   }
 
@@ -258,11 +284,20 @@ var DossierMapDraw = (function () {
     }
     fillCollection(ctx, p, G.yem_adm1, { stroke: P.adm1, width: Math.max(0.8, u) });
     fillCollection(ctx, p, G.sau_adm1, { stroke: P.adm1, width: Math.max(0.8, u) });
+    /* THE BORDERS A CLEAN MAP DRAWS. One weight for the neighbours' outlines
+       and for the Yemen and Saudi outer border, so no line on the picture says
+       "this frontier matters more than that one"; the governorate and region
+       lines above are left faint, and are what keeps it from reading as a
+       political map. On every other map the neighbours stay a hairline - see
+       CLEAN_BORDER, and landPath() for why the coast needs no more than one. */
+    var edge = o.clean ? { stroke: P.border, width: Math.max(1.6, CLEAN_BORDER * u) }
+      : { stroke: P.adm1, width: Math.max(0.8, u) };
     landPath(ctx, p, G, false);
-    paintShape(ctx, { stroke: P.border, width: P.borderW * u });
+    paintShape(ctx, { stroke: P.border,
+      width: o.clean ? edge.width : P.borderW * u });
     ctx.beginPath();
     eachFeature(G.nbr_adm0, function (f) { polyPath(ctx, p, f.geometry); });
-    paintShape(ctx, { stroke: P.adm1, width: Math.max(0.8, u) });
+    paintShape(ctx, edge);
     /* The boundary itself. A merged map is drawn FOR it - it is the one line
        Ziv asked to see - so `clean` does not take it off there. */
     if (!o.clean || merged) {
@@ -451,7 +486,8 @@ var DossierMapDraw = (function () {
     place: place, ringMark: ringMark, setFont: setFont, paintShape: paintShape,
     hatch: hatch, dashOf: dashOf, eachFeature: eachFeature, gainStyle: gainStyle,
     ground: ground, gains: gains, lanes: lanes, govLabels: govLabels,
-    CLEAN_TEXT: CLEAN_TEXT
+    CLEAN_TEXT: CLEAN_TEXT, COUNTRY_TEXT: COUNTRY_TEXT,
+    COUNTRY_SPACE: COUNTRY_SPACE
   };
 })();
 

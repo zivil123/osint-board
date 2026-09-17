@@ -156,16 +156,25 @@ var DossierMapRoutes = (function () {
      names them. */
   var ROUTE_W = { lane: 3.4, coastal: 2.0 };
   var HEAD_GAP = 100;             /* px at BASE_W between arrowheads along a route */
-  /* A CLEAN MAP DRAWS ITS ROUTE TWICE AS THICK (2026-09-17). Ziv, of the
+  /* A CLEAN MAP DRAWS ITS ROUTE THICKER (2026-09-17). Ziv, of the
      Mocha-Djibouti picture: *"make the naval route look bigger."* A plain map
      carries belts, arrows and a line of contact and a route has to sit among
-     them; a clean one carries the route and two port names, and at whole-area
-     reach - the crossing frame spans twelve degrees of latitude - the line it
-     is entirely about was a hairline. The heads, the halo under the line and
-     the legend's own swatch all take the same factor, so the key never shows a
+     them; a clean one carries the route and two port names, and the line it is
+     entirely about was a hairline. The heads, the halo under the line and the
+     legend's own swatch all take the same factor, so the key never shows a
      weight the picture does not draw. One number, read by mapUnder and by
-     legendRows. */
-  var CLEAN_ROUTE = 2;
+     legendRows.
+
+     IT WAS 2 FOR SIX HOURS AND THE LINE THEN TOUCHED THE LAND. Ziv, the same
+     day, on the zoomed-in frame: *"show the naval route better, right now it
+     touches the land all the way."* At 2 the halo casing is (3.4*2 + 4)*u wide
+     - 14.8 px either side of the centre on a 2560 px slide - and the western
+     channel between Perim and Ras Siyyan leaves only 13.3 px of water at its
+     narrowest, so the casing crossed both shores. At 1.4 it is 10.4 px and the
+     line reads as a line IN the water. The path was never the problem: it is
+     sampled every kilometre against the coastline and its narrowest open-water
+     clearance is 5.9 km. */
+  var CLEAN_ROUTE = 1.4;
 
   function routeK(m) { return m && m.clean ? CLEAN_ROUTE : 1; }
   function routeW(kind, u, k) { return (ROUTE_W[kind] || 2.4) * k * u; }
@@ -189,10 +198,17 @@ var DossierMapRoutes = (function () {
   }
   /* Heads AT A FIXED PIXEL PITCH along the drawn line, not one per authored
      leg: a route's waypoints are wherever the channel bends, so one head per leg
-     would cluster them at the bends and leave the long stretches bare. */
-  function heads(ctx, P, u, pts, size) {
+     would cluster them at the bends and leave the long stretches bare.
+
+     A CLEAN MAP'S ROUTE CARRIES ONE HEAD, AT THE END (2026-09-17). Ziv, of the
+     crossing: *"don't put 2 arrows on the route."* A thin route among belts and
+     axes needs the repeated head to say which way it runs; a thick line that is
+     the whole picture says it once, where it arrives. `single` therefore skips
+     the pitched heads and leaves the final one, which is drawn below whatever
+     happens here. */
+  function heads(ctx, P, u, pts, size, single) {
     var gap = HEAD_GAP * u, run = gap, i, seg, len, t;
-    for (i = 1; i < pts.length; i++) {
+    for (i = 1; !single && i < pts.length; i++) {
       seg = [pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]];
       len = Math.hypot(seg[0], seg[1]);
       while (run <= len) {
@@ -229,10 +245,17 @@ var DossierMapRoutes = (function () {
       if (pts.length < 2) return;
       var w = routeW(rt.kind, u, k);
       poly(ctx, pts);
-      R.paintShape(ctx, { stroke: P.halo, width: w + 4 * u * k });
+      /* THE CASING DOES NOT TAKE THE CLEAN FACTOR (2026-09-17). It is there so
+         the line reads over terrain, and 4*u either side does that at any
+         weight; multiplying it by the clean factor as well put 14.8 px of white
+         either side of the centre on a 2560 px slide, and the western channel
+         at its narrowest leaves 13.3 px of water - so the casing, not the line,
+         was what sat on both shores. Ziv: *"right now it touches the land all
+         the way."* */
+      R.paintShape(ctx, { stroke: P.halo, width: w + 4 * u });
       poly(ctx, pts);
       R.paintShape(ctx, { stroke: P.ink, width: w });
-      heads(ctx, P, u, pts, headW(rt.kind, u, k));
+      heads(ctx, P, u, pts, headW(rt.kind, u, k), !!m.clean);
     });
   }
 
@@ -335,6 +358,12 @@ var DossierMapRoutes = (function () {
     zoneLabels(ctx, p, P, u, m.zones, taken, W, H, size);
     routes.forEach(function (rt) {
       var pts = (rt.path || []).map(function (c) { return p(c[0], c[1]); });
+      /* A SILENT ROUTE - `label: false` in the record (Ziv, 2026-09-17:
+         *"remove the text completely"*). No name, no distance, no leader: the
+         line is the whole statement. The legend row still names what the line
+         is, and the HTML caption under the picture still carries the length,
+         because neither of those is painted on the map. */
+      if (rt.label === false) return;
       if (pts.length >= 2) {
         /* `label_at` is an authored point and beats `label_side`; the build
            refuses a route carrying both, so the painter never has to choose. */

@@ -339,14 +339,20 @@ var DossierMap = (function () {
       /* `kind` picks the mark - objective, ridge, port or town - and the name's
          gap is read off the SAME number, so the two cannot disagree. */
       var markR = R.markClear(pinR, l.kind);
-      /* Anchor "c" names a country: centred on its point, no dot, in the
-         quieter governorate ink, and dropped rather than moved or cut. */
-      var quiet = l.anchor === "c";
+      /* A COUNTRY IS SET IN ITS OWN STYLE (2026-09-17, Ziv: "show the names of
+         the other countries, including Somaliland"): larger than the map's own
+         names, letter-spaced, no mark, and - like any anchor "c" - centred on
+         its point and dropped rather than moved or cut. The size comes off the
+         map's BASE size, never the clean one: see COUNTRY_TEXT. */
+      var country = l.kind === "country";
+      var quiet = country || l.anchor === "c";
+      var lSize = country ? size * R.COUNTRY_TEXT : labelSize;
+      var lSpace = country ? lSize * R.COUNTRY_SPACE : 0;
       /* An ISLAND gain on the overview is drawn as a 7px ring by gains(); the
          name clears that ring rather than the pin inside it. */
       var clear = isGain ? Math.max(markR, 7 * u) : markR;
       (quiet ? ["c"] : [l.anchor, OPPOSITE[l.anchor], "n", "s", "e", "w"]).some(function (a) {
-        var s = R.place(ctx, l.he, q[0], q[1], a, labelSize, clear, u, W, H);
+        var s = R.place(ctx, l.he, q[0], q[1], a, lSize, clear, u, W, H, lSpace);
         var b = s.box, free = !taken.some(function (t) { return R.overlaps(b, t); }) &&
           (!quiet || (b.x0 >= 0 && b.x1 <= W && b.y0 >= 0 && b.y1 <= H));
         if (free) spec = s;
@@ -414,7 +420,8 @@ var DossierMap = (function () {
     labels.forEach(function (l) {
       var s = l.spec;
       R.text(ctx, P, s.str, s.x, s.y, { size: s.size, weight: l.quiet ? 500 : 600,
-        halo: 3 * u, align: s.align, baseline: s.baseline, color: l.quiet ? P.govLabel : null });
+        halo: 3 * u, align: s.align, baseline: s.baseline, spacing: s.spacing,
+        color: l.quiet ? P.govLabel : null });
     });
     if (legend) R.paintLegend(ctx, P, u, legend);
   }
