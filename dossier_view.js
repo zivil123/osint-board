@@ -208,6 +208,7 @@
     return DossierMapBlock.html((DOSSIER.maps || []).filter((m) => m.tab !== "maps"));
   }
 
+
   /* Derived from sources[] — never authored twice (DOSSIER.md). */
   function sourcesHtml() {
     const list = DOSSIER.sources || [];
@@ -240,6 +241,7 @@
     parts.push('<p class="ds-written">נכתב: ' + fmtDate(DOSSIER.written) + "</p>");
     pane.innerHTML = parts.join("");
     wireButtons();
+    if (window.DossierNotesList) DossierNotesList.fill(pane);
     if (window.DossierPng) DossierPng.mount(pane);
     wireDays();
     repaintWhenReady();
@@ -258,6 +260,10 @@
       if (width <= 0) return;
       DossierMap.draw(canvas, canvas.dataset.mapId, theme(), width, canvas.dataset.variant);
     });
+    /* The painter has just said, on each canvas, whether it wrote the
+       explanations into the picture — so this is where the lists follow it
+       (map_notes.js), and what makes them switch across its cutoff. */
+    if (window.DossierNotesList) DossierNotesList.fill(pane);
   }
 
   /* The picture on the page is the picture the button saves — Ziv, 2026-09-17:

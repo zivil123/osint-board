@@ -1,0 +1,67 @@
+/* The numbered explanations written UNDER a map picture, on a phone only.
+
+   Why it exists (2026-09-18, found by the fresh-eyes verifier): a map carrying
+   `key` — the Marib objectives' side panel, the reports map's callout boxes —
+   writes its explanations INSIDE the picture, at a size that scales with the
+   canvas. On a 390px phone the canvas is about 350px across and those
+   explanations came out one to two CSS pixels tall: on the page, and
+   unreadable. So below 700px the painters write only the numbered discs into
+   the picture and the words come out here, as real HTML at reading size,
+   selectable and picked up by a screen reader.
+
+   Above 700px this list is DISPLAY:NONE — the picture already carries the same
+   words and printing them twice on one screen is what the painted heading was
+   struck for. So the desktop page is byte-for-byte what it was.
+
+   The markup is written by `DossierNotesList.fill` in dossier_view.js, which
+   both views call. It lives in its own file because style.css is at its
+   500-line cap and dossier.css is another helper's this round. */
+
+/* THE PAINTER DECIDES, AND SAYS SO ON THE CANVAS (2026-09-18, round 3). It
+   stamps `data-notes="list"` when it did NOT write the explanations into the
+   picture and `"painted"` when it did, on every paint — so this list is shown
+   by the picture's own flag and never by a viewport width. A `max-width: 700px`
+   media query was the first answer and was wrong: it guessed a canvas width
+   from a WINDOW width, and the maps tab gives a 1024px window an 814px canvas,
+   so a whole band of laptops had the words painted at 6-8px and no list either.
+
+   Two rules, one flag. `:has()` is the mechanism and cannot fail to fire; the
+   `.is-on` class that dossier_view.js toggles off the same attribute is the
+   brace for a browser without `:has()`. They read the same value, so they can
+   never disagree — the board's own lesson about the ResizeObserver that fired
+   zero times, pointed the other way. */
+.ds-notes-box { display: none; margin-block-start: 12px; }
+.ds-map:has(canvas[data-notes="list"]) .ds-notes-box { display: block; }
+.ds-notes-box.is-on { display: block; }
+
+.ds-notes { list-style: none; margin: 0; padding: 0; }
+
+/* A row is the disc and its line, never a marker as well: the number is
+   already visible text, and a list marker beside it would number the rows
+   twice. Rows are told apart by the board's own row rule. */
+.ds-note {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding-block: 9px;
+  border-block-end: 1px solid var(--line);
+  font-size: 16px; line-height: 1.55; color: var(--ink);
+}
+.ds-note:last-child { border-block-end: none; }
+
+/* THE SAME MARK THE PICTURE PAINTS: ink on a white disc with an ink ring
+   (dossier_map_key.js `disc`). It keeps the picture's colours and not the
+   page's, exactly as the map blocks' own key swatches do — a row and the disc
+   it points at have to read as one thing. The digits are tabular so a column
+   of them lines up, and the disc grows for a two-digit number rather than
+   squeezing it. */
+.ds-note-n {
+  flex: none;
+  min-inline-size: 24px; block-size: 24px;
+  padding-inline: 5px; border-radius: 999px;
+  background: #FFFFFF; color: #14202C; border: 1px solid #14202C;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 700; line-height: 1;
+  font-variant-numeric: tabular-nums;
+  margin-block-start: 2px;
+}
+.ds-note-t { min-width: 0; }
+.ds-note-name { font-weight: 600; }

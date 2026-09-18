@@ -1,0 +1,59 @@
+/* The trends graph on the maps tab — the block around the canvas.
+
+   Almost nothing is invented here. The heading, the picture frame, the key rows,
+   the two download buttons and the status line are the map block's own classes
+   from dossier.css, and the three-position switch is the board's own `.chip`
+   from style.css, the way the dossier tab's day picker already borrows it. What
+   is left is the handful of rules that are only true of this picture: the shape
+   of its box, the switch's colours, and what a phone gets.
+
+   Everything INSIDE the canvas — the bars, the axes, the key and the footnote —
+   is painted by trend_chart.js and is not reachable from a stylesheet. */
+
+/* Same step down the page as a map block, so the graph reads as one more
+   picture in the row rather than a new section. */
+.tc-block { margin-block-start: 40px; }
+
+/* The switch sits between the heading and the picture: what it changes is the
+   picture right under it, and a control placed after its own effect is a
+   control nobody finds. Chips at this tab's reading size, held on one line —
+   style.css's own lesson: a flex item's automatic minimum is its min-content,
+   so a label that can break at a space squeezes itself two lines tall. */
+.tc-switch { margin-block-start: 14px; gap: 8px; }
+.tc-switch .chip {
+  font-size: 18px; white-space: nowrap;
+  /* The switch answers "which window", which is the same kind of question the
+     band's kind chips answer — so it takes the accent, never a front colour.
+     Every front hue on this page is spoken for by a bar. */
+  --chip-c: var(--accent-text);
+  --chip-t: var(--accent-tint);
+}
+.tc-switch .chip:hover:not(.on) { border-color: var(--ink-faint); color: var(--ink); }
+
+/* 16:9 on a screen with room, so the graph sits in the same rectangle as the
+   wide picture its button saves. The box itself is the map block's (border,
+   radius, the breakout up to 1400px); only the shape and the ground are here.
+   The canvas paints its own light ground, so the box's dark fill is never seen —
+   it is set anyway, so a canvas that fails to paint leaves a frame and not a
+   hole. */
+.tc-box { --ar: 16 / 9; background: var(--map-bg); }
+.tc-canvas { display: block; inline-size: 100%; block-size: 100%; }
+
+/* The key under the picture is the map blocks' own `.ds-legend`, and its rows
+   carry the count per front — the table view of the canvas beside them. Numbers
+   line up, so they take tabular figures. */
+.tc-key { font-variant-numeric: tabular-nums; }
+.tc-key:empty { display: none; }
+
+@media (max-width: 600px) {
+  /* A SQUARE ON A PHONE, and that is not decoration. At 375px a 16:9 canvas is
+     211px tall: the header, the key, the date ticks and the footnote are all
+     painted inside it at their own floors, and they would leave the bars about
+     seventy pixels of the picture. Square gives the plot back its room, and it
+     is the shape of the other download anyway. */
+  .tc-box { --ar: 1 / 1; }
+  .tc-switch .chip { flex: 1 1 calc(50% - 4px); }
+}
+@media (max-width: 480px) {
+  .tc-png { flex: 1 1 100%; }
+}

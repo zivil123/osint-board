@@ -72,6 +72,11 @@ var DossierMapRoutes = (function () {
     return "כ-" + Math.round(km) + " " + HE.km + " / " +
       Math.round(km / KM_PER_NM) + " " + HE.nm;
   }
+  /* AND THE KILOMETRES ALONE, for a callout that carries nothing else - the
+     record asks for it with `units: "km"` (2026-09-18). Ziv, of the crossing:
+     *"just write the amount of kilometers."* The same rounded number as the
+     line above and as the caption under the picture, never a second one. */
+  function kmLabel(km) { return "כ-" + Math.round(km) + " " + HE.km; }
   /* Pixels per kilometre on this canvas. The projector is linear in latitude,
      so one degree of it IS the scale, and every length written in kilometres -
      a zone's radius, the scale bar - means the same thing on a 640px pane and
@@ -137,10 +142,9 @@ var DossierMapRoutes = (function () {
     }
     return window.DossierMapZones;
   }
-  /* Where a name STANDS - on a line, beside it, or at an authored point with a
-     leader back to the route. Split out the same day and looked up the same
-     way; `boxAt` and `free` come back from it so one definition of "does this
-     box fit" serves the zone names here and every route name there. */
+  /* Where every WORD on this layer stands - a route's name on its line, beside
+     it or at an authored point, the length callout, a zone's name and the scale
+     bar's caption - and, since 2026-09-18, the self-check they all report to. */
   function L() {
     if (!window.DossierMapRouteLabel) {
       throw new Error("dossier_map_routes: dossier_map_route_label.js is not on the page");
@@ -207,26 +211,36 @@ var DossierMapRoutes = (function () {
     ctx.beginPath();
     pts.forEach(function (q, i) { if (i) ctx.lineTo(q[0], q[1]); else ctx.moveTo(q[0], q[1]); });
   }
-  function arrowHead(ctx, P, u, from, to, size) {
-    var ang = Math.atan2(to[1] - from[1], to[0] - from[0]);
-    ctx.save();
-    ctx.translate(to[0], to[1]); ctx.rotate(ang);
-    ctx.beginPath();
-    ctx.moveTo(0, 0); ctx.lineTo(-size, -size * 0.52); ctx.lineTo(-size, size * 0.52);
-    ctx.closePath();
-    D().paintShape(ctx, { fill: P.ink, stroke: P.halo, width: Math.max(1, 1.2 * u) });
-    ctx.restore();
+  /* The head's three corners in CANVAS coordinates rather than a rotated
+     context: the shape is then something that can be handed back and measured -
+     the self-check asks how far it stands off the coast - and not only a mark
+     that has already been painted somewhere.
+     THE CASING GROWS WITH THE HEAD (2026-09-18): a hairline of halo round a
+     28px arrowhead on a slide is nothing, and this head has to read over the
+     sea, over the coast stroke and over a port's own white ring. Same device as
+     the casing under the line, set off the head's own size, so the legend's
+     small swatch keeps its hairline. */
+  function headPoly(from, to, size) {
+    var a = Math.atan2(to[1] - from[1], to[0] - from[0]), c = Math.cos(a), s = Math.sin(a);
+    var at = function (x, y) { return [to[0] + x * c - y * s, to[1] + x * s + y * c]; };
+    return [at(0, 0), at(-size, -size * 0.52), at(-size, size * 0.52)];
   }
-  /* Heads AT A FIXED PIXEL PITCH along the drawn line, not one per authored
-     leg: a route's waypoints are wherever the channel bends, so one head per leg
+  function arrowHead(ctx, P, u, from, to, size) {
+    var pts = headPoly(from, to, size);
+    poly(ctx, pts);
+    ctx.closePath();
+    D().paintShape(ctx, { fill: P.ink, stroke: P.halo,
+      width: Math.max(1, Math.min(3.2, size * 0.09)) });
+    return pts;
+  }
+  /* Heads AT A FIXED PIXEL PITCH along the drawn line, not one per authored leg:
+     a route's waypoints are wherever the channel bends, so one head per leg
      would cluster them at the bends and leave the long stretches bare.
-
      A CLEAN MAP'S ROUTE CARRIES ONE HEAD, AT THE END (2026-09-17). Ziv, of the
      crossing: *"don't put 2 arrows on the route."* A thin route among belts and
      axes needs the repeated head to say which way it runs; a thick line that is
-     the whole picture says it once, where it arrives. `single` therefore skips
-     the pitched heads and leaves the final one, which is drawn below whatever
-     happens here. */
+     the whole picture says it once, where it arrives - so `single` skips the
+     pitched heads and leaves the final one, handed back for the self-check. */
   function heads(ctx, P, u, pts, size, single) {
     var gap = HEAD_GAP * u, run = gap, i, seg, len, t;
     for (i = 1; !single && i < pts.length; i++) {
@@ -240,7 +254,33 @@ var DossierMapRoutes = (function () {
       }
       run -= len;
     }
-    arrowHead(ctx, P, u, pts[pts.length - 2], pts[pts.length - 1], size);
+    return arrowHead(ctx, P, u, pts[pts.length - 2], pts[pts.length - 1], size);
+  }
+
+  /* THE WHOLE HEAD SHOWS, AND IT STOPS OFFSHORE (2026-09-18). Ziv, of the
+     crossing: *"make that the arrow is not like going straight into the white
+     line in Djibouti, make it show the whole arrow."* A route's last point is a
+     PORT and a port is ON the coast, so a head drawn at it landed under three
+     things painted after the route - the coast stroke, the port's own white pin
+     ring and the halo of its name - and what was left read as half an arrow. So
+     the head's tip stops this far short of the last point and looks at the port
+     across open water. The floor is what the pin needs on a small canvas: a
+     port mark is 1.7 pin radii, and that radius has a 3px floor (dossier_map.js). */
+  var TIP_CLEAR = 16;
+
+  function tipShort(pts, back) {
+    var out = pts.slice(), q, d, i;
+    for (i = out.length - 1; i > 0; i--) {
+      q = [out[i][0] - out[i - 1][0], out[i][1] - out[i - 1][1]];
+      d = Math.hypot(q[0], q[1]);
+      if (d > back) {
+        out[i] = [out[i][0] - q[0] * back / d, out[i][1] - q[1] * back / d];
+        return out;
+      }
+      back -= d;
+      out.pop();
+    }
+    return pts;
   }
 
   /* ---- what goes UNDER the pins --------------------------------------------- */
@@ -265,6 +305,17 @@ var DossierMapRoutes = (function () {
       var pts = (rt.path || []).map(function (c) { return p(c[0], c[1]); });
       if (pts.length < 2) return;
       var w = routeW(rt.kind, u, k), dash = dashOf(rt, w);
+      /* Two cuts, not one: the HEAD's tip stops `clear` short of the port and
+         the INK a stroke width further back, because a round cap hands half a
+         width back and drawn to the tip it poked out of the point as a whisker.
+         Both cuts land inside the head, so no gap shows. And the tip never
+         passes the last BEND - pulled round the corner onto the leg before it,
+         the arrow stops pointing at the place it arrives at. */
+      var end = pts[pts.length - 1], was = pts[pts.length - 2];
+      var clear = Math.min(Math.max(9, TIP_CLEAR * u),
+        0.9 * Math.hypot(end[0] - was[0], end[1] - was[1]));
+      var tip = tipShort(pts, clear);
+      pts = tipShort(pts, clear + w);
       poly(ctx, pts);
       /* THE CASING DOES NOT TAKE THE CLEAN FACTOR (2026-09-17). It is there so
          the line reads over terrain, and 4*u either side does that at any
@@ -278,84 +329,25 @@ var DossierMapRoutes = (function () {
         dash: dash });
       poly(ctx, pts);
       R.paintShape(ctx, { stroke: P.ink, width: w, dash: dash });
-      heads(ctx, P, u, pts, headW(rt.kind, u, k), !!m.clean);
+      var head = heads(ctx, P, u, tip, headW(rt.kind, u, k), !!m.clean);
+      if (L().probing()) {
+        L().note(m.id, u, { head: head, tipNeedPx: clear, lineNeedPx: 2 * u,
+          coastNeedPx: Math.max(2, 1.6 * u), coastPx: L().coastGap(p, head, 400 * u),
+          tipPx: Math.hypot(head[0][0] - end[0], head[0][1] - end[1]),
+          wantsCallout: !!rt.length_callout });
+      }
     });
   }
 
   /* ---- what goes OVER them --------------------------------------------------- */
 
-  /* A zone names itself INSIDE its ring when the ring can hold the name and
-     beside it when it cannot - the same bargain the plain picture's fighting
-     zones make (dossier_map_legend.js). Three rings of four sides are tried
-     before it is dropped, and dropping is honest here: the hatch and the legend
-     still say what the shape is. */
-  function zoneLabels(ctx, p, P, u, list, taken, W, H, size) {
-    var R = D(), boxAt = L().boxAt, free = L().free, per = kmPx(p);
-    (list || []).forEach(function (z) {
-      if (!z.label_he) return;
-      var q = p(z.lon, z.lat), r = Z().radius(z, per, u), spot = null;
-      var w = R.width(ctx, z.label_he, size, 500) + 6 * u, h = size * 1.3, cands = [];
-      if (2 * r >= w * 1.05) cands.push([q[0], q[1]]);
-      [0, 1, 2, 3, 4].forEach(function (ring) {
-        var d = r + (5 + ring * 20) * u, k = 0.72;
-        cands.push([q[0], q[1] - d - h / 2], [q[0], q[1] + d + h / 2],
-                   [q[0] + d + w / 2, q[1]], [q[0] - d - w / 2, q[1]],
-                   [q[0] + (d + w / 2) * k, q[1] - (d + h / 2) * k],
-                   [q[0] - (d + w / 2) * k, q[1] - (d + h / 2) * k],
-                   [q[0] + (d + w / 2) * k, q[1] + (d + h / 2) * k],
-                   [q[0] - (d + w / 2) * k, q[1] + (d + h / 2) * k]);
-      });
-      cands.some(function (c) {
-        var s = boxAt(c[0], c[1], w, h);
-        if (free(s.box, taken, W, H)) spot = s;
-        return !!spot;
-      });
-      if (!spot) return;
-      R.text(ctx, P, z.label_he, spot.x, spot.y, { size: size, weight: 500, halo: 3 * u });
-      taken.push(spot.box);
-    });
-  }
-
-  /* ---- the scale bar ---------------------------------------------------------- */
-
-  /* A terrain map is read for DISTANCE - how far the crossing is, how close the
-     ridge stands to the channel - so it says how far a centimetre is. Round
-     numbers only, about a sixth of the canvas, and in the corner OPPOSITE the
-     legend, which chooses its own corner per render. */
-  var NICE = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000];
-  var OPPOSITE = { tr: "bl", br: "tl", tl: "br", bl: "tr" };
-
-  /* It goes down FIRST and reserves its own box (2026-09-17). It used to be
-     painted last, after every name, and nothing had told the names it was
-     coming: measured on the crossing's whole-area frame, the route's block took
-     the corner the legend had left free and the bar was drawn straight through
-     it. The bar cannot move - it is pinned to the corner opposite the legend -
-     so it is the one that must be placed while the ground is still empty. */
-  function scaleBar(ctx, P, u, W, H, size, per, legend, taken) {
-    var R = D(), want = W / 6, km = NICE[0], i;
-    for (i = 0; i < NICE.length; i++) { if (NICE[i] * per <= want) km = NICE[i]; }
-    var len = km * per;
-    if (!(len > 12 * u)) return;
-    var at = OPPOSITE[(legend && legend.at) || "tr"] || "bl", inset = 16 * u;
-    var x0 = at[1] === "r" ? W - inset - len : inset;
-    var y = at[0] === "t" ? inset + size * 2.1 : H - inset;
-    var cap = Math.max(4, 5 * u), w = Math.max(2, 2.6 * u);
-    var draw = function (style) {
-      ctx.beginPath();
-      ctx.moveTo(x0, y - cap); ctx.lineTo(x0, y); ctx.lineTo(x0 + len, y);
-      ctx.lineTo(x0 + len, y - cap);
-      R.paintShape(ctx, style);
-    };
-    draw({ stroke: P.halo, width: w + 3 * u });
-    draw({ stroke: P.ink, width: w });
-    var caption = km + " " + HE.km;
-    R.text(ctx, P, caption, x0 + len / 2, y - cap - 3 * u,
-      { size: size * 0.9, weight: 500, halo: 3 * u, align: "center", baseline: "bottom" });
-    if (!taken) return;
-    var tw = Math.max(len, R.width(ctx, caption, size * 0.9, 500));
-    taken.push({ x0: x0 + len / 2 - tw / 2 - 4 * u, x1: x0 + len / 2 + tw / 2 + 4 * u,
-                 y0: y - cap - 3 * u - size * 1.2, y1: y + 4 * u });
-  }
+  /* THE ZONE NAMES AND THE SCALE BAR LEFT ON 2026-09-18, for
+     dossier_map_route_label.js, when the length callout and its self-check
+     would have taken this file past the 500-line rule. Both are WORDS on the
+     picture, which is that file's whole job since the split of 2026-09-17, and
+     the zone names had always borrowed its `boxAt` and `free`. Two things are
+     handed in rather than looked up: `per`, measured here, and the kilometre's
+     one Hebrew spelling, which stays in HE above. */
 
   /* ZONE NAMES GO DOWN FIRST. A zone has one anchor and a ring of candidates
      round it; a route's name has the whole length of its line to slide along,
@@ -387,15 +379,15 @@ var DossierMapRoutes = (function () {
        and still reserves its corner first, so a map that wants it is one JSON
        line away. */
     if (m.scale === true) {
-      scaleBar(ctx, P, u, W, H, size, per,
-        legend || (m.legend === false ? { at: "tl" } : null), taken);
+      L().scaleBar(ctx, P, u, W, H, size, per,
+        legend || (m.legend === false ? { at: "tl" } : null), taken, HE.km);
     }
     /* MARKS ONLY, NO TEXT ON THE MAP - `zone_text: false` (2026-09-17, Ziv of
        the strait picture). Every SIGN still paints with the ground in mapUnder,
        and every place name too; what comes off is the five zone names, stacked
        two deep over the channel the picture is about. Absent means true, and
        the key under the canvas names all three signs (dossier_map_block.js). */
-    if (m.zone_text !== false) zoneLabels(ctx, p, P, u, m.zones, taken, W, H, size);
+    if (m.zone_text !== false) L().zoneLabels(ctx, p, P, u, m.zones, taken, W, H, size, per);
     routes.forEach(function (rt) {
       var pts = (rt.path || []).map(function (c) { return p(c[0], c[1]); });
       /* A SILENT ROUTE - `label: false` in the record (Ziv, 2026-09-17:
@@ -403,16 +395,24 @@ var DossierMapRoutes = (function () {
          line is the whole statement. The legend row still names what the line
          is, and the HTML caption under the picture still carries the length,
          because neither of those is painted on the map. */
-      /* THE LENGTH ON ITS OWN, at an authored point (2026-09-17). Ziv asked for
-         two pictures of this crossing: *"one with just these changes, and one
-         with a line to the side that says how long the route is, placed well."*
-         So a route may carry `length_callout`, a point the build has checked is
-         inside both shapes, and the painter writes the measured distance there
-         with a leader back to the line - no route name, no second line. The
-         number is measured from the drawn path and never authored. */
-      if (rt.length_callout && pts.length >= 2) {
-        L().pathLabel(ctx, P, u, [distLabel(pathKm(rt.path))], pts,
-          size * CALLOUT_TEXT, taken, W, H, null, p, rt.length_callout);
+      /* THE LENGTH ON ITS OWN, at an authored point (2026-09-17, and back on
+         the crossing 2026-09-18). Ziv: *"a little line to kind of in the middle
+         of the route, to the right, and just write the amount of kilometers."*
+         So a route may carry `length_callout`: a point the build has checked is
+         inside both shapes, `lead_from` saying where its leader meets the line
+         and `units` saying how much of the distance it says. The painter writes
+         the measured figure there and nothing else - no route name, one line -
+         and the number is measured from the drawn path, never authored. */
+      var lc = rt.length_callout;
+      if (lc && pts.length >= 2) {
+        var km = pathKm(rt.path), one = lc.units === "km";
+        var at = L().pathLabel(ctx, P, u, [one ? kmLabel(km) : distLabel(km)], pts,
+          size * CALLOUT_TEXT, taken, W, H, null, p, lc, true) || {};
+        at.km = Math.round(km * 10) / 10;
+        if (at.box && L().probing()) {
+          at.coastBoxPx = L().coastGap(p, L().boxRing(at.box), 900 * u);
+        }
+        L().note(m.id, u, at);
       }
       if (rt.label === false) return;
       if (pts.length >= 2) {

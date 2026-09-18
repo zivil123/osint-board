@@ -420,6 +420,13 @@ var DossierMap = (function () {
         color: l.quiet ? P.govLabel : null });
     });
     if (legend) R.paintLegend(ctx, P, u, legend);
+    /* LAST OF ALL, AND ONLY ON A HEAT MAP: the level digit on every belt and
+       the days the levels were read in, beside the key (dossier_map_heat.js).
+       After the legend because nothing may cover them, and against a `taken`
+       that by now holds every name, note, disc and the key box itself. */
+    if (gOpt.heat && window.DossierMapHeat) {
+      DossierMapHeat.badges(ctx, p, P, u, ts, G, map, taken, W, H, size, legend);
+    }
   }
 
   /* Heebo is a web font: a canvas painted before it arrives is set in the
