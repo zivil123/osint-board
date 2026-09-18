@@ -43,6 +43,11 @@ var DossierMapBlock = (function () {
   ];
   var MISSING_MAP = "המפה אינה זמינה";
 
+  function hasGains() {
+    var D0 = (typeof DOSSIER !== "undefined" && DOSSIER) ? DOSSIER : null;
+    return !!(D0 && D0.gains && D0.gains.length);
+  }
+
   /* THE ZONE SIGNS, NAMED UNDER THE PICTURE. The rows come from
      dossier_map_zones.js - its words and its own colour table, read at call
      time for the theme the canvas beside them was drawn in - so a sign and its
@@ -70,6 +75,32 @@ var DossierMapBlock = (function () {
     });
   }
 
+  /* A HEAT MAP'S KEY IS A SCALE HERE TOO (2026-09-17). The painted key on the
+     canvas takes its one fighting-zone row out and puts five level rows and a
+     diamond row in its place (dossier_map_heat.js); this key sits under the
+     same picture, so it must list the SAME rows in the SAME order or the reader
+     has two keys to one map. The colours and the words are read from that file
+     rather than written again: one list, two keys, no chance of drift. The
+     diamond row keeps the row it replaced - its words, its hatch and its mark -
+     with the fill cleared, because that one colour is no longer on the map. */
+  function heatRows(rows) {
+    var H = window.DossierMapHeat;
+    if (!H || typeof H.ramp !== "function") return rows;
+    var theme = (window.DossierMap && DossierMap.screenTheme) || "light";
+    var ramp = H.ramp(theme), words = H.words || [], at = -1, i;
+    for (i = 0; i < rows.length; i++) {
+      if (rows[i].cls.indexOf("mark") >= 0) { at = i; break; }
+    }
+    if (at < 0 || ramp.length !== words.length) return rows;
+    var old = rows[at];
+    var scale = ramp.map(function (c, n) {
+      return { cls: old.cls.replace(/\s*mark\b/, ""), style: "--sw-fill: " + c,
+               he: words[n] };
+    });
+    scale.push({ cls: old.cls, style: "--sw-fill: transparent", he: old.he });
+    return rows.slice(0, at).concat(scale, rows.slice(at + 1));
+  }
+
   function legendHtml(m) {
     /* A map may carry NO key ON IT - `legend: false`, Ziv 2026-09-17: *"remove
        the box that explains everything, there's no need for it."*
@@ -81,7 +112,15 @@ var DossierMapBlock = (function () {
        `zone_text`) cannot take away the need to know what they are, so the key
        moves under the picture instead of vanishing with the box. */
     if (m && m.legend === false && m.clean) return "";
-    var rows = (m && m.clean) ? CLEAN_LEGEND : LEGEND;
+    /* NO GAINS, NO GAINS ROW (2026-09-18). A window in which nothing changed
+       hands leaves DOSSIER.gains empty and the painter draws no violet, so the
+       key must not name it - and this key is the painted one's twin
+       (dossier_map_legend.js does the same against the same list), because two
+       keys to one picture may never disagree. Filtered rather than taken out of
+       LEGEND, which the merged branch below indexes by position. */
+    var rows = (m && m.clean) ? CLEAN_LEGEND
+      : hasGains() ? LEGEND
+        : LEGEND.filter(function (r) { return r.cls.indexOf("gain") < 0; });
     /* A MERGED clean map puts the two territories and the boundary between them
        back (Ziv, 2026-09-17), and takes back exactly those three rows - never
        the gains row, because he asked for the new ground to read as part of
@@ -90,6 +129,7 @@ var DossierMapBlock = (function () {
     if (m && m.clean && m.control === "merged") {
       rows = [LEGEND[0], LEGEND[1], LEGEND[4]].concat(CLEAN_LEGEND);
     }
+    if (m && m.heat) rows = heatRows(rows);
     /* A row appears only when the map carries the thing it names, the same
        bargain the painted key keeps: no zones, no zone rows. */
     rows = rows.concat(zoneRows(m));

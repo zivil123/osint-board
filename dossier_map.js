@@ -25,8 +25,9 @@
    style.css (the dark palette is READ from them, never written here; the light
    one has no tokens on the board and is authored below) and the relief images.
    The layer painters live in dossier_map_draw.js, dossier_map_legend.js,
-   dossier_map_extra.js and the two the `key` field asks for, all looked up at
-   paint time so the files may load in any order. Every string painted is
+   dossier_map_extra.js, dossier_map_gains.js, dossier_map_heat.js and the two
+   the `key` field asks for, all looked up at paint time so the files may load
+   in any order. Every string painted is
    Hebrew - the build refuses Latin in any map string.
 
    FRAMES ARE AUTHORED, in data\dossier_maps.json, and reach here as
@@ -72,28 +73,9 @@ var DossierMap = (function () {
     noData: "אין נתוני מפה להצגה"
   };
   /* The light deck has no tokens on the board (dark is the board's only theme),
-     so its palette is authored here. Territory is told apart by lightness AND
-     temperature - Houthi ground a warm grey, government a cool one, the sea a
-     clear blue-grey - because three light tints can never sit 3:1 apart from
-     one another; measured, houthi/sea 1.4:1, gov/sea 1.2:1. What does hold
-     3:1 is every line and mark on them: the darkened violet #5B4BC4 measures
-     6.5:1 on the land and 5.2:1 on the sea, the ink 12:1 and better. The fill
-     under the violet stroke keeps the board's own #B7A5F7, so captured ground
-     reads as the same colour in both decks. */
-  var LIGHT = {
-    /* Which palette this is, so a layer that authors its own colours (the
-       zones' two, dossier_map_zones.js) can pick the set written for this
-       ground instead of guessing from a token. */
-    theme: "light",
-    sea: "#C9DAEA", land: "#F4F7FA",
-    houthi: "#C6BCAE", gov: "#E3E8ED", contested: "#EEF1F4",
-    contestedStroke: "#7F8B98", frontMark: "#E01B0F",
-    adm1: "rgba(20, 40, 60, 0.20)",
-    border: "#33445A", borderW: 2, control: "#1F2D3D", controlW: 2, controlDash: "6 4",
-    ink: "#14202C", muted: "#3A4A5A", faint: "#5A6876", govLabel: "#4A5A6A",
-    halo: "rgba(255, 255, 255, 0.92)", violet: "#5B4BC4", violetFill: "#B7A5F7",
-    lane: "#4A5A6A", box: "#FFFFFF", boxLine: "rgba(20, 40, 60, 0.30)"
-  };
+     so its palette is AUTHORED, in dossier_map_light.js - it moved there on
+     2026-09-17 to make room here, and the reasoning that sets its colours
+     moved with it. */
 
   /* ---- tokens ------------------------------------------------------------------- */
 
@@ -113,7 +95,15 @@ var DossierMap = (function () {
     var need = [["dossier_map_draw.js", window.DossierMapDraw],
                 ["dossier_map_legend.js", window.DossierMapLegend],
                 ["dossier_map_extra.js", window.DossierMapExtra],
-                ["dossier_map_routes.js", window.DossierMapRoutes]];
+                ["dossier_map_gains.js", window.DossierMapGains],
+                ["dossier_map_heat.js", window.DossierMapHeat],
+                ["dossier_map_zone_names.js", window.DossierMapZoneNames],
+                ["dossier_map_routes.js", window.DossierMapRoutes],
+                /* LAST ON PURPOSE: the merge below is last-wins, and the roads
+                   file's arrows() is meant to stand in for DossierMapExtra's.
+                   It is the ONE optional entry here - a page without it keeps
+                   the old arrows rather than refusing to draw at all. */
+                ["dossier_map_roads.js", window.DossierMapRoads || {}]];
     var missing = need.filter(function (n) { return !n[1]; });
     if (missing.length) {
       throw new Error("dossier_map: " + missing.map(function (n) { return n[0]; })
@@ -134,7 +124,7 @@ var DossierMap = (function () {
   }
 
   function palette(theme) {
-    if (theme === "light") return LIGHT;
+    if (theme === "light") return need("dossier_map_light.js", window.DossierMapLight);
     var sea = cssVar("--map-bg");
     if (!sea) throw new Error("dossier_map: style.css tokens are not on the page");
     var ink = cssVar("--ink");
@@ -303,6 +293,10 @@ var DossierMap = (function () {
     var clean = !!map.clean;
     var gOpt = reliefOpt(map, theme, kind) || {};
     gOpt.clean = clean; gOpt.control = map.control || null; gOpt.D = D;
+    /* HOW HARD EACH BELT IS BEING FOUGHT, when the record says so: ground()
+       hands it to dossier_map_heat.js, which fills every fighting zone with its
+       own step of the scale instead of the one contested colour. */
+    gOpt.heat = map.heat || null;
     R.ground(ctx, p, P, u, W, H, G, gOpt);
     if (!clean) R.gains(ctx, p, P, u, D, G, mapId);
     /* A clean picture carries two or three names, so it sets them larger - one

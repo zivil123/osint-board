@@ -1,5 +1,5 @@
 /* The layer painters behind dossier_map.js: geometry paths, Hebrew text with a
-   halo, the gains overlay, the shipping lanes and the governorate names.
+   halo, the ground itself, the shipping lanes and the governorate names.
    dossier_map.js owns the frames, the projection, the palette and the public
    API; it calls into this file at paint time, so the painter files may load in
    any order as long as all of them are on the page before the view draws.
@@ -8,6 +8,8 @@
    allowed. The LEGEND and the fighting-zone diamond left for
    dossier_map_legend.js on 2026-09-15, and the relief raster, the fighting
    notes and the assessment arrows went into dossier_map_extra.js the same day.
+   THE GAINS OVERLAY left for dossier_map_gains.js on 2026-09-17, when the heat
+   painter's hook in ground() brought this file back to its cap.
 
    NO ES modules - the page runs from file://. One global:
 
@@ -248,7 +250,7 @@ var DossierMapDraw = (function () {
     paintShape(ctx, { fill: P.land });
     /* The raster goes in HERE - over the land fill, under everything that
        carries meaning, and clipped to the coastline that was just drawn. */
-    if (o.img && X) X.relief(ctx, p, o.img, o.bounds);
+    if (o.img && X) X.relief(ctx, p, o.img, o.bounds, o.filter);
     var byControl = function (c) { return function (f) { return f.properties.control === c; }; };
     var zones = (o.clean && !merged) ? null : G.control_zones;
     /* On the light deck the three fills are opaque; over the terrain they would
@@ -259,7 +261,7 @@ var DossierMapDraw = (function () {
     fillCollection(ctx, p, zones, { fill: P.houthi }, byControl("houthi"));
     /* In the SAME pass and at the same alpha, so a gain and the ground it has
        joined are one colour and not two tones of it. */
-    if (merged) mergedGains(ctx, p, P, u, o.D, G);
+    if (merged && window.DossierMapGains) DossierMapGains.mergedGains(ctx, p, P, u, o.D, G);
     ctx.globalAlpha = 1;
     /* The ACTIVE FIGHTING zones are their own layer (data\fronts.json ->
        GEO.fronts), drawn over the territory instead of replacing a district's
@@ -269,9 +271,18 @@ var DossierMapDraw = (function () {
        colour. Ziv reported it on al-Jawf, on Maqbanah and on the Lahij coast in
        one message. Territory now says WHO HOLDS, this says WHAT IS HAPPENING. */
     if (G.fronts && !o.clean) {
-      if (o.fade) ctx.globalAlpha = o.fade;
-      fillCollection(ctx, p, G.fronts, { fill: P.contested });
-      ctx.globalAlpha = 1;
+      /* ONE WASH, OR FIVE (2026-09-17). A record carrying `heat` says how hard
+         each belt is being fought this window, and dossier_map_heat.js fills
+         every belt with its own step of that scale instead of the one contested
+         colour. It is the same fade and the same shapes; what follows - the
+         hatch, the outline and the red diamond - runs on top either way. */
+      if (o.heat && window.DossierMapHeat) {
+        DossierMapHeat.fronts(ctx, p, P, u, G, o.heat, o);
+      } else {
+        if (o.fade) ctx.globalAlpha = o.fade;
+        fillCollection(ctx, p, G.fronts, { fill: P.contested });
+        ctx.globalAlpha = 1;
+      }
       /* The hatch, the outline and the diamond are never washed back - they are
          what says a fight is happening here, and a terrain picture underneath
          is no reason to say it more quietly. */
@@ -308,82 +319,6 @@ var DossierMapDraw = (function () {
       strokeLines(ctx, p, G.control_line, { stroke: P.control, width: P.controlW * u,
         dash: dashOf(P.controlDash, u) });
     }
-  }
-
-  /* ---- the gains overlay -------------------------------------------------------- */
-
-  var adm2Index = null;
-  function district(G, id) {
-    if (!adm2Index) {
-      adm2Index = {};
-      eachFeature(G.yem_adm2, function (f) { adm2Index[f.properties.shapeID] = f; });
-    }
-    return adm2Index[id] || null;
-  }
-  /* ONE style for every gain, whatever its status: Ziv asked for captured and
-     contested to read as one, "נכבש בידי החות'ים (מאומת + משוער)" (2026-09-11).
-     The status still travels in the data and the text says which were
-     confirmed; the map no longer draws the difference. */
-  function gainStyle(P, u) {
-    return { fill: alpha(P.violetFill, 0.5), stroke: P.violet, width: 2 * u, dash: [] };
-  }
-  /* There is ONE gain style and no second one. A heavier edge once set the last
-     day's ground apart; Ziv struck that on 2026-09-13 ("remove what was conquered
-     in the last day"), as he struck the captured/contested split on 2026-09-11.
-     WHEN a place fell is said in the text under the map, never by a second style. */
-  /* A district and an island BOTH paint only `coordinates[part_index]` of their
-     ADM2 feature, never the whole district: the islands live inside mainland
-     districts (Perim in Dhubab, Hanish and Zuqar in Al Khukhah), so a whole
-     district would colour an island with its mainland's status. `kind` decides
-     only the overview treatment - there an island is five pixels and takes a
-     ring mark like a port or a town. */
-  function gainPart(G, g) {
-    var f = g.district_id ? district(G, g.district_id) : null;
-    if (!f || typeof g.part_index !== "number") return null;
-    var geom = f.geometry, c = geom.coordinates;
-    var part = geom.type === "MultiPolygon" ? c[g.part_index]
-      : (geom.type === "Polygon" && g.part_index === 0) ? c : null;
-    return part ? { type: "Polygon", coordinates: part } : null;
-  }
-  /* THE SAME GROUND, IN THE SAME COLOUR (2026-09-17). On a `control: "merged"`
-     map a gain is not a third thing on the picture: Ziv asked for the new
-     ground to be "just part of the Houthis", so it is painted with the Houthi
-     control fill and nothing else - no violet, no stroke, and none of the plain
-     land the violet needs underneath it. Called from ground() between the two
-     control fills and the alpha reset, so it is washed back with them on the
-     light deck and a reader cannot tell a gain from the ground beside it.
-     Which places were taken, and when, is still said in the text under the map;
-     this picture is about one boundary and does not answer that. */
-  function mergedGains(ctx, p, P, u, D, G) {
-    ((D && D.gains) || []).forEach(function (g) {
-      var geom = gainPart(G, g);
-      if (geom) {
-        ctx.beginPath(); polyPath(ctx, p, geom);
-        paintShape(ctx, { fill: P.houthi });
-      } else if (typeof g.lon === "number") {
-        var q = p(g.lon, g.lat);
-        ringMark(ctx, q[0], q[1], 7 * u, { fill: P.houthi });
-      }
-    });
-  }
-  function gains(ctx, p, P, u, D, G, mapId) {
-    (D.gains || []).forEach(function (g) {
-      var geom = null;
-      if (g.kind === "district" || (g.kind === "island" && mapId !== "overview")) geom = gainPart(G, g);
-      /* Plain land under the violet, exactly as the legend swatch does, so a
-         gain on Houthi ground and one on government ground are the same
-         colour - measured on the light slide, the see-through wash read as
-         two tones, which is the very separation Ziv asked to remove. */
-      if (geom) {
-        ctx.beginPath(); polyPath(ctx, p, geom);
-        paintShape(ctx, { fill: P.land });
-        paintShape(ctx, gainStyle(P, u));
-      } else {
-        var q = p(g.lon, g.lat);
-        ringMark(ctx, q[0], q[1], 7 * u, { fill: P.land });
-        ringMark(ctx, q[0], q[1], 7 * u, gainStyle(P, u));
-      }
-    });
   }
 
   /* ---- shipping lanes ------------------------------------------------------------ */
@@ -488,8 +423,8 @@ var DossierMapDraw = (function () {
   return {
     mix: mix, alpha: alpha, text: text, width: width, overlaps: overlaps,
     place: place, ringMark: ringMark, setFont: setFont, paintShape: paintShape,
-    hatch: hatch, dashOf: dashOf, eachFeature: eachFeature, gainStyle: gainStyle,
-    ground: ground, gains: gains, lanes: lanes, govLabels: govLabels,
+    hatch: hatch, dashOf: dashOf, eachFeature: eachFeature, polyPath: polyPath,
+    ground: ground, lanes: lanes, govLabels: govLabels,
     CLEAN_TEXT: CLEAN_TEXT, COUNTRY_TEXT: COUNTRY_TEXT,
     COUNTRY_SPACE: COUNTRY_SPACE
   };

@@ -135,13 +135,40 @@ var DossierMapNotes = (function () {
       bars.push(box); mine.push(box);
       queue.push({ box: box, g: g, lines: lines, lineH: lineH, size: noteSize });
     });
-    var over = 0, i, k;
+    var over = 0, cross = 0, i, k;
     for (i = 0; i < queue.length; i++) {
       for (k = i + 1; k < queue.length; k++) {
         if (R.overlaps(queue[i].box, queue[k].box)) over++;
       }
+      /* AND HOW MANY LEADERS RUN THROUGH SOMEBODY ELSE'S TEXT (2026-09-17).
+         The search already refuses a box whose own leader crosses a box placed
+         BEFORE it, and a box that an earlier leader would cross - but the ones
+         placed after it are not yet known, so the last callouts' leaders could
+         still be drawn across the first ones' sentences. Nothing here can fix
+         that inside one pass; what it can do is COUNT it, so draw() can keep
+         the text step whose whole set reads cleanly instead of the first step
+         that merely stopped the boxes overlapping. */
+      for (k = 0; k < queue.length; k++) {
+        if (k !== i && segBox(queue[i].g, queue[k].box)) cross++;
+      }
     }
-    return { queue: queue, over: over };
+    return { queue: queue, over: over, cross: cross };
+  }
+
+  /* Does a leader touch a box? Liang-Barsky, the box pulled in a pixel so a
+     leader that merely leaves its own edge is not read as crossing it. */
+  function segBox(g, b) {
+    var x = g[0], y = g[1], dx = g[2] - x, dy = g[3] - y, t0 = 0, t1 = 1, i, q, r, t;
+    var e = [[-dx, x - b.x0 - 1], [dx, b.x1 - 1 - x],
+             [-dy, y - b.y0 - 1], [dy, b.y1 - 1 - y]];
+    for (i = 0; i < 4; i++) {
+      q = e[i][0]; r = e[i][1];
+      if (q === 0) { if (r < 0) return false; continue; }
+      t = r / q;
+      if (q < 0) { if (t > t1) return false; if (t > t0) t0 = t; }
+      else { if (t < t0) return false; if (t < t1) t1 = t; }
+    }
+    return true;
   }
 
   /* Painted AFTER the map's own labels, so `taken` already holds every name,
@@ -151,6 +178,9 @@ var DossierMapNotes = (function () {
       return { note_he: n.note_he, q: p(n.lon, n.lat) };
     });
     if (!list.length) return null;
+    /* The step is still chosen on OVERLAPS alone, and the first clean one
+       still wins: which text size the set settles at is a measured decision
+       (STEPS above) and a leader is not a reason to shrink nine sentences. */
     var best = null, i, try_;
     for (i = 0; i < STEPS.length; i++) {
       try_ = pass(ctx, p, P, u, ts, list, taken, W, H, size, STEPS[i]);
@@ -158,9 +188,34 @@ var DossierMapNotes = (function () {
       if (!best || try_.over < best.over) best = try_;
       if (!best.over) break;
     }
-    best.queue.forEach(function (q) {
-      if (kitLen(q.g, u)) { leaderOf(ctx, P, u, q.g); head(ctx, P, u, q.g); }
+    /* EVERY LEADER FIRST, AND EVERY LEADER BEHIND EVERY BOX (2026-09-17). The
+       search refuses a leader across a box already placed, but the boxes placed
+       AFTER it are not yet known, so the last callouts' leaders were being
+       drawn straight through the first ones' sentences - three of them in the
+       wide picture's top-left cluster. The placement is right and is not
+       touched: what changes is that a leader is CLIPPED out of every other
+       callout's box, so where it meets one it passes behind the text instead of
+       through it. Nothing moves, and a leader that crosses nothing is drawn
+       exactly as it was. */
+    var boxes = best.queue.map(function (q) { return q.box; });
+    best.queue.forEach(function (q, n) {
+      if (!kitLen(q.g, u)) return;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, W, H);
+      boxes.forEach(function (b, k) {
+        if (k !== n) ctx.rect(b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0);
+      });
+      ctx.clip("evenodd");
+      leaderOf(ctx, P, u, q.g); head(ctx, P, u, q.g);
+      ctx.restore();
     });
+    /* THE DATE MUST READ FIRST (2026-09-17). A note opening "15.9 — " is laid
+       out in the canvas's base direction; set it here rather than trusting
+       whatever the caller left, and put it back after, because this painter is
+       called from two places and one of them paints a panel afterwards. */
+    var dir0 = ctx.direction;
+    ctx.direction = "rtl";
     best.queue.forEach(function (q) {
       var cx = (q.box.x0 + q.box.x1) / 2;
       q.lines.forEach(function (ln, k) {
@@ -169,6 +224,7 @@ var DossierMapNotes = (function () {
       });
       taken.push(q.box);
     });
+    ctx.direction = dir0;
     /* What this paint achieved, for the console and never for the page: the
        step it settled on, how far each callout ended from its place, and how
        many boxes overlap - which is the number that must be zero.
@@ -180,6 +236,7 @@ var DossierMapNotes = (function () {
       far = Math.max(far, q.dist);
     });
     REPORT = { width: W, height: H, scale: best.scale, overlaps: best.over,
+      crossings: best.cross,
       notes: best.queue.length, maxDist: far, maxDistPct: Math.round(far / W * 100),
       boxes: best.queue.map(function (q) { return q.box; }) };
     return REPORT;

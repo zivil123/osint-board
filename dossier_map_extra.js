@@ -42,15 +42,14 @@ var DossierMapExtra = (function () {
      wrong coastline over the real one. A canvas path is not part of the state
      save() keeps, so the clip is pushed and popped and the land path is still
      there for the caller.
-     A tainted or broken image throws on draw rather than on load; the map is
-     worth more than the terrain, so it is skipped and the paint goes on.
-     `ready()` in dossier_map.js keeps that from being the normal case. */
-  function relief(ctx, p, img, bounds) {
+     A tainted or broken image throws on draw rather than on load; the map is worth more than the terrain, so it is skipped and the paint goes on - `ready()` in dossier_map.js keeps that from being the normal case.
+     `filter` is `terrain: "strong"` (dossier_map_relief.js): the hillshade is LIFTED as it is laid, and restore() puts the drawing state back. */
+  function relief(ctx, p, img, bounds, filter) {
     if (!img || !bounds || bounds.length < 4) return;
     var a = p(bounds[0], bounds[3]);            /* west, north  -> top-left */
     var b = p(bounds[2], bounds[1]);            /* east, south  -> bottom-right */
-    ctx.save();
-    ctx.clip("evenodd");
+    ctx.save(); ctx.clip("evenodd");
+    if (filter && "filter" in ctx) ctx.filter = filter;
     try {
       ctx.drawImage(img, a[0], a[1], b[0] - a[0], b[1] - a[1]);
     } catch (err) {

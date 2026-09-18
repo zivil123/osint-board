@@ -259,6 +259,12 @@ var DossierMapKey = (function () {
        does not. A canvas path is not part of the state save() keeps, so the
        clip is pushed and popped. */
     ctx.save();
+    /* THE DATE MUST READ FIRST (2026-09-17). A row opening "15.9 — " is laid
+       out by the canvas in the base direction, and the panel is painted AFTER
+       the map area's own save/restore - which put `direction` back to the
+       canvas default and sent every date to the far end of its line. Set here,
+       inside this file's own save, so the panel cannot inherit the wrong one. */
+    ctx.direction = "rtl";
     ctx.beginPath(); ctx.rect(rect.x, rect.y, rect.w, rect.h); ctx.clip();
     /* The divider between the map and the panel, on the side the panel sits. */
     ctx.beginPath();

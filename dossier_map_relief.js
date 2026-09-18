@@ -25,6 +25,23 @@ var DossierMapRelief = (function () {
      deck only: the dark palette's fills already carry their own alpha, and an
      opaque fill would erase the terrain it is drawn over. */
   var RELIEF_FADE = 0.66;
+  /* `terrain: "strong"` ON ONE MAP (2026-09-17). Ziv asked to "show the
+     topography more". Two things were hiding it and both are here: the
+     territory wash sits ON TOP of the hillshade, and the hillshade itself is a
+     gentle grey. So a strong map washes the fills much further back and lifts
+     the picture's own contrast as it is laid down - the terrain is not redrawn,
+     it is simply less covered and less flat. Every other map keeps 0.66 and no
+     filter, so nothing else moves by a pixel.
+     Measured on the aden frame, in the Yafa highlands (lon 44.9-45.4, lat
+     13.6-14.0), luminance spread over the terrain's own pixels: 26.5 at 0.66
+     with no filter, 31.6 here - an 18% rise, and the knee of the curve. Pushing
+     the wash below 0.35 buys another 0.2 and starts costing the reader who
+     holds what, which is the other thing the picture is for. The brightness
+     step is not decoration: the hillshade is a LIGHT hypsometric tint, and
+     contrast() alone pushes it into white and loses the very detail it was
+     raised to show. */
+  var STRONG_FADE = 0.40,
+      STRONG_FILTER = "brightness(0.93) contrast(1.6) saturate(1.15)";
 
   /* Loaded ONCE per theme and kept: the deck exports every map at 2560, the
      PNG button exports two shapes of each, and the page redraws on every
@@ -92,7 +109,10 @@ var DossierMapRelief = (function () {
     var all = meta(), m = all && all[map.frame];
     var pic = (img[key] || {})[map.frame];
     if (!m || !m.bounds || !pic) return null;
-    return { img: pic, bounds: m.bounds, fade: key === "light" ? RELIEF_FADE : 0 };
+    var strong = (map || {}).terrain === "strong";
+    return { img: pic, bounds: m.bounds,
+             fade: key === "light" ? (strong ? STRONG_FADE : RELIEF_FADE) : 0,
+             filter: strong ? STRONG_FILTER : null };
   }
 
   return { ready: ready, optFor: optFor };
