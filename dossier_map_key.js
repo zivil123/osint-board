@@ -22,10 +22,12 @@
    does. Nothing is cropped and no point the build passed falls off an edge.
 
    The two shapes, as asked for:
-     wide   - THREE BANDS: the map on the left at the FULL canvas height, a
-              plain gutter, then the panel as a full-height column (2026-09-19;
-              until then the map took the gutter's share too and the connectors
-              arrived on the panel's own edge).
+     wide   - TWO BANDS: the map on the left at the FULL canvas height, then the
+              panel as a full-height column. It was three for one day - a gutter
+              between them for the connector lines to fan across - and Ziv took
+              the lines off again on 2026-09-19 ("remove the lines from the
+              Marib... replace the lines with numbers next to the squares"), so
+              the gutter went with them and the map has its share back.
      square - the map on top, 16:9 of the full width; the panel below it, in
               TWO columns, because nine rows in one column at 2048 wide would
               be a column of air.
@@ -35,10 +37,10 @@
    the picture's height empty; so the area keeps the whole canvas height and is
    projected with the frame's SQUARE range (`square.lat`, `square.lonMid`),
    authored for a 1:1 area, and the square shape's own 16:9 area reads the wide
-   frame for the same reason. The gutter left the wide area at 0.91:1, slightly
-   NARROWER than the range it reads and so showing slightly less longitude: both
-   panel maps were measured on 2026-09-19 with every authored point still well
-   inside, and `dropped_required` is what says so if a frame is ever tightened.
+   frame for the same reason. With the gutter gone the wide area is 0.996:1,
+   near enough the 1:1 the range was authored for; every authored point was
+   measured inside on 2026-09-19, and `dropped_required` is what says so if a
+   frame is ever tightened.
 
    NO PANEL ON A PHONE (2026-09-18). Under PANEL_MIN_W the panel is not small,
    it is INVISIBLE: measured at 390 CSS px, nine rows drove the step to 0.22 and
@@ -59,15 +61,15 @@
    this picture is `DossierMapNotes.check(id, shape)`: one entry point for both
    answers to the same notes, reading report() here.
 
-   THE LINE FROM A MARK TO ITS ROW is dossier_map_link.js and the geometry it
-   calls, dossier_map_fan.js - added 2026-09-18 on Ziv's ask and rebuilt as a
-   gutter fan on 2026-09-19, files of their own because this one is at the
-   500-line cap. This file hands them the rows it painted and the rectangles the
-   map reserved; a page WITHOUT them draws numbers and no lines, and counts
-   every missing one so the check cannot read the absence as a clean picture.
-   `splitOf` is how dossier_map.js knows, while it is painting
-   the MAP, that this picture will carry connectors and must reserve their lanes
-   before it places a single name.
+   NO LINE FROM A MARK TO ITS ROW. One was drawn on 2026-09-18 on Ziv's ask and
+   taken off again on 2026-09-19 on his: *"Remove the lines from the Marib. And
+   do it a bit more zoomed out. And replace the lines with numbers next to the
+   squares."* The number beside the square IS the join now, on every shape, and
+   `dossier_map_link.js` and `dossier_map_fan.js` were deleted rather than
+   switched off. MAP_RULES.md rule 3.
+   `splitOf` is how dossier_map.js knows, while it is painting the MAP, whether
+   this picture got its panel at all - a canvas too narrow for one paints the
+   numbers and moves the sentences to the HTML list below.
 */
 "use strict";
 
@@ -93,17 +95,15 @@ var DossierMapKey = (function () {
     return X.kit;
   }
 
-  /* THREE BANDS ON THE WIDE SHAPE: map, gutter, list. The panel's 0.44 is what
+  /* TWO BANDS ON THE WIDE SHAPE: map, then list. The panel's 0.44 is what
      2026-09-18 measured and must not move - at 0.68 the note came out 11 CSS px
      on Ziv's 1230px canvas ("make the text that is on the right bigger...  if
      you do stuff like this, make it big"), 0.58 and 0.57 stopped at 15.5, 0.56
      reached 16.3, and 0.55 bought no further rung while filling 98% of the
-     panel's height. So the GUTTER (2026-09-19) is taken from the map's share
-     alone and the list reads at exactly the size it read at yesterday: a plain
-     5% strip in the list's own ground, between the map's right edge and the
-     first letter of a row, which is where every connector's last segment fans
-     out. Why the connectors need one is at the head of dossier_map_fan.js. */
-  var MAP_FRAC = 0.51, GUT_FRAC = 0.05;
+     panel's height. The map takes all the rest. A 5% GUTTER stood between them
+     on 2026-09-19, for the connector lines to fan across; the lines came off
+     the same day on Ziv's ask and the map has that width back. */
+  var MAP_FRAC = 0.56;
   /* The map area's own shape on the square canvas: 16:9 of the full width, so
      the wide FRAME is what is drawn there. The square frame exists for a 1:1
      map area and this is not one. */
@@ -160,7 +160,7 @@ var DossierMapKey = (function () {
      an 814px pane painting 9.5px text, because 9.5px there IS 15 CSS px at 1280.
      It was 11 until today, and 11 is the size Ziv called too small to read. */
   var FLOOR = 15, READ_MIN = 13;
-  var REPORT = null, LINKS = null, MAP = null, SPLIT = null;
+  var REPORT = null, MAP = null, SPLIT = null;
 
   /* ---- which picture this is ---------------------------------------------- */
 
@@ -237,9 +237,9 @@ var DossierMapKey = (function () {
     }
     /* THE FULL CANVAS HEIGHT, never a 16:9 cut of it: the band a cut leaves
        above and below the map is a third of the picture's height empty. */
-    var mw = Math.round(W * MAP_FRAC), px = mw + Math.round(W * GUT_FRAC);
+    var mw = Math.round(W * MAP_FRAC);
     return { map: { x: 0, y: 0, w: mw, h: H }, frame: "square",
-             panel: { x: px, y: 0, w: W - px, h: H, cols: 1 } };
+             panel: { x: mw, y: 0, w: W - mw, h: H, cols: 1 } };
   }
 
   /* ---- the card the two areas sit on --------------------------------------- */
@@ -341,10 +341,9 @@ var DossierMapKey = (function () {
        inside this file's own save, so the panel cannot inherit the wrong one. */
     ctx.direction = "rtl";
     ctx.beginPath(); ctx.rect(rect.x, rect.y, rect.w, rect.h); ctx.clip();
-    /* A DIVIDER ONLY WHERE THE PANEL SITS UNDER THE MAP. Beside it there is a
-       gutter now, and a rule down the panel's left edge would cut every
-       connector's last segment exactly where it arrives - the bar this whole
-       pass exists to get rid of. The map keeps its own hairline from `card`. */
+    /* A DIVIDER ONLY WHERE THE PANEL SITS UNDER THE MAP. Beside it the map's
+       own hairline from `card` already draws the seam, and a second rule down
+       the panel's left edge would only double it. */
     if (cols > 1) {
       ctx.beginPath();
       ctx.moveTo(rect.x, rect.y); ctx.lineTo(rect.x + rect.w, rect.y);
@@ -382,18 +381,12 @@ var DossierMapKey = (function () {
       });
     });
     ctx.restore();
-    /* THE LINE FROM EACH NUMBER ON THE MAP TO ITS ROW HERE (Ziv, 2026-09-18),
-       and only where the panel sits BESIDE the map: on the square shape it sits
-       under it, and a line to a lower row would have to cross the rows above.
-       Drawn after the clip is lifted, because it belongs to both halves of the
-       picture; dossier_map_link.js routes it round every word. */
-    /* AND A PAGE WITHOUT THAT FILE SAYS SO IN NUMBERS: left off index.html on
-       2026-09-18, the panel drew and zero counters read like a clean picture. */
-    if (cols === 1 && !window.DossierMapLink && window.DossierMapCheck) {
-      DossierMapCheck.add("leader_crossings", seats.length);
-    }
-    LINKS = cols === 1 && window.DossierMapLink
-      ? DossierMapLink.draw(ctx, P, u, map, seats, a, W, a.map.h, taken) : null;
+    /* NOTHING IS DRAWN BETWEEN THE TWO HALVES (Ziv, 2026-09-19: "remove the
+       lines from the Marib... replace the lines with numbers next to the
+       squares"). `seats` is still collected - it is where each row really
+       landed, which is what `report` publishes and what a future reader of this
+       picture would need - but no line leaves the map for it. The join is the
+       number: the same digit on the square and at the head of the row. */
     /* The note size this picture actually painted, as the check reads sizes:
        CSS pixels on a 1280-wide canvas, so one floor covers every shape. */
     if (window.DossierMapLeader) DossierMapLeader.size(pick.noteSize, W);
@@ -405,7 +398,7 @@ var DossierMapKey = (function () {
                cssNote: Math.round(pick.noteSize * BASE_W / W * 10) / 10,
                rows: list.length, cols: cols, used: Math.round(pick.used),
                avail: Math.round(avail), tall: pick.tall, cut: pick.cut,
-               links: LINKS, panel: rect, map: a.map, width: W };
+               seats: seats.length, panel: rect, map: a.map, width: W };
     return REPORT;
   }
 
@@ -462,17 +455,12 @@ var DossierMapKey = (function () {
      dossier_map.js's outer paint and is handed no rect registry; this is called
      from inside the map's own paint, after every name, zone name, governorate
      name and the key box are in `taken` and before the key is painted. So the
-     registry is kept here for the connector lines to be routed against, and the
-     key box is moved out of their way while it still can be. */
-  function discs(ctx, p, P, u, ts, map, taken, W, H, pinR, numbersOnly) {
-    /* LINKED means this picture draws connectors, and then a number that cannot
-       be glued to its own name is not drawn at all: the line already leads to
-       the numbered row, and a loose disc beside a neighbour's mark is the thing
-       it would be read as belonging to. */
-    var wide = !!(SPLIT && SPLIT.panel && (SPLIT.panel.cols || 1) === 1);
-    var out = num().discs(ctx, p, P, u, ts, map, taken, W, H,
-                          wide && !!window.DossierMapFan, pinR, numbersOnly);
-    if (window.DossierMapLink) DossierMapLink.keyMove(u, taken, W, H, wide);
+     registry is kept here for anything drawn beside the map to be measured
+     against. */
+  function discs(ctx, p, P, u, ts, map, taken, W, H, pinR, numbersOnly,
+                 labels) {
+    var out = num().discs(ctx, p, P, u, ts, map, taken, W, H, pinR,
+                          numbersOnly, labels);
     MAP = { taken: taken, W: W, H: H };
     return out;
   }
@@ -492,7 +480,7 @@ var DossierMapKey = (function () {
            PANEL_MIN_W: PANEL_MIN_W,
            report: function () {
              return { panel: REPORT, discs: num().report().discs,
-                      audit: num().report().audit, links: LINKS };
+                      audit: num().report().audit };
            } };
 })();
 

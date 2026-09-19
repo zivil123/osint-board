@@ -26,7 +26,12 @@
                          next to (2026-09-19, rule 8 of MAP_RULES.md).
      mark_unlabelled     a mark was painted and NOTHING on the picture says
                          what it is: no name touching it, no numbered disc
-                         glued to it, no callout arrow reaching it.
+                         glued to it, no callout arrow reaching it. ON A LIST
+                         PICTURE it says more than that: every mark that owns a
+                         numbered row must carry its DISC, touching it, and a
+                         name beside the mark does not stand in for one (Ziv,
+                         2026-09-19 - the numbers ARE the join now that the
+                         connector lines are gone).
      legend_orphan       a key row names a mark the picture never painted, or
                          the picture painted a mark kind the key never names.
 
@@ -218,9 +223,16 @@ var DossierMapInk = (function () {
   /* A NUMBERED DISC IS GLUED TO THIS MARK, or a callout's arrow ends on it.
      Either says which place it is as plainly as a name does - the number is
      read off the list beside the picture, the arrow off the sentence it came
-     from - so both claim the mark. */
-  function numbered(x, y) {
-    at(x, y).forEach(function (o) { o.named = true; });
+     from - so both claim the mark.
+     `glued` is the STRICTER answer: the disc is touching its own unit, the
+     mark or the name printed against it, rather than standing off at the end
+     of a hairline. A list picture is held to that one (`audit` below); every
+     other picture is held to `named`. */
+  function numbered(x, y, glued) {
+    at(x, y).forEach(function (o) {
+      o.named = true;
+      if (glued !== false) o.disc = true;
+    });
   }
 
   /* ---- the picture is finished: what was left unsaid ----------------------- */
@@ -237,25 +249,9 @@ var DossierMapInk = (function () {
      describes the PICTURE rather than naming a mark on it - the claim caveat,
      the territory fills, the line of contact - carries none and is not asked:
      it can never be orphaned by a painter, because no painter decides it. */
-  /* A MARK WITH A CONNECTOR COMING IS ALREADY EXPLAINED, and this is the one
-     claim that cannot be made by the painter that makes it: the gutter fan is
-     drawn by the PANEL, downstream of the map's own paint, so it would arrive
-     after this audit. The LANE PLAN is made before any name is placed
-     (dossier_map_fan.js `plan`), and a planned lane is a line that will be
-     drawn - a row left without one is counted and named by
-     dossier_map_link.js. The line ends on the row that carries the number AND
-     the sentence, which says whose square it is more exactly than a disc glued
-     beside it, so a disc that could not be glued and was left off the picture
-     no longer leaves the square accused of saying nothing. */
-  function linked(mapId) {
-    var F = window.DossierMapFan, plan = F && F.get();
-    if (!plan || plan.mapId !== mapId) return;
-    plan.marks.forEach(function (m) { numbered(m.mx, m.my); });
-  }
   function audit(mapId, legend) {
     var C = window.DossierMapCheck;
     if (!C) return null;
-    linked(mapId);
     pend.forEach(function (q) {
       if (said(q.he)) {
         console.warn("dossier map " + (mapId || "?") + ": " + q.key + " is " +
@@ -268,11 +264,23 @@ var DossierMapInk = (function () {
       C.drop(q.key);
     });
     C.add("name_far_from_mark", 0);
-    var lost = owned.filter(function (o) { return o.drawn && !o.named; });
+    /* ON A LIST PICTURE THE DISC IS THE RULE, not a second-best to a name
+       (Ziv, 2026-09-19). A mark that owns a numbered row has to carry that
+       number TOUCHING it, because the number is now the only thing joining the
+       square to the sentence beside the map. A name printed against the mark is
+       still wanted and still placed - it just no longer excuses a missing
+       disc. Every other mark is held to the older question: does ANYTHING on
+       the picture say what this is. */
+    var lost = owned.filter(function (o) {
+      return o.drawn && (!o.named || (o.needsDisc && !o.disc));
+    });
     C.add("mark_unlabelled", lost.length);
     if (lost.length) {
       console.error("dossier map " + (mapId || "?") + ": nothing names " +
-        lost.map(function (o) { return o.tag; }).join(", ") +
+        lost.map(function (o) {
+          return o.tag + (o.needsDisc && !o.disc ? " (no number disc" +
+            " touching it)" : "");
+        }).join(", ") +
         " - no name touching the mark, no number glued to it");
     }
     var rows = (legend && legend.rows) || null, orphan = 0, want = {};
@@ -392,8 +400,21 @@ var DossierMapInk = (function () {
      back as two parallel lists and nothing is written onto the record - DOSSIER
      is the same object at every paint, and a rectangle left on a label would
      outlive the canvas it was measured for. */
+  /* WHICH MARKS OWE A NUMBER. A LIST picture (`key: "panel"`) joins each mark
+     to its row by the digit alone since the connector lines came off, so every
+     place that owns a row must carry its disc against the mark. A callouts
+     picture draws an ARROW from the sentence to the place, which is its own
+     join, so it is not held to this. */
+  function rowsOf(map) {
+    var out = {};
+    if (!map || map.key !== "panel") return out;
+    (map.notes || []).forEach(function (n) { out[n.place] = true; });
+    return out;
+  }
+
   function reserve(p, R, u, map, o) {
     var G = (typeof GEO !== "undefined" && GEO) ? GEO : null;
+    var rows = rowsOf(map);
     begin();
     /* The fighting zones' diamonds, on every map that draws them - a clean map
        draws none, which is why the flag is read and not guessed at. */
@@ -421,14 +442,25 @@ var DossierMapInk = (function () {
          the only kind of mark a reader expects a word beside, and `audit` will
          ask of each one whether anything on the finished picture said what it
          is. `drawn` stays false until the mark is really painted. */
-      owned.push({ box: b, tag: tag, drawn: false, named: false });
+      owned.push({ box: b, tag: tag, drawn: false, named: false,
+                   disc: false, needsDisc: !!rows[l.place] });
     });
+    /* AND THE GROUND EACH NUMBER IS OWED, for the same reason and in the same
+       breath (2026-09-19). On a list picture the digit is the only thing
+       joining a square to its row, so a disc-sized rectangle beside every
+       numbered mark is claimed before a word is measured - one floor-sized
+       square each, on the side away from the name's own anchor. The rule and
+       what was measured without it are in dossier_map_spot.js, `slots`. */
+    if (window.DossierMapSpot && DossierMapSpot.slots) {
+      DossierMapSpot.slots(p, R, u, map, o);
+    }
   }
 
   function report() {
     return { marks: marks.length, words: words.length, kinds: kinds,
              owned: owned.map(function (o) {
-               return { tag: o.tag, drawn: o.drawn, named: o.named };
+               return { tag: o.tag, drawn: o.drawn, named: o.named,
+                        disc: o.disc, needsDisc: o.needsDisc };
              }),
              tags: { marks: marks.map(function (m) { return m.tag; }),
                      words: words.map(function (w) { return w.tag; }) } };

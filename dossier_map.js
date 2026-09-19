@@ -265,12 +265,10 @@ var DossierMap = (function () {
                          ts * (a.map.w > 0 ? W / a.map.w : 1), variant, a.frame);
     ctx.restore();
     /* THE PANEL IS HANDED WHAT THE MAP ALREADY COVERED - every rectangle the
-       map area reserved, the SAME array and objects, so a connector is checked
-       against every name and lets itself out of its own lane by IDENTITY
-       (copying the list to add a zero offset broke exactly that). NOT
-       TRANSLATED: map-area pixels and canvas pixels are the same numbers here,
-       because the wide split puts the map at the canvas origin - which
-       dossier_map_link.js asserts and refuses without. */
+       map area reserved, the SAME array and objects, so anything drawn beside
+       the map can be measured against every name on it. NOT TRANSLATED:
+       map-area pixels and canvas pixels are the same numbers here, because the
+       wide split puts the map at the canvas origin. */
     K.panel(ctx, P, u, ts, map, a, W, taken);
     if (C) C.end();
   }
@@ -320,12 +318,11 @@ var DossierMap = (function () {
        same 16*u edge. */
     var titleTop = 16 * u;
     var taken = [];
-    /* THE CONNECTORS' LANES FIRST, before the legend is laid out and before any
-       name is placed (2026-09-19): a key-panel picture joins each mark to its
-       row along a horizontal lane, and the WORDS move off those rather than the
-       lines bending round the words. dossier_map_fan.js owns the shape. */
-    if (window.DossierMapFan) DossierMapFan.plan(p, u, map, W, H, taken, pinR,
-      window.DossierMapKey ? DossierMapKey.splitOf() : null);
+    /* NO LANES ARE RESERVED HERE ANY MORE. A key-panel picture joined each mark
+       to its row along a horizontal lane for one day; Ziv took the lines off on
+       2026-09-19 ("replace the lines with numbers next to the squares"), so
+       nothing is claimed before the legend and the names, and the whole map
+       band is theirs again. MAP_RULES.md rule 3. */
     /* WHICH CORNER the legend takes is decided per render, by what would be
        under each of the four (dossier_map_legend.js); the frame's authored
        `legend` only breaks a tie, one frame being drawn 3:2 on the page and
@@ -362,7 +359,7 @@ var DossierMap = (function () {
     }
     var placed = R.placeLabels(ctx, p, P, R, u, map, {
       W: W, H: H, taken: taken, size: size, labelSize: labelSize, pinR: pinR,
-      notesOn: notesOn, gainKeys: gainKeys, mapId: mapId,
+      notesOn: notesOn, gainKeys: gainKeys, mapId: mapId, ts: ts,
       numbersOnly: numbersOnly });
     /* AND THE PLACES THAT ENDED UP AS A NUMBER AND NO NAME, whatever the
        picture. A name with no adjacent spot is not printed far away any more
@@ -402,8 +399,12 @@ var DossierMap = (function () {
       need("dossier_map_notes.js", window.DossierMapNotes)
         .draw(ctx, p, P, u, ts, map, taken, W, H, size, numbersOnly, pinR);
     } else if (map.key === "panel") {
+      /* THE LABEL LIST GOES IN TOO, and it is not read-only: a name that has
+         the only ground its own number could touch the square from is
+         WITHDRAWN there, and the picture shows that place by its number alone
+         (MAP_RULES.md rule 3). Nothing is painted yet - paintLabels is below. */
       need("dossier_map_key.js", window.DossierMapKey)
-        .discs(ctx, p, P, u, ts, map, taken, W, H, pinR, numbersOnly);
+        .discs(ctx, p, P, u, ts, map, taken, W, H, pinR, numbersOnly, labels);
     }
     R.paintLabels(ctx, P, R, u, labels);
     if (legend) R.paintLegend(ctx, P, u, legend);

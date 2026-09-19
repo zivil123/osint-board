@@ -294,7 +294,7 @@ var DossierMapNotes = (function () {
          Without it a phone's callouts fell back to nine discs loose on the
          terrain, and dossier_map_ink.js counted every one of those marks as
          unlabelled - which is exactly what a reader would have found. */
-      return N().discs(ctx, p, P, u, ts, map, taken, W, H, false, pinR, only);
+      return N().discs(ctx, p, P, u, ts, map, taken, W, H, pinR, only, null);
     }
     /* EVERY LEADER FIRST, AND EVERY LEADER ROUND EVERY BOX (2026-09-18). It
        used to be "behind": a leader was CLIPPED out of the other callouts'
