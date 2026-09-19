@@ -17,18 +17,15 @@
    here at paint time, exactly as it calls the other three painter files; the
    shared helpers come from DossierMapDraw, looked up on each call so the files
    may load in any order. The zones' own rings, colours, glyphs and key rows
-   left for dossier_map_zones.js on 2026-09-17, when a colour per type would
-   have taken this file over its cap; it is looked up the same way. WHERE A
-   ROUTE'S NAME GOES left for dossier_map_route_label.js the same day, when the
-   authored anchor and its leader line would have done the same - this file
-   draws the LINES, that one places their WORDS.
+   left for dossier_map_zones.js on 2026-09-17, and WHERE A ROUTE'S NAME GOES
+   for dossier_map_route_label.js the same day: this file draws the LINES, that
+   one places their WORDS. Both are looked up the same way.
 
    EVERY PAINTED STRING IS HEBREW AND DIGITS. A distance reads
    'כ-192 ק"מ / 104 מייל ימי' - the build refuses a Latin letter in any map
-   string, so there is no "km" and no "NM" on a canvas anywhere. And the numbers
-   are COMPUTED here, by haversine along the authored path, never authored: a
-   distance typed into the record is a distance nobody can check, and the path
-   it is meant to describe is right there. */
+   string, so there is no "km" and no "NM" on a canvas anywhere. The numbers are
+   COMPUTED here, by haversine along the authored path, never authored: a typed
+   distance is one nobody can check, and the path it describes is right here. */
 "use strict";
 
 var DossierMapRoutes = (function () {
@@ -88,11 +85,11 @@ var DossierMapRoutes = (function () {
   /* A label may name what KIND of place it is, and the mark follows: a declared
      objective is a filled square, a ridge a summit triangle, a port a ring, and
      anything else keeps the town dot exactly as it has been drawn since
-     2026-09-14. No new hue - every one of these is the ink over a halo disc, and
-     the legend says in words which is which (design-law: colour, and shape, never
-     carry meaning alone). A dark plate behind the NAME was the other candidate
-     and was not taken: nine filled boxes over terrain is a painted field, which
-     design-law bans, and the halo the names already carry does the same work. */
+     2026-09-14. No new hue - each is the ink over a halo disc and the legend
+     says in words which is which (design-law: colour, and shape, never carry
+     meaning alone). A dark plate behind the NAME was the other candidate and
+     was not taken: nine filled boxes over terrain is a painted field, which
+     design-law bans, and the names' own halo does the same work. */
   var SCALE = { objective: 1.7, heights: 1.9, port: 1.7 };
 
   function markClear(pinR, kind) { return pinR * (SCALE[kind] || 1); }
@@ -111,9 +108,14 @@ var DossierMapRoutes = (function () {
     D().paintShape(ctx, style);
   }
   /* `r` is the FINAL radius - dossier_map.js has already run it through
-     markClear, so the name's own gap and the mark can never disagree. */
-  function mark(ctx, P, x, y, r, u, kind) {
+     markClear, so the name's own gap and the mark can never disagree.
+     `swatch` says this is the KEY's own copy of the mark and not one on the
+     map: the picture check asks whether every row of the key is a mark the
+     picture really paints (`legend_orphan`), and a key that counted its own
+     swatches would always prove itself. */
+  function mark(ctx, P, x, y, r, u, kind, swatch) {
     var R = D(), lift = Math.max(1, 1.2 * u);
+    if (!swatch && window.DossierMapInk) DossierMapInk.painted(x, y, kind);
     if (kind === "heights") {
       triangle(ctx, x, y, r + lift, { fill: P.halo });
       triangle(ctx, x, y, r, { fill: P.ink });
@@ -171,34 +173,30 @@ var DossierMapRoutes = (function () {
 
      IT WAS 2 FOR SIX HOURS AND THE LINE THEN TOUCHED THE LAND. Ziv, the same
      day, on the zoomed-in frame: *"show the naval route better, right now it
-     touches the land all the way."* At 2 the halo casing is (3.4*2 + 4)*u wide
-     - 14.8 px either side of the centre on a 2560 px slide - and the western
-     channel between Perim and Ras Siyyan leaves only 13.3 px of water at its
-     narrowest, so the casing crossed both shores. At 1.4 it is 10.4 px and the
-     line reads as a line IN the water. The path was never the problem: it is
-     sampled every kilometre against the coastline and its narrowest open-water
-     clearance is 5.9 km. */
+     touches the land all the way."* At 2 the halo casing is 14.8 px either side
+     of the centre on a 2560 px slide and the western channel between Perim and
+     Ras Siyyan leaves only 13.3 px of water at its narrowest, so the casing
+     crossed both shores; at 1.4 it is 10.4 px and reads as a line IN the water.
+     The path was never the problem - sampled every kilometre against the
+     coastline, its narrowest open-water clearance is 5.9 km. */
   var CLEAN_ROUTE = 1.4;
 
   /* A DOTTED ROUTE (2026-09-17). Ziv, of the crossing: *"make the naval route
-     dotted instead"*, and then, of the string of beads that made: *"make the
-     dotted thing less dotted, fewer dots, right now there are too many."* So it
-     is a SPARSE DASH - about three stroke widths of ink and two of water. The
-     pair written here is [2w, 3w] and not [3w, 2w] because paintShape rounds
-     every cap, and a round cap hands half a width back to the dash at each end:
-     drawn 2w and 3w, the eye gets 3w of line and 2w of gap. The value is still
-     called `dotted` - it is what he calls it. The legend swatch reads this same
-     helper, so a key is never solid over a broken line. */
+     dotted instead"*, then of the string of beads that made: *"make the dotted
+     thing less dotted, fewer dots."* So it is a SPARSE DASH - about three
+     stroke widths of ink and two of water. [2w, 3w] and not [3w, 2w] because
+     paintShape rounds every cap and a round cap hands half a width back at each
+     end: drawn 2w and 3w, the eye gets 3w of line and 2w of gap. The legend
+     swatch reads this helper, so a key is never solid over a broken line. */
   function dashOf(rt, w) {
     return rt && rt.stroke === "dotted" ? [w * 2, w * 3] : null;
   }
   /* THE LENGTH CALLOUT IS SET SMALLER THAN THE MAP'S OTHER CLEAN TEXT, and that
-     is measurement, not taste. At CLEAN_TEXT the one-line block measures 890 px
-     on a 2560 px slide - 4.06 deg of an 11.68 deg frame - and the two things it
-     must do cross each other: to clear the route to its west it must stand east
-     of 45.88E, to stay off the square picture's eastern rim it must stand west
-     of 45.30E. At 1.15 the block is 2.92 deg and does both with about 90 px to
-     spare, and still reads at arm's length on a slide (59 px). */
+     is measurement, not taste. At CLEAN_TEXT the one-line block measures 4.06
+     deg of an 11.68 deg frame and its two duties cross: to clear the route it
+     must stand east of 45.88E, to stay off the square rim west of 45.30E. At
+     1.15 it is 2.92 deg, does both with 90 px to spare and still reads at arm's
+     length on a slide (59 px). */
   var CALLOUT_TEXT = 1.15;
 
   function routeK(m) { return m && m.clean ? CLEAN_ROUTE : 1; }
@@ -260,12 +258,11 @@ var DossierMapRoutes = (function () {
   /* THE WHOLE HEAD SHOWS, AND IT STOPS OFFSHORE (2026-09-18). Ziv, of the
      crossing: *"make that the arrow is not like going straight into the white
      line in Djibouti, make it show the whole arrow."* A route's last point is a
-     PORT and a port is ON the coast, so a head drawn at it landed under three
-     things painted after the route - the coast stroke, the port's own white pin
-     ring and the halo of its name - and what was left read as half an arrow. So
-     the head's tip stops this far short of the last point and looks at the port
-     across open water. The floor is what the pin needs on a small canvas: a
-     port mark is 1.7 pin radii, and that radius has a 3px floor (dossier_map.js). */
+     PORT and a port is ON the coast, so a head drawn at it landed under the
+     coast stroke, the port's white pin ring and the halo of its name, and what
+     was left read as half an arrow. The tip stops this far short and looks at
+     the port across open water; the floor is what the pin needs on a small
+     canvas (a port mark is 1.7 pin radii, itself floored at 3px). */
   var TIP_CLEAR = 16;
 
   function tipShort(pts, back) {
@@ -318,13 +315,12 @@ var DossierMapRoutes = (function () {
       pts = tipShort(pts, clear + w);
       poly(ctx, pts);
       /* THE CASING DOES NOT TAKE THE CLEAN FACTOR (2026-09-17). It is there so
-         the line reads over terrain, and 4*u either side does that at any
-         weight; multiplying it by the clean factor as well put 14.8 px of white
-         either side of the centre on a 2560 px slide, and the western channel
-         at its narrowest leaves 13.3 px of water - so the casing, not the line,
-         was what sat on both shores. Ziv: *"right now it touches the land all
-         the way."* A DOTTED line takes a thinner casing still: at 4*u the white
-         blobs almost meet and close the gaps the dots are there for. */
+         the line reads over terrain and 4*u either side does that at any
+         weight; taking the clean factor too put 14.8 px of white either side on
+         a 2560 px slide where the western channel leaves 13.3 px of water - so
+         the casing, not the line, sat on both shores. Ziv: *"right now it
+         touches the land all the way."* A DOTTED line takes a thinner casing
+         still: at 4*u the white blobs close the gaps the dots are there for. */
       R.paintShape(ctx, { stroke: P.halo, width: w + (dash ? 2.5 : 4) * u,
         dash: dash });
       poly(ctx, pts);
@@ -444,11 +440,16 @@ var DossierMapRoutes = (function () {
     });
     var glyph = function (kind) {
       return function (c, Q, uu, x, cy, sw, sh) {
-        mark(c, Q, x + sw / 2, cy, sh * 0.34, uu, kind);
+        mark(c, Q, x + sw / 2, cy, sh * 0.34, uu, kind, true);
       };
     };
+    /* `kind` on the row is what dossier_map_ink.js's audit holds the key to:
+       this row promises the reader a mark of that kind somewhere on the
+       picture, and `legend_orphan` counts it when there is none (2026-09-19).
+       Ziv, of the heat map: the key still carried the black-triangle row for a
+       mountain ridge after Jabal Habashi's triangle had gone off the map. */
     ["objective", "heights", "port"].forEach(function (k) {
-      if (kinds[k]) rows.push({ draw: glyph(k), label: HE[k] });
+      if (kinds[k]) rows.push({ draw: glyph(k), label: HE[k], kind: k });
     });
     /* The zones' own rows - one per TYPE plus the dotted-edge line - are built
        by the file that paints them, for the same reason this file builds these:

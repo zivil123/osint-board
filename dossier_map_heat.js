@@ -10,37 +10,31 @@
    for is painted the ordinary contested wash rather than left blank or guessed
    at, so a data gap shows as "no reading" and never as "quiet".
 
-   WHY A COLOUR AND NOT A WIDTH. A belt's width is already spoken for - it is
-   12 km of sourced contact either side of the line (UI.md, "A front is a BELT
-   ON THE LINE") - so thickening one would say the fighting covers more ground
-   than the source said. A rank on this board is a colour scale with a key, and
-   nothing else.
+   WHY A COLOUR AND NOT A WIDTH. A belt's width is already spoken for - 12 km
+   of sourced contact either side of the line (UI.md, "A front is a BELT ON THE
+   LINE") - so thickening one would say the fighting covers more ground than the
+   source said. A rank on this board is a colour scale with a key, and no more.
 
    EACH BELT IS FILLED ON ITS OWN, one beginPath/fill per feature, which the
-   single even-odd path in draw.js could not do. That is only safe because the
-   build refuses a front shape that is not a simple ring and refuses any two
-   that overlap (UI.md L174-219): no fill here can punch a hole in another.
+   single even-odd path in draw.js could not do - safe only because the build
+   refuses a front shape that is not a simple ring and refuses any two that
+   overlap (UI.md L174-219): no fill here can punch a hole in another.
 
    AND THE SAME NUMBER, WRITTEN ON THE BELT (2026-09-18). Ziv: *"mark on the
-   map, on the fronts, the number of how much fighting there is, so we can
-   understand from the start how much fighting there is. And also show what
-   dates the information is from."* A colour has to be carried to the key and
-   back before it says anything - so badges() writes every belt's level on it
-   as a digit and stamps the window beside the key, both LAST so nothing can
-   cover them.
+   map, on the fronts, the number of how much fighting there is... And also show
+   what dates the information is from."* A colour has to be carried to the key
+   and back before it says anything - so badges() writes every belt's level on it
+   as a digit and stamps the window beside the key, LAST so nothing covers them.
 
    NO ES modules - the page runs from file://. One global:
-
-     window.DossierMapHeat = { fronts, legendRows, ramp, words,
-                               badges, report, audit, windowText }
-
+     window.DossierMapHeat = { fronts, legendRows, ramp, words, badges, report,
+                               audit, windowText }
    ground() in dossier_map_draw.js calls fronts() in place of the one contested
-   fill and then paints its hatch, its outline and its red diamond on top,
-   unchanged; the legend calls legendRows(); dossier_map.js calls badges() as
-   the last thing on a heat map. The shared helpers come from DossierMapDraw at
-   call time, so the files may load in any order. The Hebrew words of the scale
-   are authored HERE, the way dossier_map_zones.js owns its own - they name this
-   layer's five steps and no other file has a use for them. */
+   fill and then paints its hatch, outline and red diamond on top, unchanged; the
+   legend calls legendRows(); dossier_map.js calls badges() as the last thing on
+   a heat map. Shared helpers come from DossierMapDraw and DossierMapExtra.kit at
+   call time, so the files may load in any order. The scale's Hebrew words are
+   authored HERE, as dossier_map_zones.js owns its own. */
 "use strict";
 
 var DossierMapHeat = (function () {
@@ -51,23 +45,20 @@ var DossierMapHeat = (function () {
     return window.DossierMapDraw;
   }
 
-  /* FIVE STEPS, MONOTONE IN LIGHTNESS, one set per ground. On the light deck
-     the scale runs pale to deep, the ordinary reading of "more"; on the dark
-     board it must run the other way - a near-black step 5 would vanish into the
-     board instead of shouting - so it runs deep to bright. Neither end is the
-     red of the fighting-zone diamond (#E01B0F light): the deepest light step
-     #A50F15 is darker and far less orange, so a mark still reads on top of the
-     ground it marks. */
+  /* FIVE STEPS, MONOTONE IN LIGHTNESS, one set per ground. Light deck: pale to
+     deep, the ordinary reading of "more". Dark board: deep to bright, a
+     near-black step 5 vanishing into the board instead of shouting. Neither end
+     is the fighting-zone diamond's red (#E01B0F light): the deepest light step
+     #A50F15 is darker and far less orange, so a mark still reads on it. */
   var RAMP = {
     light: ["#FEE5D9", "#FCAE91", "#FB6A4A", "#DE2D26", "#A50F15"],
     dark: ["#4A1512", "#7E2318", "#B1301C", "#DC5A2A", "#F59A4B"]
   };
-  /* THE DIGIT ON A CHIP IS MEASURED, NEVER PICKED BY EYE. The chip is the
-     step's own colour, so one ink cannot serve five - the dark ink holds 15.6:1
-     on the light ramp's step 1 and 3.5:1 on its step 4, and the dark ramp runs
-     the other way up. Each step takes whichever reads better ON it; audit()
-     asserts all ten clear 4.5:1, the dark ink being a shade under #14202C,
-     which measured 4.35:1 on dark step 4. */
+  /* THE DIGIT ON A CHIP IS MEASURED, NEVER PICKED BY EYE. The chip is the step's
+     own colour, so one ink cannot serve five - the dark ink holds 15.6:1 on
+     light step 1 and 3.5:1 on light step 4, and the dark ramp runs the other way
+     up. Each step takes whichever reads better ON it; audit() asserts all ten
+     clear 4.5:1 (#14202C measured 4.35:1 on dark step 4, hence #0B121A). */
   var INK_D = "#0B121A", INK_L = "#FFFFFF";
 
   function lum(hex) {
@@ -85,23 +76,19 @@ var DossierMapHeat = (function () {
   function digitInk(step) {
     return ratio(INK_D, step) >= ratio(INK_L, step) ? INK_D : INK_L;
   }
-  /* The key's five rows. A number AND a word on every one: the number is what
-     the reader matches against the colour, the word is what it means. */
+  /* The key's five rows. A number AND a word on each: the number is what the
+     reader matches against the colour, the word is what it means. */
   var WORDS = ["1 — שקט יחסית", "2 — לחימה מועטה", "3 — לחימה מתונה",
                "4 — לחימה כבדה", "5 — הלחימה הכבדה ביותר"];
 
   /* A GLOW UNDER THE BELTS (2026-09-17). A belt is 12 km of sourced contact on
-     a frame 500 km across, which is three pixels: the scale was right and
-     unreadable, and a reader had to hunt for the colour before it could tell
-     them anything. So every belt's ring is stroked in its own level colour,
-     wide and soft, before the fills go down - the fighting is not spread any
-     wider (the fill, the hatch and the outline still say exactly where it is),
-     but the ATTENTION is. Ascending level, so where two glows meet the hotter
-     one is on top and the eye is not sent to the quieter front. */
+     a 500 km frame - three pixels: the scale was right and unreadable. So every
+     ring is stroked in its level colour, wide and soft, before the fills go
+     down; the fighting is not spread wider (fill, hatch and outline still say
+     where it is), the ATTENTION is. Ascending, so the hotter glow is on top. */
   var GLOW_W = 22, GLOW_A = 0.32;
 
-  /* Takes a palette or a bare theme name, because the HTML key under the
-     picture (dossier_map_block.js) has only the name. */
+  /* A palette or a bare theme name: the HTML key has only the name. */
   function ramp(P) {
     var t = typeof P === "string" ? P : (P && P.theme);
     return RAMP[t === "light" ? "light" : "dark"];
@@ -121,9 +108,8 @@ var DossierMapHeat = (function () {
   }
 
   /* Painted at the SAME fade the contested wash uses, so a heat map over the
-     terrain keeps the relief readable exactly as the plain one does; the hatch,
-     the outline and the diamond that follow in ground() are never washed back
-     and are not this function's business. */
+     terrain keeps the relief readable as the plain one does; the hatch, the
+     outline and the diamond that follow in ground() are not its business. */
   function fronts(ctx, p, P, u, G, heat, opt) {
     var R = D(), o = opt || {}, colors = ramp(P), lv = levels(heat), list = [];
     R.eachFeature(G.fronts, function (f) {
@@ -150,12 +136,10 @@ var DossierMapHeat = (function () {
   }
 
   /* THE KEY BECOMES A SCALE. The one שטח לחימה פעיל row leaves and the five
-     steps take its place, in its place in the list - so the key never names a
-     colour that is not on the picture, and never leaves one on the picture
-     unnamed. The row that leaves is carrying the hatch pattern the belts are
-     drawn with, built against the canvas the legend was measured on, so each
-     scale row reuses it and a swatch still reads as a fighting zone rather than
-     as a plain square. */
+     steps take its place in the list - so the key never names a colour that is
+     not on the picture, and never leaves one on it unnamed. The row that leaves
+     carries the hatch the belts are drawn with, built against the canvas the
+     legend was measured on, so a swatch still reads as one. */
   function legendRows(P, u, map, rows) {
     var list = (rows || []).slice(), at = -1, i;
     for (i = 0; i < list.length; i++) {
@@ -166,15 +150,14 @@ var DossierMapHeat = (function () {
     var scale = ramp(P).map(function (c, n) {
       return { fill: c, label: WORDS[n],
         draw: function (cx2, P2, u2, sx, cy, sw, sh) {
-          badge(cx2, P2, sx + sw / 2, cy, Math.min(sw, sh) / 2, n + 1, u2, c);
+          badge(cx2, P2, sx + sw / 2, cy, keyR(sw, sh, u2), n + 1, u2, c);
         } };
     });
     /* AND ONE ROW FOR THE MARK, under the scale. Every belt still carries the
-       red diamond, whatever its level, and a mark on the map with no row in the
-       key is a mark nobody can read - so the row the scale replaced hands its
-       own words and its own swatch straight back, minus the one fill that is no
-       longer on this picture. Once, never per level: the diamond says the same
-       thing on all five. */
+       red diamond, whatever its level, and a mark with no row in the key is a
+       mark nobody can read - so the row the scale replaced hands its own words
+       and swatch straight back, minus the fill no longer on this picture. Once,
+       never per level: the diamond says the same thing on all five. */
     scale.push({ hatch: old.hatch, stroke: old.stroke, dash: old.dash,
                  width: old.width, mark: true, label: old.label });
     return list.slice(0, at).concat(scale, list.slice(at + 1));
@@ -182,11 +165,11 @@ var DossierMapHeat = (function () {
 
   /* ---- the level digit, written on the belt -------------------------------- */
 
-  /* A COLOURED CHIP, NOT A WHITE DISC, and both halves are one decision. The
-     key panel's objectives are numbered white DISCS (dossier_map_key.js) and on
-     fronts_heat_reports they stand a few pixels from these: identical marks, a
-     row number and a level. So a level is a rounded SQUARE filled with ITS OWN
-     STEP - its belt's colour, its key row's - and white circles stay the notes'. */
+  /* A COLOURED CHIP, NOT A WHITE DISC. The key panel's objectives are numbered
+     white DISCS (dossier_map_key.js) and on fronts_heat_reports they stand a
+     few pixels from these: identical marks, a row number and a level. So a
+     level is a rounded SQUARE filled with ITS OWN STEP - its belt's colour,
+     its key row's - and white circles stay the notes'. */
   var BADGE_R = 12, BADGE_MIN = 10;
   /* How finely a belt is sampled: the chip is WIDER than a 12 km band. */
   var SPOTS = 40;
@@ -194,10 +177,9 @@ var DossierMapHeat = (function () {
   var REPORTS = [], REPORT_MAX = 40;
   /* The date stamp, in the board's day.month form (docs\gains.js). PAINTED AS
      TWO RUNS AND NOT ONE STRING (`parts()`): in an rtl run the dash between two
-     numbers is a neutral BETWEEN NUMBERS, which the bidi algorithm resolves as
-     if numbers were right-to-left. Chromium renders one marked string forwards
-     (measured 2026-09-18) - but a range reading backwards on another engine is
-     a WRONG DATE, so nothing depends on it. */
+     numbers is a neutral BETWEEN NUMBERS, which bidi resolves as if numbers ran
+     right-to-left. Chromium renders one marked string forwards (2026-09-18) -
+     but a range reading backwards elsewhere is a WRONG DATE. */
   var WINDOW_HE = "תקופת הדיווחים:";
   function dayMonth(iso) {
     var s = String(iso || "").split("-");
@@ -232,8 +214,8 @@ var DossierMapHeat = (function () {
     });
     return hit;
   }
-  /* The belt's centreline point - the average of its biggest ring's vertices,
-     which lands on the contact line and is where the red diamond goes. */
+  /* The belt's centreline point - its biggest ring's average vertex, which
+     lands on the contact line and is where the red diamond goes. */
   function heart(rings) {
     var best = null, area = 0;
     rings.forEach(function (r) {
@@ -253,7 +235,7 @@ var DossierMapHeat = (function () {
              x1: Math.max.apply(null, xs), y1: Math.max.apply(null, ys) };
   }
   /* On the belt's own EDGE - within `d` of its outline? A belt is a buffered
-     stretch of contact line, so measuring to its vertices measures to it. */
+     stretch of line, so measuring to its vertices measures to it. */
   function near(rings, x, y, d) {
     return rings.some(function (r) {
       return r.some(function (q) {
@@ -261,8 +243,8 @@ var DossierMapHeat = (function () {
       });
     });
   }
-  /* Somewhere on the belt to stand, NEAREST FIRST, so a digit never wanders off
-     down the band. The grid reaches `pad` past the belt's box, for pass two. */
+  /* Somewhere on the belt to stand, NEAREST FIRST; the grid reaches `pad` past
+     the belt's box, for pass two. */
   function spotsOn(s, pad) {
     var out = [{ x: s.cx, y: s.cy, d: 0 }], i, k, x, y;
     var x0 = s.x0 - pad, y0 = s.y0 - pad;
@@ -276,46 +258,36 @@ var DossierMapHeat = (function () {
     return out.sort(function (a, b) { return a.d - b.d; });
   }
   function boxAt(x, y, r) { return { x0: x - r, y0: y - r, x1: x + r, y1: y + r }; }
-  /* Does a leader touch a box? Liang-Barsky, as extra.js and notes.js keep. */
-  function segBox(g, b) {
-    var x = g[0], y = g[1], dx = g[2] - x, dy = g[3] - y, t0 = 0, t1 = 1, i, q, r, t;
-    var e = [[-dx, x - b.x0 - 1], [dx, b.x1 - 1 - x],
-             [-dy, y - b.y0 - 1], [dy, b.y1 - 1 - y]];
-    for (i = 0; i < 4; i++) {
-      q = e[i][0]; r = e[i][1];
-      if (q === 0) { if (r < 0) return false; continue; }
-      t = r / q;
-      if (q < 0) { if (t > t1) return false; if (t > t0) t0 = t; }
-      else { if (t < t0) return false; if (t < t1) t1 = t; }
-    }
-    return true;
-  }
   /* THE CALLOUT LEADERS OF A `key: "callouts"` PICTURE, drawn before this
-     painter runs and NOT in `taken` - only the boxes are. Rebuilt from what
-     dossier_map_notes.js reports plus the notes' points: each place takes the
-     box its leader is shortest to. Read only when the report is this canvas's. */
+     painter runs and NOT in `taken` - only the boxes are. TAKEN STRAIGHT FROM
+     THE REPORT since 2026-09-18, bends and all, so a chip is kept off the line
+     really drawn: it used to rebuild them from `rep.boxes`, a field report never
+     carried, so the list came back EMPTY and a badge could land on an arrow. */
   function leadersOf(p, u, map, W, H) {
     if (!map || map.key !== "callouts" || !window.DossierMapNotes) return [];
     var rep = DossierMapNotes.report();
     if (!rep || rep.width !== W || rep.height !== H) return [];
-    var boxes = rep.boxes || [], out = [];
-    (map.notes || []).forEach(function (n) {
-      if (typeof n.lon !== "number" || typeof n.lat !== "number") return;
-      var q = p(n.lon, n.lat), best = null, len = Infinity;
-      boxes.forEach(function (b) {
-        var g = [Math.max(b.x0, Math.min(q[0], b.x1)),
-                 Math.max(b.y0, Math.min(q[1], b.y1)), q[0], q[1]], d;
-        d = Math.hypot(g[2] - g[0], g[3] - g[1]);
-        if (d < len) { len = d; best = g; }
-      });
-      if (best && len >= 4 * u) out.push(best);
+    return (rep.routes || []).filter(function (rt) {
+      return rt && rt.segs.length && rt.len >= 4 * u;
     });
-    return out;
   }
   function plate(ctx, x, y, r) {
     ctx.beginPath();
     if (ctx.roundRect) ctx.roundRect(x - r, y - r, 2 * r, 2 * r, r * 0.36);
     else ctx.rect(x - r, y - r, 2 * r, 2 * r);
+  }
+  /* THE LEVEL IN THE KEY IS STILL A LEVEL TO READ (2026-09-19). A chip drawn to
+     fit the 16k swatch writes its digit at 61% of the key's own words: 25 CSS px
+     on a slide, where nobody noticed, and 12 on the 1230px board, under the
+     floor. It grows to what the floor needs and no further - the 26k row holds
+     it, and on a slide the swatch already wins, so the downloads do not move.
+     AND THE FLOOR IS THE CANVAS'S, NOT THE SWATCH'S BAND: floored on `u`, the
+     width the KEY was handed - half the canvas on a three-band split - it came
+     out at 8.8 CSS px on the heat-report panel. MAP_RULES.md rule 2. */
+  function keyR(sw, sh, u) {
+    var floor = (window.DossierMapCheck || {}).floor || 15;
+    var cu = (window.DossierMapDraw && DossierMapDraw.canvasScale()) || u;
+    return Math.max(Math.min(sw, sh) / 2, floor * cu / 1.3);
   }
   function badge(ctx, P, x, y, r, n, u, step) {
     var R = D();
@@ -326,8 +298,8 @@ var DossierMapHeat = (function () {
     R.text(ctx, P, String(n), x, y + r * 0.04,
       { size: r * 1.3, weight: 700, halo: 0, color: digitInk(step) });
   }
-  /* THE WINDOW, BESIDE THE KEY: a plate of the key's own fill and edge, pinned
-     under the legend box or over it. NOT a row in the key. */
+  /* THE WINDOW, BESIDE THE KEY: a plate of the key's own fill and edge, under
+     the legend box or over it. NOT a row in the key. */
   function stamp(ctx, P, u, heat, legend, taken, W, H, size) {
     var R = D(), q = parts(heat);
     if (!q) return null;
@@ -366,8 +338,8 @@ var DossierMapHeat = (function () {
   }
 
   /* ONE DIGIT PER BELT, AND NEVER NONE. Painted after the legend against a
-     `taken` holding every place, governorate, lane and zone name, every
-     callout, every disc and the key box. An unscored belt gets no chip. */
+     `taken` holding every name, callout, disc and the key box itself. An
+     unscored belt gets no chip. */
   function badges(ctx, p, P, u, ts, G, map, taken, W, H, size, legend) {
     var R = D(), heat = (map && map.heat) || null, lv = levels(heat);
     var colors = ramp(P), kit = (window.DossierMapExtra || {}).kit;
@@ -378,14 +350,16 @@ var DossierMapHeat = (function () {
       var id = (f.properties || {}).id, g = ringsOf(p, f.geometry), s = heart(g);
       if (s && lv[id]) list.push({ id: id, n: lv[id], rings: g, s: s });
     });
-    /* EVERY DIAMOND IS GROUND A CHIP MAY NOT TAKE, its own included. */
-    var placed = taken.length, bars = taken.slice();
+    /* EVERY DIAMOND IS GROUND A CHIP MAY NOT TAKE, its own included - and the
+       marks reserved before the names (dossier_map_ink.js) are NOT: a chip is
+       placed exactly as it was, so that reservation costs the badges nothing. */
+    var placed = taken.length, bars = kit ? kit.words(taken) : taken.slice();
     list.forEach(function (it) { bars.push(boxAt(it.s.cx, it.s.cy, mark + gap)); });
     /* The cramped ones first (extra.js, `edgeness`): the rim has fewer ways. */
     if (kit) list.sort(function (a, b) {
       return kit.edgeness(b.s, W, H) - kit.edgeness(a.s, W, H);
     });
-    var out = [];
+    var out = [], drawn = leaders.slice(), over = 0, dirty = [];
     list.forEach(function (it) {
       var cands = spotsOn(it.s, r), spot = null, pass, i, c, b;
       /* ON THE BAND FIRST, TOUCHING IT SECOND: the chip is wider than the band
@@ -396,33 +370,59 @@ var DossierMapHeat = (function () {
           if (b.x0 < 0 || b.x1 > W || b.y0 < 0 || b.y1 > H) continue;
           if (!(pass ? near(it.rings, c.x, c.y, r) : inside(it.rings, c.x, c.y))) continue;
           if (bars.some(function (t) { return R.overlaps(b, t); })) continue;
-          if (leaders.some(function (g) { return segBox(g, b); })) continue;
+          if (hitsLeader(drawn, b)) continue;
           spot = { x: c.x, y: c.y, box: b, on: pass ? "edge" : "belt" };
           break;
         }
       }
       /* AND NOTHING FREE EITHER WAY, so it steps off on a leader - the notes'
-         own search and line. Never dropped: that is the whole point. */
+         own search and line, refusal and one bend included. Never dropped. */
       if (!spot && kit) {
         b = kit.findSpot(it.s, "n", 2 * (r + gap), 2 * (r + gap), u,
-                         bars, bars, [], leaders, W, H);
-        spot = { x: (b.x0 + b.x1) / 2, y: (b.y0 + b.y1) / 2, box: b, on: "off" };
+                         bars, bars, [], drawn, W, H);
+        spot = { x: (b.x0 + b.x1) / 2, y: (b.y0 + b.y1) / 2, box: b, on: "off",
+                 rt: b.route };
       }
       if (!spot) {
         c = [Math.min(Math.max(it.s.cx, r), W - r), Math.min(Math.max(it.s.cy, r), H - r)];
         spot = { x: c[0], y: c[1], box: boxAt(c[0], c[1], r + gap), on: "off" };
       }
       if (spot.on === "off" && kit) {
-        var g = kit.leaderSeg(spot.box, it.s);
-        if (kit.segLen(g) >= 4 * u) kit.leader(ctx, P, u, g);
+        var rt = spot.rt || kit.straight(spot.box, it.s);
+        if (rt.len >= 4 * u) {
+          kit.paint(ctx, P, u, rt); drawn.push(rt);
+          if (!spot.rt) { dirty.push(it.id);
+            over += kit.overText(rt, taken.slice(0, placed), spot.box, it.s); }
+        }
       }
       badge(ctx, P, spot.x, spot.y, r, it.n, u, colors[it.n - 1]);
       bars.push(spot.box); taken.push(spot.box);
+      /* THE LAST MARK ON THE PICTURE, and it goes on the one list every name
+         is checked against (dossier_map_ink.js): a chip printed over a town
+         name is `mark_over_text` and fails the picture, whatever the search
+         thought it had avoided. */
+      if (window.DossierMapInk) DossierMapInk.mark(spot.box, "level " + it.id);
       out.push({ front: it.id, level: it.n, at: spot.on, box: spot.box,
-        covers: taken.slice(0, placed).filter(function (t) {
-          return R.overlaps(spot.box, t); }).length });
+        covers: (kit ? kit.words(taken.slice(0, placed)) : taken.slice(0, placed))
+          .filter(function (t) { return R.overlaps(spot.box, t); }).length });
     });
+    /* AND IT SAYS SO: a leader the router could not place clean is counted and
+       named - the fault Ziv photographed was a line over a front's name. */
+    if (kit) {
+      kit.fault((map || {}).id, "heat badges " + W + "x" + H +
+        (dirty.length ? " at " + dirty.join(", ") : ""), over, kit.crossings(drawn));
+    }
     record(map, W, H, r, out, stamp(ctx, P, u, heat, legend, taken, W, H, size));
+  }
+  /* A chip may not sit on a LINE either, and only the boxes are in `taken`. The
+     box test is dossier_map_leader.js's own and not a copy: one answer on this
+     board to "does this line touch that rectangle" (a second lived here until
+     2026-09-19). */
+  function hitsLeader(leaders, b) {
+    var seg = (window.DossierMapLeader || {}).segBox;
+    return !!seg && leaders.some(function (l) {
+      return (l.segs || [l]).some(function (g) { return seg(g, b); });
+    });
   }
 
   function record(map, W, H, r, list, note) {
@@ -438,11 +438,11 @@ var DossierMapHeat = (function () {
     return (DS && (DS.maps || []).filter(function (m) { return m.id === id; })[0]) || null;
   }
   /* WHAT THE VERIFIER READS, in the console and never on the page. One dry PNG
-     run (?png=dry) paints every shape of every picture, so `DossierMapHeat
-     .audit()` then answers for all six at once: { ok, fronts, contrast, dim,
-     entries: [{ key, badges, missing, duplicates, wrong, overlaps, covers, at,
-     window_he, window_want, ok }] }. `wrong` compares the digit PAINTED with the
-     authored level; `dim` is any ramp step whose digit measures under 4.5:1. */
+     run (?png=dry) paints every shape, so `DossierMapHeat.audit()` answers for
+     all six at once: { ok, fronts, contrast, dim, entries: [{ key, badges,
+     missing, duplicates, wrong, overlaps, covers, at, window_he, window_want,
+     ok }] }. `wrong` is the digit PAINTED against the authored level; `dim` any
+     ramp step whose digit measures under 4.5:1. */
   function contrast() {
     var out = [];
     ["light", "dark"].forEach(function (t) {
@@ -490,7 +490,7 @@ var DossierMapHeat = (function () {
   }
 
   /* `words` is exported so the HTML key under the picture prints THE SAME five
-     labels in the same order - one list, two keys, no chance of drift. */
+     labels in the same order - one list, two keys, no drift. */
   return { fronts: fronts, legendRows: legendRows, ramp: ramp, words: WORDS,
            badges: badges, audit: audit, windowText: windowText,
            report: function () { return REPORTS; } };

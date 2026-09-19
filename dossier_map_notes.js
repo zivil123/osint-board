@@ -14,11 +14,10 @@
    a `note_arrows` bool that nothing ever set - one field, two pictures, and no
    flag that can be true for both.
 
-   A NEW FILE, not a new function in dossier_map_extra.js: that file sits at the
-   500-line cap every authored file here keeps. What it does NOT hold is the
-   search - `DossierMapExtra.kit` hands this file the very same ring search,
-   wrap, leader and box helpers the fighting notes use, so a note beside a place
-   and a note beside a belt cannot be placed by two different rules.
+   A NEW FILE, not a new function in dossier_map_extra.js, which sits at the
+   500-line cap - but NOT a second search: `DossierMapExtra.kit` hands this file
+   the very ring search, wrap, leader and box helpers the fighting notes use, so
+   a note beside a place and one beside a belt cannot be placed by two rules.
 
    Three things differ from the fighting notes, and each is a decision:
      - THE BOX CARRIES THE LINE AND ITS NUMBER, no heading. The place's own
@@ -33,20 +32,20 @@
        also earns its keep: nine boxes on one frame sit further from their
        places than a fighting note does from its belt, and a plain line at that
        length reads as a border rather than as a pointer.
-     - IT SHRINKS BEFORE IT OVERPRINTS. The whole set is placed, measured, and
-       if any two boxes overlap the whole set is placed again one text step
-       smaller, twice. A note is never dropped and never printed on top of
-       another one while making it smaller would have fitted.
+     - IT SHRINKS BEFORE IT OVERPRINTS. The whole set is placed and measured,
+       and if anything clashes it is placed again - from the other end, then a
+       text step smaller (STEPS below). A note is never dropped and never
+       printed over another one while a smaller set would have fitted.
 
    NO ES modules - the page runs from file://. One global:
 
      window.DossierMapNotes = { draw(...), report(), check(mapId, shape) }
 
-   `check` is the SELF-CHECK FOR BOTH answers to the notes, not only this one:
-   it repaints the picture through the ordinary export path and measures the
-   rectangles that landed, reading DossierMapKey's report for a `key: "panel"`
-   map and this file's for a `key: "callouts"` one. One entry point, because
-   the two pictures are twins and a verifier should not have to know which.
+   `check` is the SELF-CHECK FOR BOTH answers to the notes: it repaints the
+   picture through the ordinary export path and measures what landed, reading
+   DossierMapKey's report for a `key: "panel"` map and this file's for a
+   `key: "callouts"` one - one entry point, because the two pictures are twins
+   and a verifier should not have to know which it is looking at.
 */
 "use strict";
 
@@ -87,8 +86,23 @@ var DossierMapNotes = (function () {
      three steps on the SQUARE picture, where the map area is 2048 wide against
      a 16:9 height and the nine objectives cluster in its middle; the whole set
      is placed again at each step and the BEST pass wins, not the last one, so
-     a step that happens to be worse can never be what gets painted. */
+     a step that happens to be worse can never be what gets painted.
+     AND EACH STEP IS TRIED FROM BOTH ENDS (2026-09-19). Boxes are placed one
+     after another and every one takes room from the rest, so WHICH IS FIRST
+     decides the set: reserving the pins ahead of the names (dossier_map_ink.js)
+     moved two names, and the twelve heat callouts could then only place note 5
+     with its line across a sentence - while the very same set, placed from the
+     middle outwards, laid out clean. Outside-in is still tried first and a tie
+     keeps it, so the other order only ever wins by being measurably better. */
   var STEPS = [1, 0.92, 0.84, 0.76, 0.68, 0.6, 0.52, 0.45];
+  /* AND NO STEP MAY TAKE THE WORDS UNDER THIS, in CSS pixels on a 1280-wide
+     canvas (2026-09-18). Ziv's standing rule for anything written on a map:
+     *"if you do stuff like this, make it big."* Shrinking is how this painter
+     stops boxes overprinting, so the two pull against each other - and the
+     floor wins. A set that will not fit at the smallest legal step is placed
+     at it anyway and REPORTED, never quietly shrunk to 6px, which is what a
+     390px viewport was doing. */
+  var TEXT_MIN = 15;
   var ARROW = 7.5;         /* arrowhead length in u */
   /* HOW FAR OFF THE CANVAS RIM A BOX MUST STAY (2026-09-17). `fits` in the
      shared kit only asks that a box be INSIDE the canvas, which put two of the
@@ -138,27 +152,36 @@ var DossierMapNotes = (function () {
   /* One placement pass at one text size. Returns what it placed and how many
      pairs of boxes overlap, so draw() can decide to try again smaller. Nothing
      is painted here: a pass that loses must leave no ink. */
-  function pass(ctx, p, P, u, ts, list, taken, W, H, size, scale) {
+  function pass(ctx, p, P, u, ts, list, taken, W, H, size, scale, dir) {
     var R = D(), kit = K();
     var noteSize = size * 0.8 * scale;
     var maxW = kit.NOTE_W * u * ts * scale;
-    var leaders = [], mine = [], bars = taken.slice(), queue = [], cut = 0;
-    var rim = RIM * u;
-    bars.push({ x0: 0, y0: 0, x1: W, y1: rim });
-    bars.push({ x0: 0, y0: H - rim, x1: W, y1: H });
-    bars.push({ x0: 0, y0: 0, x1: rim, y1: H });
-    bars.push({ x0: W - rim, y0: 0, x1: W, y1: H });
+    var leaders = [], mine = [], queue = [], cut = 0;
+    /* `kit.words(taken)`: `taken` also carries every MARK's rectangle, reserved
+       before the names (dossier_map_ink.js) so that a NAME never lands on a
+       pin. A callout box is placed exactly as it was: making twelve 650px
+       boxes dodge the marks as well only moved them onto each other. */
+    var bars = kit.words(taken).concat(kit.rimBars(W, H, u, RIM));
     list.forEach(function (n) { bars.push(shapeAt(n.q, u)); });
     list.slice().sort(function (a, b) {
-      return kit.edgeness(shapeAt(b.q, u), W, H) - kit.edgeness(shapeAt(a.q, u), W, H);
+      var d = kit.edgeness(shapeAt(b.q, u), W, H) -
+              kit.edgeness(shapeAt(a.q, u), W, H);
+      return dir < 0 ? -d : d;
     }).forEach(function (n) {
       /* THE DISC IS SIZED TO THE SENTENCE BESIDE IT, by the panel ROW's own
          formula and not the panel MAP's: a number inside a box is read with the
          words it opens, and at the map disc's full size it added 104px to every
          box on a slide - which pushed the twelve heat callouts a text step
-         down and their leaders through seven of each other, measured. */
+         down and their leaders through seven of each other, measured.
+         BUT THE DIGIT IS TEXT, AND THE FLOOR IS THE SAME (2026-09-18). The disc
+         prints its number at r*1.35, so following the note's own step took it
+         to 10.4 CSS px on the wide heat picture - smaller than the sentence it
+         opens and under the floor everything written on a map now keeps. The
+         disc therefore stops shrinking at the size that leaves the digit on the
+         floor, which costs the box about seven pixels of width on a slide. */
       var s = shapeAt(n.q, u);
-      var r = N().discR(u, 1, n.n) * Math.max(0.8, scale) * 0.8;
+      var r = Math.max(TEXT_MIN * u / 1.34,
+                       N().discR(u, 1, n.n) * Math.max(0.8, scale) * 0.8);
       var lines = kit.wrap(ctx, n.text, noteSize, maxW, NOTE_LINES);
       /* WAS THE SENTENCE CUT? The wrap ends an overrun in an ellipsis rather
          than failing, so the honest test is to ask it again uncapped. */
@@ -170,11 +193,15 @@ var DossierMapNotes = (function () {
       var w = tw + 2 * r + (NUM_GAP + PAD) * u;
       var h = Math.max(lines.length * lineH + noteSize * 0.5, 2 * r + 4 * u);
       var box = kit.findSpot(s, "n", w, h, u, bars, taken, mine, leaders, W, H);
-      var g = kit.leaderSeg(box, s);
-      if (kit.segLen(g) >= 4 * u) leaders.push(g);
+      /* THE ROUTE THE SEARCH TESTED IS THE ROUTE THAT GETS PAINTED - straight,
+         or with the one bend that got it round somebody's sentence. A box the
+         search could only place dirty comes back with none, and the straight
+         line is then drawn and COUNTED rather than hidden under a clip. */
+      var rt = box.route || kit.straight(box, s);
+      if (rt.len >= 4 * u) leaders.push(rt);
       bars.push(box); mine.push(box);
-      queue.push({ box: box, g: g, lines: lines, lineH: lineH, size: noteSize,
-                   n: n.n, r: r });
+      queue.push({ box: box, g: kit.leaderSeg(box, s), rt: rt, lines: lines,
+                   lineH: lineH, size: noteSize, n: n.n, r: r });
     });
     var over = 0, cross = 0, i, k;
     for (i = 0; i < queue.length; i++) {
@@ -189,20 +216,22 @@ var DossierMapNotes = (function () {
          that inside one pass; what it can do is COUNT it, so draw() can keep
          the text step whose whole set reads cleanly instead of the first step
          that merely stopped the boxes overlapping. */
-      for (k = 0; k < queue.length; k++) {
-        if (k !== i && segBox(queue[i].g, queue[k].box)) cross++;
-      }
+      cross += kit.overText(queue[i].rt, boxesOf(queue), queue[i].box, null);
     }
-    return { queue: queue, over: over, cross: cross, cut: cut };
+    /* AND HOW MANY HAD NO CLEAN SPOT AT ALL - the search's own `pass: 0`, the
+       one number that says this text size will not lay out. It is what makes
+       draw() step down instead of settling on a size whose boxes happen not to
+       overlap while three of its lines run across sentences. */
+    var stuck = queue.filter(function (q) { return q.box.pass === 0; }).length;
+    return { queue: queue, over: over, cross: cross, cut: cut, stuck: stuck };
   }
-
-  /* Does a leader touch a box? The number painter's own test, borrowed: both
-     leaders on this picture ask the same question and one answer is enough. */
-  function segBox(g, b) { return N().segBox(g, b); }
+  function boxesOf(queue) {
+    return queue.map(function (q) { return q.box; });
+  }
 
   /* Painted AFTER the map's own labels, so `taken` already holds every name,
      the legend box and the title band: a callout goes where nothing else is. */
-  function draw(ctx, p, P, u, ts, map, taken, W, H, size) {
+  function draw(ctx, p, P, u, ts, map, taken, W, H, size, only, pinR) {
     /* EVERY LABEL'S NAME AND MARK MEASURED FIRST, before a single box is
        pushed into `taken`. The panel picture gets this from its disc pass; this
        one has no disc pass when it paints its boxes, and without the call the
@@ -222,19 +251,32 @@ var DossierMapNotes = (function () {
     /* The step is chosen on OVERLAPS AND CUT SENTENCES, and the first clean one
        wins: which text size the set settles at is a measured decision (STEPS
        above), a leader is not a reason to shrink nine sentences - and a step
-       that fits the boxes by ellipsising the words is not clean at all. */
-    var best = null, i, try_, cost, low = Infinity;
-    for (i = 0; i < STEPS.length; i++) {
-      try_ = pass(ctx, p, P, u, ts, list, taken, W, H, size, STEPS[i]);
-      try_.scale = STEPS[i];
-      /* A CUT COUNTS ONLY WHILE THE TEXT CAN STILL BE READ. Under READ_MIN no
-         step is legible, so shrinking further to save an ellipsis buys nothing
-         and costs the size - measured on the twelve heat callouts at a 325px
-         canvas, where chasing the cuts took the note from 13px to 6px. */
-      cost = try_.over * 100 +
-        (size * 0.8 * STEPS[i] >= READ_MIN ? try_.cut : 0);
-      if (cost < low) { low = cost; best = try_; }
-      if (!cost) break;
+       that fits the boxes by ellipsising the words is not clean at all.
+       AND IT STOPS AT THE TEXT FLOOR (2026-09-18): `floor` is the smallest
+       step that still leaves TEXT_MIN CSS pixels on a 1280-wide canvas, and
+       the first step is always tried so a canvas too narrow for even that
+       still gets a picture - reported, not silently shrunk. */
+    var floor = TEXT_MIN * W / (1280 * size * 0.8);
+    var best = null, i, d, try_, cost, low = Infinity;
+    for (i = 0; i < STEPS.length && low; i++) {
+      if (i && STEPS[i] < floor) break;
+      for (d = 0; d < 2 && low; d++) {
+        try_ = pass(ctx, p, P, u, ts, list, taken, W, H, size, STEPS[i],
+                    d ? -1 : 1);
+        try_.scale = STEPS[i]; try_.dir = d ? -1 : 1;
+        /* WHAT A PASS IS JUDGED ON, worst first: boxes on top of each other,
+           then lines with nowhere clean to run, then lines across a sentence,
+           then a sentence cut at an ellipsis. Before 2026-09-18 only the first
+           and the last counted, so a size whose boxes just fitted was kept even
+           when three of its leaders had to be painted over words. A CUT COUNTS
+           ONLY WHILE THE TEXT CAN STILL BE READ: under READ_MIN no step is
+           legible, so shrinking further to save an ellipsis buys nothing and
+           costs the size - measured on the twelve heat callouts at a 325px
+           canvas, where chasing the cuts took the note from 13px to 6px. */
+        cost = try_.over * 1000 + try_.stuck * 100 + try_.cross * 10 +
+          (size * 0.8 * STEPS[i] >= READ_MIN ? try_.cut : 0);
+        if (cost < low) { low = cost; best = try_; }
+      }
     }
     /* AND IF THE WORDS CAME OUT TOO SMALL TO READ, THEY DO NOT GO ON THE
        PICTURE AT ALL (2026-09-18, round 3). Measured at a 390px viewport: the
@@ -247,29 +289,31 @@ var DossierMapNotes = (function () {
        land the same notes at 33-41 painting pixels. */
     if (Math.round(best.queue[0].size) < READ_MIN) {
       REPORT = null;
-      return N().discs(ctx, p, P, u, ts, map, taken, W, H);
+      /* `only` is the places the map printed no NAME for (MAP_RULES.md rule 8):
+         their discs glue to the MARK instead of to a name that is not there.
+         Without it a phone's callouts fell back to nine discs loose on the
+         terrain, and dossier_map_ink.js counted every one of those marks as
+         unlabelled - which is exactly what a reader would have found. */
+      return N().discs(ctx, p, P, u, ts, map, taken, W, H, false, pinR, only);
     }
-    /* EVERY LEADER FIRST, AND EVERY LEADER BEHIND EVERY BOX (2026-09-17). The
-       search refuses a leader across a box already placed, but the boxes placed
-       AFTER it are not yet known, so the last callouts' leaders were being
-       drawn straight through the first ones' sentences - three of them in the
-       wide picture's top-left cluster. The placement is right and is not
-       touched: what changes is that a leader is CLIPPED out of every other
-       callout's box, so where it meets one it passes behind the text instead of
-       through it. Nothing moves, and a leader that crosses nothing is drawn
-       exactly as it was. */
-    var boxes = best.queue.map(function (q) { return q.box; });
-    best.queue.forEach(function (q, n) {
+    /* EVERY LEADER FIRST, AND EVERY LEADER ROUND EVERY BOX (2026-09-18). It
+       used to be "behind": a leader was CLIPPED out of the other callouts'
+       boxes, so where it met one it passed under the text. Ziv saw that answer
+       on a heat map and called it a line on the words. It is not clipped now -
+       the search would not have given the box to a line with nowhere to go, and
+       what it gives back is the route itself, with one bend where a straight
+       run was blocked. A line that still has to cross something is drawn plain
+       and counted below, because a fault that hides is a fault that ships. */
+    best.queue.forEach(function (q) {
+      /* THE ARROW IS WHAT NAMES THIS MARK on a callouts picture, exactly as a
+         glued number does on a panel one (MAP_RULES.md rule 8): it ends ON the
+         place and the sentence it came from explains it. So the mark is
+         claimed here, and dossier_map_ink.js accuses only a mark that neither
+         a name, a number nor an arrow reached. */
+      if (window.DossierMapInk) DossierMapInk.numbered(q.g[2], q.g[3]);
       if (!kitLen(q.g, u)) return;
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(0, 0, W, H);
-      boxes.forEach(function (b, k) {
-        if (k !== n) ctx.rect(b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0);
-      });
-      ctx.clip("evenodd");
-      leaderOf(ctx, P, u, q.g); head(ctx, P, u, q.g);
-      ctx.restore();
+      K().paint(ctx, P, u, q.rt);
+      head(ctx, P, u, K().tip ? K().tip(q.rt) : q.g);
     });
     /* THE DATE MUST READ FIRST (2026-09-17). A note opening "15.9 — " is laid
        out in the canvas's base direction; set it here rather than trusting
@@ -297,162 +341,51 @@ var DossierMapNotes = (function () {
     ctx.direction = dir0;
     /* The words are on the picture, so the page must not repeat them. */
     N().mark(ctx, "painted");
-    /* What this paint achieved, for the console and never for the page: the
-       step it settled on, how far each callout ended from its place, and how
-       many boxes overlap - which is the number that must be zero.
+    /* What this paint achieved, MEASURED OFF THE FINISHED PICTURE: every route
+       against every rectangle that ended up on the canvas (`taken` now holds
+       the callout boxes too), and every route against every other. Both must
+       be zero; both go to the shared check, and a fault names the map and the
+       note numbers in the console rather than waiting to be noticed.
        DossierMapNotes.report(). */
-    var far = 0;
+    var far = 0, over = 0, bad = [];
     best.queue.forEach(function (q) {
+      var n = K().overText(q.rt, taken, q.box, { cx: q.g[2], cy: q.g[3] });
+      if (n) { over += n; bad.push(q.n); }
       q.dist = Math.round(Math.hypot((q.box.x0 + q.box.x1) / 2 - q.g[2],
                                      (q.box.y0 + q.box.y1) / 2 - q.g[3]));
       far = Math.max(far, q.dist);
     });
+    var cross = K().crossings(best.queue.map(function (q) { return q.rt; }));
+    var px = K().size(best.queue[0].size, W);
+    K().fault((map || {}).id, "callout notes " + W + "x" + H +
+      (bad.length ? " at note " + bad.join(", ") : ""), over, cross);
+    if (px < TEXT_MIN) {
+      console.error("dossier map notes: " + ((map || {}).id || "?") + " " + W +
+        "x" + H + " - note text " + Math.round(px) + " css px, floor " + TEXT_MIN);
+    }
     REPORT = { width: W, height: H, scale: best.scale, overlaps: best.over,
-      crossings: best.cross, cut: best.cut, size: Math.round(best.queue[0].size),
+      line_over_text: over, crossings: cross, cut: best.cut, order: best.dir,
+      size: Math.round(best.queue[0].size), css: Math.round(px),
       notes: best.queue.length, maxDist: far, maxDistPct: Math.round(far / W * 100),
+      routes: best.queue.map(function (q) { return q.rt; }),
+      boxes: best.queue.map(function (q) { return q.box; }),
       list: best.queue.map(function (q) { return { n: q.n, box: q.box }; }) };
     return REPORT;
   }
   function kitLen(g, u) { return K().segLen(g) >= 4 * u; }
-  function leaderOf(ctx, P, u, g) { K().leader(ctx, P, u, g); }
 
-  /* ---- the self-check, for BOTH answers to the notes ------------------------ */
-
-  /* PAINT A PICTURE AND MEASURE WHAT LANDED:
-
-       DossierMapNotes.check("marib_objectives", "wide")            // the panel
-       DossierMapNotes.check("marib_objectives_arrows", "square")   // the boxes
-       DossierMapNotes.check("marib_objectives", 390)               // ON A PHONE
-       DossierMapNotes.check()                                      // last paint
-
-     A STRING IS A SLIDE AND A NUMBER IS A PAGE (2026-09-18). "wide" and
-     "square" repaint through DossierMap.exportPng at 2560x1440 and 2048x2048,
-     where the painting unit is a bitmap pixel; a NUMBER repaints through
-     DossierMap.draw onto a canvas of that many CSS pixels, where the painting
-     unit is a CSS pixel and the measurements below are therefore the size the
-     reader's eye gets. Nothing is saved and nothing is added to the document -
-     the canvas is detached, the same reason `?png=dry` exists.
-
-     What must hold, and what `ok` is: `intersect` empty, no two painted
-     rectangles of different items meeting (a number's disc and its own name
-     count as two, so a disc printed over its name shows up here too, and a
-     number joined to NOTHING is listed there as well); `markOver` empty, no
-     place's own square printed through another place's NAME - that one is a
-     fault of the label's authored `anchor` and not of these painters, so the
-     check only names it; `cut` 0, no sentence ellipsised out of a box or a row;
-     and on a page paint the text at least 11 CSS px, which is what sent the
-     panel and the boxes off the picture under 700px in the first place.
-     `loose` is not a fault - it names the numbers the canvas would not let
-     touch their name and which are therefore tied to it by a hairline. Neither
-     is `behind`: a hairline that meets another name is clipped out of it and
-     passes under the text. */
-  var SHAPES = { wide: [2560, 1440], square: [2048, 2048] };
-
+  /* THE SELF-CHECK IS ITS OWN FILE (dossier_map_notes_check.js): it paints
+     nothing, and this one needed the room. The documented name still answers. */
   function check(mapId, shape) {
-    var R = D(), pageW = typeof shape === "number" ? Math.round(shape) : 0;
-    var sq = shape === "square", wh = SHAPES[sq ? "square" : "wide"], c;
-    if (mapId && pageW) {
-      c = document.createElement("canvas");
-      window.DossierMap.draw(c, mapId, "light", pageW, null);
-    } else if (mapId) {
-      window.DossierMap.exportPng(mapId, "light", wh[0], wh[1], null,
-                                  sq ? "square" : "wide");
+    var C = window.DossierMapNotesCheck;
+    if (!C) {
+      throw new Error("dossier_map_notes: dossier_map_notes_check.js is missing");
     }
-    /* WHICH PICTURE THIS IS comes off the RECORD, never off which painter left
-       a report behind: both painters keep their last paint, so after a callouts
-       map the panel's discs are still sitting there from an earlier one. With
-       no mapId - the caller painted it themselves and knows - this file's own
-       report wins. `DOSSIER` is a page-scope const and not a window property,
-       exactly as dossier_map.js reads it. */
-    var doc = (typeof DOSSIER !== "undefined" && DOSSIER) ? DOSSIER : null;
-    var rec = mapId && doc ? (doc.maps || []).filter(function (m) {
-      return m.id === mapId; })[0] : null;
-    var K2 = window.DossierMapKey, key = K2 && K2.report();
-    var kind = rec ? (rec.key === "panel" ? "panel" : "callouts")
-                   : (REPORT ? "callouts" : "panel");
-    /* WAS THE TEXT PAINTED AT ALL? Off the painters' own reports and never off
-       the width: each of them clears its report when it measures the words too
-       small and paints the numbers alone instead. */
-    var bare = !(kind === "panel" ? (key && key.panel) : REPORT);
-    var discs = key && key.discs, box = kind === "callouts" && !bare ? REPORT : null;
-    var parts = [], bad = [], loose = [], behind = [], cut = 0, size = 0;
-    if (box) {
-      box.list.forEach(function (e) { parts.push({ tag: String(e.n), box: e.box }); });
-      cut = box.cut || 0;
-      size = box.size;
-    }
-    if (discs && (kind === "panel" || bare)) {
-      discs.list.forEach(function (e) {
-        parts.push({ tag: String(e.n), box: e.box });
-        if (e.name) parts.push({ tag: e.n + "name", box: e.name, name: true });
-        /* A number the canvas would not let touch its name is TIED to it by a
-           hairline; it is still joined, so it is listed here and not a fault. */
-        /* A NUMBER WITH NO NAME TO JOIN is not the same fault as a number
-           that missed one: a narrow canvas drops second-rank names, and the
-           disc then sits on the place itself with its name in the HTML list
-           under the picture. `gap` is -1 when the map painted no name. */
-        if (!e.glued) loose.push(e.n + " " + e.place +
-          (e.gap < 0 ? " NONAME" : " @" + e.gap + (e.led ? " led" : " LOOSE")));
-        if (!e.glued && !e.led && e.gap >= 0) bad.push(e.n + " unjoined");
-      });
-      (discs.leads || []).forEach(function (l) {
-        (l.behind || []).forEach(function (q) { behind.push(l.n + " under " + q); });
-      });
-      /* THE DIGIT IS THE ONLY TEXT LEFT ON A BARE PICTURE, so it is the size
-         that has to clear the floor - the disc's own r*1.35, read back off the
-         box the report kept. */
-      if (bare) {
-        size = Math.round(Math.min.apply(null, discs.list.map(function (e) {
-          return (e.box.x1 - e.box.x0) / 2 * 1.35;
-        }).concat([999])));
-      } else if (kind === "panel") {
-        cut = (key.panel && key.panel.cut) || 0;
-        size = key.panel && key.panel.noteSize;
-      }
-    }
-    parts.forEach(function (a, i) {
-      parts.forEach(function (b, k) {
-        /* Two NAMES touching is the map's own business, not this painter's. */
-        if (k > i && !(a.name && b.name) && R.overlaps(a.box, b.box)) {
-          bad.push(a.tag + "x" + b.tag);
-        }
-      });
-    });
-    var mark = (key && key.audit && key.audit.hits) || [];
-    if (pageW && size && size < READ_MIN) bad.push("text " + size + "px");
-    /* AND THE PAGE WAS TOLD THE TRUTH. `data-notes` is what docs\maps_tab.js
-       shows or hides the HTML list on, so a picture that painted its words
-       while the attribute said "list" would print them twice, and the other way
-       round would lose them - this is the assertion that the two cannot part. */
-    var notes = c ? c.getAttribute("data-notes") : null;
-    if (pageW && notes !== (bare ? "list" : "painted")) {
-      bad.push("data-notes=" + notes);
-    }
-    if (!pageW && exportMarked()) bad.push("data-notes on an export");
-    /* A MARK OVER SOMEBODY ELSE'S NAME FAILS THE SLIDE and is only reported on
-       the page. The authored `anchor` that fixes one is chosen for the picture
-       that gets downloaded; the label engine re-solves at every page width and
-       a 340px canvas will always crowd somewhere. */
-    return { map: mapId || null,
-             shape: pageW ? pageW + "px page" : (sq ? "square" : "wide"),
-             kind: bare ? kind + "/bare" : kind,
-             items: parts.filter(function (a) { return !a.name; }).length,
-             intersect: bad, markOver: mark, loose: loose, behind: behind,
-             cut: cut, size: size, notes: notes,
-             crossings: box ? box.crossings : null,
-             ok: !bad.length && !cut && (!!pageW || !mark.length) };
+    return C.check(mapId, shape);
   }
 
-  /* An export's canvas has no CSS size of its own, and that is what stops the
-     attribute being written on one. Asked here rather than assumed, because
-     nothing else on the page would ever notice if it changed. */
-  function exportMarked() {
-    var c = document.createElement("canvas");
-    N().mark(c.getContext("2d"), "painted");
-    return c.getAttribute("data-notes") !== null;
-  }
-
-  return { draw: draw, check: check, report: function () { return REPORT; } };
+  return { draw: draw, check: check, READ_MIN: READ_MIN,
+           report: function () { return REPORT; } };
 })();
 
 window.DossierMapNotes = DossierMapNotes;

@@ -36,3 +36,36 @@ window.DossierMapLight = {
   halo: "rgba(255, 255, 255, 0.92)", violet: "#5B4BC4", violetFill: "#B7A5F7",
   lane: "#4A5A6A", box: "#FFFFFF", boxLine: "rgba(20, 40, 60, 0.30)"
 };
+
+/* ---- THE LEGEND'S OWN HEBREW WORDS ------------------------------------------
+
+   A SECOND GLOBAL IN THIS FILE, and the reason is the reason the file exists:
+   both are things the dossier maps paint that are AUTHORED rather than read
+   from a token. They were in dossier_map.js beside the palette until
+   2026-09-19, when the canvas text scale and the phone's numbers-only list map
+   took that file to its 500-line cap. `DossierMap.words()` is the pass-through
+   every caller still reads them through, and it is a FUNCTION because this
+   file may load after dossier_map.js does.
+
+     window.DossierMapWords = { ...the legend's Hebrew... }
+   -------------------------------------------------------------------------- */
+window.DossierMapWords = {
+  houthi: "שטח בשליטת החות'ים",
+  /* The government side's name and the fighting zone's name are Ziv's own
+     words (2026-09-11), here and on the board's legend alike. */
+  gov: "שטח בשליטת הכוחות הלגיטימיים",
+  contested: "שטח לחימה פעיל",
+  /* ONE row for every gain, confirmed or not (Ziv, 2026-09-11). Which ones an
+     outside source confirmed is said in the text, never by a second style. */
+  gained: "נכבש בידי החות'ים (מאומת + משוער)",
+  front: "קו חזית משוער",
+  lane: "נתיב שיט",
+  /* The arrow row, and only on a map that carries arrows. It says ASSESSMENT
+     in so many words: an arrow on a map reads as a reported movement unless
+     the key says otherwise, and nothing here has happened yet. */
+  axis: "ציר התקדמות אפשרי (הערכה)",
+  /* The seam's row is this stem plus the date the gains start at, which
+     dossier_map_legend.js reads off the data rather than off this line. */
+  seam: "גבול השטח שנכבש מאז",
+  noData: "אין נתוני מפה להצגה"
+};

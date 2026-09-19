@@ -84,6 +84,72 @@ var DossierMapGains = (function () {
       }
     });
   }
+  /* ---- the seam: where the new ground meets the old ------------------------- */
+
+  /* A LINE ROUND THE NEW GROUND, THOUGH IT IS THE SAME COLOUR (2026-09-18).
+     Ziv, having asked for the gains to be painted flush into the Houthi fill
+     and then looked at the crossing picture: *"it's okay that you did all of
+     them in the same colour, but still make a line that separates the new
+     territories that they conquered so we know what they are."* Two things at
+     once, and both are kept: the ground reads as one holder, and the reader can
+     still see which part of it is new.
+
+     The line is `GEO.gains_seam` - authored upstream as the edges BETWEEN a
+     district taken since 10 September and Houthi ground that is not a gain, so
+     the coast and the line of contact are already left out of it and nothing on
+     this picture is drawn twice.
+
+     WHAT IT LOOKS LIKE, and why. Beside it runs the line of contact: pale,
+     dashed, 2px. So this one is SOLID and BROWN - a different hue, a different
+     rhythm, no chance of reading one as the other - over a casing in the
+     map's own halo colour, which is how every line on these maps survives
+     terrain shading (the black country borders on the crossing do the same).
+     The brown is authored per theme rather than taken from a token: on the
+     light deck it is a near-black earth brown on pale ground, and on the dark
+     board that same hue would be a black line on a black sea, so there it is
+     the warm tan the brown becomes when the ground under it is dark.
+
+     AND IT IS THE LOUDEST LINE IN ITS NEIGHBOURHOOD (2026-09-19). The first
+     version was 2.8u of mid-brown, and at half scale on the crossing picture
+     Ziv had to hunt for it: a thin light-brown thread over tan ground, beside
+     a dashed line of the same weight. It exists so a reader SEES which ground
+     is new, so it is now darker to near-black and never thinner than
+     SEAM_OVER times the line of contact - the width is read off the palette's
+     own `controlW` rather than written down twice, so the two can never drift
+     apart. It scales with the canvas and is floored like every other line
+     here, so a small canvas still shows it. */
+  var SEAM = { light: "#2A1707", dark: "#F5B45C" };
+  var SEAM_W = 4.2, SEAM_MIN = 3, SEAM_CASE = 3.5, SEAM_OVER = 1.9;
+
+  function seamInk(P) { return SEAM[P.theme] || SEAM.light; }
+  function seamWidth(P, u) {
+    var contact = (P && P.controlW) || 2;
+    return Math.max(SEAM_MIN, Math.max(SEAM_W, contact * SEAM_OVER) * u);
+  }
+  /* True when there is a seam to draw at all: the key asks before it prints a
+     row for it, because a row naming a line that is not on the picture is the
+     one thing every rule about this key forbids. */
+  function hasSeam(G) {
+    return !!(G && G.gains_seam && (G.gains_seam.features || []).length);
+  }
+  function seam(ctx, p, P, u, G) {
+    if (!hasSeam(G)) return;
+    var R = D(), w = seamWidth(P, u);
+    R.strokeLines(ctx, p, G.gains_seam, { stroke: P.halo, width: w + SEAM_CASE * u });
+    R.strokeLines(ctx, p, G.gains_seam, { stroke: seamInk(P), width: w });
+  }
+  /* The key's own swatch, drawn by the same two strokes at the same widths, so
+     the mark in the box is the mark on the map and not a description of it. */
+  function seamSwatch(ctx, P, u, x, cy, sw) {
+    var R = D(), w = seamWidth(P, u);
+    var line = function (style) {
+      ctx.beginPath(); ctx.moveTo(x, cy); ctx.lineTo(x + sw, cy);
+      R.paintShape(ctx, style);
+    };
+    line({ stroke: P.halo, width: w + SEAM_CASE * u });
+    line({ stroke: seamInk(P), width: w });
+  }
+
   function gains(ctx, p, P, u, D0, G, mapId) {
     var R = D();
     (D0.gains || []).forEach(function (g) {
@@ -105,7 +171,9 @@ var DossierMapGains = (function () {
     });
   }
 
-  return { gains: gains, mergedGains: mergedGains, gainStyle: gainStyle };
+  return { gains: gains, mergedGains: mergedGains, gainStyle: gainStyle,
+           seam: seam, seamSwatch: seamSwatch, seamInk: seamInk,
+           hasSeam: hasSeam };
 })();
 
 window.DossierMapGains = DossierMapGains;

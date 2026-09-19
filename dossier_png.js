@@ -97,7 +97,15 @@ var DossierPng = (function () {
     /* `name` is the file the real button would have written. It is stashed so a
        checker can read the stamped filename without a tap putting a file on
        Ziv's screen - the whole bargain of the dry run. */
-    var item = { id: id, variant: variant, shape: s.shape, width: s.w, height: s.h,
+    /* `kind` says what this picture IS, and it exists for the checker
+       (2026-09-18): every MAP must come back with a self-check, and a map that
+       reports nothing is a map whose painters never ran - the one failure that
+       looks exactly like a clean run. The trends graph is stashed into this
+       same list by docs\maps_tab.js and has no map painters in it at all, so
+       one word on the item tells the two apart instead of a list of ids in the
+       Python that would go stale the first time a map is added. */
+    var item = { id: id, variant: variant, shape: s.shape, kind: "map",
+                 width: s.w, height: s.h,
                  name: fileName(id, variant, s.shape),
                  bytes: Math.round((png.length - png.indexOf(",") - 1) * 3 / 4),
                  dataUrl: png };

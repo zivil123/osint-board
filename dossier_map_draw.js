@@ -161,8 +161,40 @@ var DossierMapDraw = (function () {
     ctx.font = (weight || 500) + " " + size + "px " + FONT;
     if ("letterSpacing" in ctx) ctx.letterSpacing = (sp || 0) + "px";
   }
-  /* Halo first, in the ground colour, so a name over a line stays legible. */
+  /* The scale the picture being painted is drawn at (u = canvas width / 1280),
+     remembered by ground() - the first thing every picture paints - so the one
+     place every string passes through can report a size the check can compare
+     against its one floor. The check's contract is CSS px on a 1280 canvas, so
+     a picture drawn at 2560 reports half of what it sets. */
+  var SCALE = 1;
+  /* AND THE SCALE OF THE WHOLE CANVAS, which on a three-band key-panel picture
+     is about twice the map area's (2026-09-19). `SCALE` answers "how big is
+     this for the rectangle it is painted in"; `CANVAS` answers "how big is this
+     for the reader", and they are the same number on every picture that is not
+     split. dossier_map.js sets it once per picture - it is the only file that
+     knows the canvas - and a caller that never sets it leaves the two equal,
+     which is what every unsplit map wants. */
+  var CANVAS = 0;
+  /* With no argument it ANSWERS instead of setting: the legend asks it what a
+     CSS pixel of the whole picture is worth, to keep its own words above the
+     13px floor while it shrinks them to fit a narrow band. */
+  function canvasScale(u) {
+    if (u === undefined) return CANVAS;
+    CANVAS = u > 0 ? u : 0;
+    return CANVAS;
+  }
+
+  /* Halo first, in the ground colour, so a name over a line stays legible.
+     EVERY painted string passes through here, so this is also where the
+     picture check is told how small the smallest text on the map got
+     (`min_text_px` against the map area, `min_name_px` against the canvas):
+     one sink, so a painter that sets its own size cannot be forgotten.
+     Guarded - the check file is optional at runtime. */
   function text(ctx, P, str, x, y, o) {
+    if (window.DossierMapCheck) {
+      DossierMapCheck.text(o.size / (SCALE || 1));
+      if (DossierMapCheck.name) DossierMapCheck.name(o.size / (CANVAS || SCALE || 1));
+    }
     setFont(ctx, o.size, o.weight, o.spacing);
     ctx.textAlign = o.align || "center";
     ctx.textBaseline = o.baseline || "middle";
@@ -179,12 +211,28 @@ var DossierMapDraw = (function () {
   function overlaps(a, b) {
     return !(a.x1 < b.x0 || b.x1 < a.x0 || a.y1 < b.y0 || b.y1 < a.y0);
   }
-  /* Where a label sits relative to its point: anchor e/w/n/s names the side
-     and c centres it on the point (a country name, never flipped).
+  /* Where a label sits relative to its point: anchor e/w/n/s names the side,
+     the four DIAGONALS ne/nw/se/sw sit off a corner of it, and c centres it on
+     the point (a country name, never flipped).
      A name that would run off the canvas on its authored side flips to the
-     other side - at 600px the Perim name, anchored west, was cut at the edge. */
+     other side - at 600px the Perim name, anchored west, was cut at the edge.
+     THE DIAGONALS CAME IN ON 2026-09-18, for the places the map's own text
+     talks about: four sides were all a required name ever got, and al-Hazm -
+     named in the Marib list - found none of them free and vanished without a
+     word. A corner is the room a crowded map has left. Ziv: "you're talking
+     about al-Hazm... and you don't show it on the map." */
+  var FLIP = [
+    { def: "e", of: { nw: "ne", sw: "se" }, hit: function (b) { return b.x0 < 0; } },
+    { def: "w", of: { ne: "nw", se: "sw" },
+      hit: function (b, W) { return b.x1 > W; } },
+    { def: "s", of: { ne: "se", nw: "sw" }, hit: function (b) { return b.y0 < 0; } },
+    { def: "n", of: { se: "ne", sw: "nw" },
+      hit: function (b, W, H) { return b.y1 > H; } }
+  ];
   function place(ctx, str, x, y, anchor, size, r, u, W, H, sp) {
     var w = width(ctx, str, size, 500, sp), h = size * 1.25, g = r + 5 * u;
+    /* A diagonal clears the mark by the same g, split between the two axes. */
+    var d = g * 0.71;
     var side = function (a) {
       if (a === "c") return { x: x, y: y, align: "center", baseline: "middle",
                               box: { x0: x - w / 2, y0: y - h / 2, x1: x + w / 2, y1: y + h / 2 } };
@@ -194,13 +242,24 @@ var DossierMapDraw = (function () {
                               box: { x0: x - w / 2, y0: y - g - h, x1: x + w / 2, y1: y - g } };
       if (a === "s") return { x: x, y: y + g, align: "center", baseline: "top",
                               box: { x0: x - w / 2, y0: y + g, x1: x + w / 2, y1: y + g + h } };
+      if (a === "ne" || a === "se" || a === "nw" || a === "sw") {
+        var east = a[1] === "e", north = a[0] === "n";
+        var tx = east ? x + d : x - d, ty = north ? y - d : y + d;
+        return { x: tx, y: ty, align: east ? "left" : "right",
+                 baseline: north ? "bottom" : "top",
+                 box: { x0: east ? tx : tx - w, y0: north ? ty - h : ty,
+                        x1: east ? tx + w : tx, y1: north ? ty : ty + h } };
+      }
       return { x: x + g, y: y, align: "left", baseline: "middle",
                box: { x0: x + g, y0: y - h / 2, x1: x + g + w, y1: y + h / 2 } };
     };
     var o = side(anchor), b = o.box;
     if (anchor === "c") { o.str = str; o.size = size; o.spacing = sp; return o; }
-    if (b.x0 < 0) o = side("e"); else if (b.x1 > W) o = side("w");
-    else if (b.y0 < 0) o = side("s"); else if (b.y1 > H) o = side("n");
+    FLIP.some(function (f) {
+      if (!f.hit(b, W, H)) return false;
+      o = side(f.of[anchor] || f.def);
+      return true;
+    });
     o.str = str; o.size = size; o.spacing = sp;
     return o;
   }
@@ -245,6 +304,7 @@ var DossierMapDraw = (function () {
      the fighting is happening today is a different question. */
   function ground(ctx, p, P, u, W, H, G, opt) {
     var X = window.DossierMapExtra, o = opt || {}, merged = o.control === "merged";
+    SCALE = u || 1;
     ctx.fillStyle = P.sea; ctx.fillRect(0, 0, W, H);
     landPath(ctx, p, G, true);
     paintShape(ctx, { fill: P.land });
@@ -319,6 +379,14 @@ var DossierMapDraw = (function () {
       strokeLines(ctx, p, G.control_line, { stroke: P.control, width: P.controlW * u,
         dash: dashOf(P.controlDash, u) });
     }
+    /* AND ON A MERGED MAP, THE SEAM (2026-09-18). The new ground is painted in
+       the Houthi colour and a reader cannot tell it from the ground it joined -
+       which is what Ziv asked for, and then: "it's okay that you did all of them
+       in the same colour, but still make a line that separates the new
+       territories that they conquered so we know what they are." So one more
+       line, solid and brown against the dashed pale line of contact beside it.
+       dossier_map_gains.js owns it, because it owns the gains. */
+    if (merged && window.DossierMapGains) DossierMapGains.seam(ctx, p, P, u, G);
   }
 
   /* ---- shipping lanes ------------------------------------------------------------ */
@@ -385,46 +453,20 @@ var DossierMapDraw = (function () {
     });
   }
 
-  /* ---- governorate names ------------------------------------------------------------ */
-
-  /* Quieter than a claim. Only where the frame holds them, never on top of a
-     dossier label, and never beside one naming the same place - "אל-חודיידה"
-     under "חודיידה" reads as a typo, and "תעז" twice over reads as a stutter,
-     so a governorate that shares its name with a dossier label, or whose anchor
-     sits within 32px of one's point, yields to it. That second case is why Taiz
-     governorate's authored anchor (data\gov_names.json, on the city) costs the
-     overview nothing: the city label is already there, and the governorate name
-     stands down. */
-  function sameName(a, b) {
-    var strip = function (s) { return String(s || "").replace(/^אל-/, "").trim(); };
-    a = strip(a); b = strip(b);
-    return !!a && !!b && (a.indexOf(b) >= 0 || b.indexOf(a) >= 0);
-  }
-  function govLabels(ctx, p, P, u, G, size, taken, points) {
-    var marks = (G.labels && G.labels.features || []).map(function (f) {
-      return { name: f.properties.name_he, home: f.properties.set === "yem_adm1" ? 0 : 1,
-               span: f.properties.span || 0, c: f.geometry.coordinates };
-    }).sort(function (a, b) { return a.home - b.home || b.span - a.span; });
-    marks.forEach(function (m) {
-      if (!p.inside(m.c[0], m.c[1], -0.2)) return;
-      var q = p(m.c[0], m.c[1]);
-      var near = points.some(function (pt) {
-        return Math.hypot(pt.q[0] - q[0], pt.q[1] - q[1]) < 32 * u || sameName(pt.he, m.name);
-      });
-      if (near) return;
-      var w = width(ctx, m.name, size, 500), h = size * 1.25;
-      var box = { x0: q[0] - w / 2 - 3, y0: q[1] - h / 2 - 2, x1: q[0] + w / 2 + 3, y1: q[1] + h / 2 + 2 };
-      if (taken.some(function (t) { return overlaps(box, t); })) return;
-      text(ctx, P, m.name, q[0], q[1], { size: size, color: P.govLabel, halo: 3 * u });
-      taken.push(box);
-    });
-  }
+  /* ---- MOVED OUT ------------------------------------------------------------
+     The governorate names left for dossier_map_zone_names.js on 2026-09-18,
+     with the place names, when that file became the one place that answers what
+     a picture names and this one reached its cap. This file keeps the GROUND
+     and the primitives every painter draws with.
+     ------------------------------------------------------------------------ */
 
   return {
     mix: mix, alpha: alpha, text: text, width: width, overlaps: overlaps,
     place: place, ringMark: ringMark, setFont: setFont, paintShape: paintShape,
+    canvasScale: canvasScale,
     hatch: hatch, dashOf: dashOf, eachFeature: eachFeature, polyPath: polyPath,
-    ground: ground, lanes: lanes, govLabels: govLabels,
+    strokeLines: strokeLines,
+    ground: ground, lanes: lanes,
     CLEAN_TEXT: CLEAN_TEXT, COUNTRY_TEXT: COUNTRY_TEXT,
     COUNTRY_SPACE: COUNTRY_SPACE
   };

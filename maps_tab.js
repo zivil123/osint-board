@@ -157,7 +157,9 @@
     const T = window.TrendChart;
     let s = T.SHAPES[0];
     T.SHAPES.forEach((x) => { if (x.shape === shape) s = x; });
-    const item = { id: "trends", variant: T.range(), shape: shape,
+    /* `kind: "chart"` - not a map, so the picture dump does not ask it for a
+       map self-check it could never file (dossier_png.js, `note`). */
+    const item = { id: "trends", variant: T.range(), shape: shape, kind: "chart",
       width: s.w, height: s.h, name: fileName(T.range(), shape),
       bytes: Math.round((dataUrl.length - dataUrl.indexOf(",") - 1) * 3 / 4),
       dataUrl: dataUrl };

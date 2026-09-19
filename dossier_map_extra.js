@@ -30,6 +30,16 @@ var DossierMapExtra = (function () {
     }
     return window.DossierMapDraw;
   }
+  /* WHERE A LEADER MAY RUN is dossier_map_leader.js (2026-09-18): the box
+     arithmetic, the one-bend elbows and the refusal that replaced a scored
+     penalty. Looked up at call time, so the painter files may load in any
+     order, and named when missing for the same reason DossierMapDraw is. */
+  function L() {
+    if (!window.DossierMapLeader) {
+      throw new Error("dossier_map_extra: dossier_map_leader.js is not on the page");
+    }
+    return window.DossierMapLeader;
+  }
 
   /* ---- relief ------------------------------------------------------------- */
 
@@ -115,197 +125,54 @@ var DossierMapExtra = (function () {
      against חיפאן, against אל-ג'ובה). A leading חזית or שולי is a word the
      reader can supply from the hatching, so it is the word that goes. */
   var NOTE_SHORT_W = 350;
-  var NOTE_GAP = 26;       /* how far off the belt's own box the nearest ring sits */
-  var RINGS = 16;          /* how many rings out the search reaches before the grid */
-  var ANGLES = 16;         /* directions tried between the eight box-relative ones */
   var SIDES = ["n", "s", "e", "w"];
-  var DIAG = ["ne", "nw", "se", "sw"];
   var REPORT = null;       /* what the last notes() paint measured - read in console */
-  /* What a crossed leader costs when a candidate is scored against how far it
-     sits from its belt, as a fraction of the canvas width; indexed by how clean
-     the leader is - [crosses a callout, crosses a town name, clean]. Tuned
-     2026-09-16 at 2560, callouts covering about 48% of the slide: always buying
-     a clean leader flung notes 53% away, never buying one left nine crossings. */
-  var PEN = [0.16, 0.06, 0];
 
   /* The leading word a reader can already see from the hatch under the name. */
   function shortName(str) {
     return String(str || "").replace(/^(?:חזית|שולי)\s+/, "");
   }
 
-  /* Greedy wrap to at most `max` lines; an overrun is cut with an ellipsis, not
-     allowed to run, because the box is measured from these lines and an extra
-     one would sit on whatever is under the callout. A backstop, not the path. */
-  function wrap(ctx, str, size, maxW, max) {
-    var R = D(), words = String(str || "").split(/\s+/).filter(Boolean);
-    var lines = [], line = "";
-    words.forEach(function (w) {
-      var next = line ? line + " " + w : w;
-      if (line && R.width(ctx, next, size, 400) > maxW) { lines.push(line); line = w; }
-      else line = next;
-    });
-    if (line) lines.push(line);
-    if (lines.length > max) {
-      lines = lines.slice(0, max);
-      lines[max - 1] = lines[max - 1].replace(/\s+\S*$/, "") + "…";
-    }
-    return lines;
+  /* THE BOX SEARCH, THE WRAP AND THE BOX ARITHMETIC ARE ALL IN
+     dossier_map_leader.js since 2026-09-18, with the leader test that now
+     refuses a spot instead of pricing it. Named here so the rest of this
+     file reads as it did, and re-exported as `kit` at the foot. */
+  function wrap(ctx, str, size, maxW, max) { return L().wrap(ctx, str, size, maxW, max); }
+  function fits(box, taken, W, H) { return L().fits(box, taken, W, H); }
+  function boxAt(cx, cy, w, h) { return L().boxAt(cx, cy, w, h); }
+  function findSpot(s, f, w, h, u, bars, taken, mine, leaders, W, H) {
+    return L().findSpot(s, f, w, h, u, bars, taken, mine, leaders, W, H);
+  }
+  function edgeness(s, W, H) { return L().edgeness(s, W, H); }
+
+  /* THE WORDS OUT OF A `taken` LIST, and nothing else (2026-09-19). Since every
+     mark on a picture reserves its own rectangle in `taken`
+     (dossier_map_ink.js), that one list now holds two kinds of thing, and the
+     two questions asked of it have different answers: a BOX may not be placed
+     on a pin, a diamond or a level badge, while a LEADER crossing one of them
+     is nothing at all - rule 4 forbids a line over a WORD. Filtered here rather
+     than in the leader itself, so the leader file keeps one job. Every caller
+     that hands a list to findSpot, overText or best goes through this. */
+  function words(list) {
+    return (list || []).filter(function (b) { return b && !b.mark; });
   }
 
-  function fits(box, taken, W, H) {
-    var R = D();
-    return box.x0 >= 0 && box.x1 <= W && box.y0 >= 0 && box.y1 <= H &&
-      !taken.some(function (t) { return R.overlaps(box, t); });
-  }
-  function boxAt(cx, cy, w, h) {
-    return { x0: cx - w / 2, y0: cy - h / 2, x1: cx + w / 2, y1: cy + h / 2 };
-  }
-  /* The callout's centre for one side or corner of the belt's box, `off` out. */
-  function sideSpot(s, side, w, h, off) {
-    var mx = (s.x0 + s.x1) / 2, my = (s.y0 + s.y1) / 2;
-    return [side.indexOf("e") >= 0 ? s.x1 + off + w / 2
-          : side.indexOf("w") >= 0 ? s.x0 - off - w / 2 : mx,
-            side.indexOf("n") >= 0 ? s.y0 - off - h / 2
-          : side.indexOf("s") >= 0 ? s.y1 + off + h / 2 : my];
-  }
-  /* The leader: the callout box's nearest point to the belt's centreline mark,
-     and the mark itself. */
-  function leaderSeg(b, s) {
-    return [Math.max(b.x0, Math.min(s.cx, b.x1)),
-            Math.max(b.y0, Math.min(s.cy, b.y1)), s.cx, s.cy];
-  }
-  function segLen(g) { return Math.hypot(g[2] - g[0], g[3] - g[1]); }
-  /* Does a segment touch a box? Liang-Barsky, the box pulled in a pixel so a
-     leader that merely starts on a neighbour's edge is not read as crossing it. */
-  function segBox(g, b) {
-    var x = g[0], y = g[1], dx = g[2] - x, dy = g[3] - y, t0 = 0, t1 = 1, i, q, r, t;
-    var e = [[-dx, x - b.x0 - 1], [dx, b.x1 - 1 - x],
-             [-dy, y - b.y0 - 1], [dy, b.y1 - 1 - y]];
-    for (i = 0; i < 4; i++) {
-      q = e[i][0]; r = e[i][1];
-      if (q === 0) { if (r < 0) return false; continue; }
-      t = r / q;
-      if (q < 0) { if (t > t1) return false; if (t > t0) t0 = t; }
-      else { if (t < t0) return false; if (t < t1) t1 = t; }
-    }
-    return true;
-  }
-  function turn(g, x, y) {
-    return (g[2] - g[0]) * (y - g[1]) - (g[3] - g[1]) * (x - g[0]);
-  }
-  function segCross(a, b) {
-    return ((turn(b, a[0], a[1]) > 0) !== (turn(b, a[2], a[3]) > 0)) &&
-           ((turn(a, b[0], b[1]) > 0) !== (turn(a, b[2], b[3]) > 0));
-  }
 
-  /* Is this box's LEADER clean, and how clean? `strict` 2 keeps the line off
-     everything on the map, town names and legend included; 1 off the other
-     callouts alone - a hairline through a two-word label's halo is a blemish,
-     the same line through a three-line sentence is unreadable. Either way a
-     box an earlier leader runs through is refused. Measured 2026-09-16 with no
-     leader test at all, at 2560: 24 leaders crossed other callouts' text. */
-  function clean(box, s, taken, mine, leaders, strict) {
-    var g = leaderSeg(box, s);
-    if (segLen(g) < 1) return true;
-    if ((strict > 1 ? taken : mine).some(function (t) { return segBox(g, t); })) return false;
-    if (leaders.some(function (l) { return segBox(l, box); })) return false;
-    return !leaders.some(function (l) { return segCross(g, l); });
-  }
-
-  /* A NOTE IS NEVER DROPPED, AND IT IS PLACED NEAR THE BELT IT NAMES. A town
-     name that cannot be placed is dropped, because the pin still says where
-     the town is; a note is the only thing saying what is happening at that
-     front, and a front with no note reads as a quiet one.
-
-     The old search was four sides, four rings, a spiral, then a coarse grid
-     whose nearest free cell wins - and the grid is what put the callouts a
-     long way off: it was reached often, the rings above it being too few and
-     too tight to reach past the callout's own width. Measured at 2560:
-     חזית חרד sat 1,771px from its belt, 69% of the slide, four more over 1,100.
-
-     So the rings ARE the search: twenty-four directions at every ring (the
-     authored side, the other three, the corners, sixteen angles between),
-     stepping by the wider of the old gap and a twenty-fourth of the canvas,
-     every candidate SCORED on distance plus what its leader crosses - so the
-     winner is the nearest good spot and not the first merely legal one.
-     `bars` is ground a BOX may not take, `taken` and `mine` what a LEADER may
-     not cross. The grid stays as the backstop. */
-  function findSpot(s, first, w, h, u, bars, taken, mine, leaders, W, H) {
-    var order = [first].concat(SIDES.filter(function (a) { return a !== first; }))
-      .concat(DIAG);
-    var step = Math.max(NOTE_GAP * u, Math.min(W, H) / 24);
-    var rad0 = Math.hypot(w, h) / 2 + Math.hypot(s.x1 - s.x0, s.y1 - s.y0) / 2;
-    var best = null, cost = Infinity, ring, off, k, ang, spot, b, q, d, c;
-    for (ring = 1; ring <= RINGS; ring++) {
-      off = NOTE_GAP * u + step * (ring - 1);
-      if (off >= cost) break;          /* nothing further out can win now */
-      for (k = 0; k < order.length + ANGLES; k++) {
-        if (k < order.length) { spot = sideSpot(s, order[k], w, h, off); }
-        else {
-          ang = (k - order.length + 0.5) * 2 * Math.PI / ANGLES;
-          spot = [s.cx + Math.cos(ang) * (rad0 + off),
-                  s.cy + Math.sin(ang) * (rad0 + off)];
-        }
-        b = boxAt(spot[0], spot[1], w, h);
-        if (!fits(b, bars, W, H)) continue;
-        q = clean(b, s, taken, mine, leaders, 2) ? 2
-          : clean(b, s, taken, mine, leaders, 1) ? 1 : 0;
-        d = Math.hypot(spot[0] - s.cx, spot[1] - s.cy);
-        c = d + PEN[q] * W;
-        if (c < cost) { cost = c; best = b; best.pass = q; }
-      }
-    }
-    if (best) return best;
-    /* The backstop: every position on a coarse grid, the free one nearest the
-       belt wins. It is what makes "never dropped" also mean "never overprinted
-       while there was room somewhere", and it costs 0-3 ms. */
-    var best = null, bestD = Infinity, gx, gy;
-    for (gx = 0; gx <= 48 && W - w >= 0; gx++) {
-      for (gy = 0; gy <= 30 && H - h >= 0; gy++) {
-        var cx = w / 2 + (W - w) * gx / 48, cy = h / 2 + (H - h) * gy / 30;
-        b = boxAt(cx, cy, w, h);
-        var d = Math.hypot(cx - s.cx, cy - s.cy);
-        if (d < bestD && fits(b, bars, W, H)) { bestD = d; best = b; }
-      }
-    }
-    if (best) return best;
-    spot = sideSpot(s, first, w, h, NOTE_GAP * u);
-    return boxAt(Math.min(Math.max(spot[0], w / 2), W - w / 2),
-                 Math.min(Math.max(spot[1], h / 2), H - h / 2), w, h);
-  }
-
-  /* A leader from the callout's nearest edge to the belt's centreline point, so
-     a note placed three rings out still says which shape it belongs to. Halo
-     under ink, exactly as the text is drawn, because it crosses whatever the
-     callout was pushed off. */
-  function leader(ctx, P, u, g) {
-    var R = D();
-    ctx.beginPath(); ctx.moveTo(g[0], g[1]); ctx.lineTo(g[2], g[3]);
-    R.paintShape(ctx, { stroke: P.halo, width: Math.max(3, 3.5 * u) });
-    ctx.beginPath(); ctx.moveTo(g[0], g[1]); ctx.lineTo(g[2], g[3]);
-    R.paintShape(ctx, { stroke: P.ink, width: Math.max(1.5, 1.5 * u) });
-  }
-
-  /* A belt on the edge of the canvas has fewer free directions than one in
-     the middle, and whoever is placed last takes what is left - so the edge
-     ones go first. Measured 2026-09-16 at 2560 with this sort removed: the
-     furthest callout went from 40% of the slide away to 68%. */
-  function edgeness(s, W, H) {
-    return Math.max(Math.abs(s.cx - W / 2) / W, Math.abs(s.cy - H / 2) / H);
-  }
-
-  /* One callout per front: its NAME over its NOTE, both read off GEO.fronts.
-     Until data\fronts.json carries the notes this prints the name alone - the
-     picture degrades to the plain one rather than throwing.
+  /* ONE PLACEMENT PASS AT ONE TEXT SIZE, painting nothing: a pass that loses
+     must leave no ink. One callout per front, its NAME over its NOTE, both
+     read off GEO.fronts; until data\fronts.json carries the notes this prints
+     the name alone, the picture degrading to the plain one rather than
+     throwing.
 
      `note_side` is the authored first choice and a preference, not an
      instruction: a side free when the note was written is not free at every
-     canvas width, so the other sides, the corners and sixteen angles between
-     are scored against it. Placed first and painted second: every leader goes
-     down before any callout's text, so a line never crosses a sentence. */
-  function notes(ctx, p, P, u, ts, G, taken, W, H, size) {
-    var R = D(), nameSize = size * 0.9, noteSize = size * 0.8;
-    var maxW = NOTE_W * u * ts, leaders = [], mine = [], queue = [];
+     canvas width, so the other sides, the corners and the angles between are
+     scored against it. */
+  function layout(ctx, p, u, ts, G, taken, W, H, size, scale, prio) {
+    var R = D(), nameSize = size * 0.9 * scale, noteSize = size * 0.8 * scale;
+    var maxW = NOTE_W * u * ts * scale, leaders = [], mine = [], queue = [];
+    var rank = {};
+    (prio || []).forEach(function (id, i) { rank[id] = i; });
     var list = ((G.fronts && G.fronts.features) || []).map(function (f) {
       return { props: f.properties || {}, s: shapeOf(p, f.geometry) };
     }).filter(function (it) {
@@ -317,15 +184,26 @@ var DossierMapExtra = (function () {
        diamonds - which also made those three unplaceable, because a leader
        ENDING inside somebody else's box can never come out of the crossing
        test clean, so all three were flung to the far side of the canvas.
-       `bars` is those marks plus everything already placed; the leader tests
-       read `taken`, so a note is never barred by its own mark. */
+       `bars` is those marks plus everything already placed, plus the canvas
+       rim so no box is painted with its halo cut; the leader tests read
+       `taken`, so a note is never barred by its own mark. */
     var m = window.DossierMapLegend ? window.DossierMapLegend.markR(u) : 11 * u;
-    var bars = taken.slice();
+    var bars = words(taken).concat(L().rimBars(W, H, u));
     list.forEach(function (it) {
       bars.push({ x0: it.s.cx - m, y0: it.s.cy - m,
                   x1: it.s.cx + m, y1: it.s.cy + m });
     });
+    /* WHOEVER IS PLACED LAST TAKES WHAT IS LEFT, so the edge belts go first
+       (measured 2026-09-16: with this sort removed the furthest callout went
+       from 40% of the slide away to 68%) - and `prio` jumps the queue ahead of
+       even them. It carries the fronts a previous pass could not place
+       cleanly: given first refusal of the canvas, a front that had nowhere to
+       go usually has somewhere, and whoever it displaces has more room to lose. */
     list.sort(function (a, b) {
+      var ra = rank[a.props.id], rb = rank[b.props.id];
+      if (ra !== undefined || rb !== undefined) {
+        return (ra === undefined ? 99 : ra) - (rb === undefined ? 99 : rb);
+      }
       return edgeness(b.s, W, H) - edgeness(a.s, W, H);
     }).forEach(function (it) {
       var s = it.s, props = it.props;
@@ -345,38 +223,106 @@ var DossierMapExtra = (function () {
       var lineH = noteSize * 1.22, h = nameSize * 1.3 + lines.length * lineH;
       var side = SIDES.indexOf(props.note_side) >= 0 ? props.note_side : "n";
       var box = findSpot(s, side, w, h, u, bars, taken, mine, leaders, W, H);
-      var g = leaderSeg(box, s);
-      if (segLen(g) >= 4 * u) leaders.push(g);
-      taken.push(box); mine.push(box); bars.push(box);
-      queue.push({ box: box, s: s, name: name, lines: lines, lineH: lineH });
+      /* The route the search TESTED is the route that gets painted. A box the
+         search could only place dirty comes back with none, and then the
+         straight line is drawn and counted as a fault rather than hidden. */
+      var rt = box.route || L().straight(box, s);
+      if (rt.len >= 4 * u) leaders.push(rt);
+      mine.push(box); bars.push(box);
+      queue.push({ box: box, s: s, rt: rt, name: name, lines: lines,
+                   lineH: lineH, id: props.id });
     });
-    leaders.forEach(function (g) { leader(ctx, P, u, g); });
-    queue.forEach(function (q) {
-      var y = q.box.y0 + nameSize * 0.65, cx = (q.box.x0 + q.box.x1) / 2;
-      R.text(ctx, P, q.name, cx, y, { size: nameSize, weight: 700, halo: 4 * u });
-      q.lines.forEach(function (ln, k) {
-        R.text(ctx, P, ln, cx, y + nameSize * 0.72 + (k + 0.5) * q.lineH,
-          { size: noteSize, weight: 400, halo: 4 * u, color: P.muted });
-      });
-    });
-    /* What this paint achieved, for the console and never for the page: how
-       far each callout ended from its belt, how many leaders run through
-       somebody else's text, how many boxes overlap. DossierMapExtra.report(). */
-    var cross = 0, over = 0, far = 0;
+    var boxes = queue.map(function (q) { return q.box; });
+    var over = 0, laps = 0;
     queue.forEach(function (q, k) {
-      var g = leaderSeg(q.box, q.s);
-      queue.forEach(function (o, m) {
-        if (k !== m && segBox(g, o.box)) cross++;
-        if (m > k && R.overlaps(q.box, o.box)) over++;
+      over += L().overText(q.rt, taken.concat(boxes), q.box, q.s);
+      queue.forEach(function (o, i) { if (i > k && R.overlaps(q.box, o.box)) laps++; });
+    });
+    return { queue: queue, over: over, laps: laps, scale: scale,
+             cross: L().crossings(queue.map(function (q) { return q.rt; })),
+             stuck: queue.filter(function (q) { return q.box.pass === 0; }).length,
+             nameSize: nameSize, noteSize: noteSize };
+  }
+
+  /* THE WHOLE SET IS PLACED AT EACH LEGAL TEXT SIZE AND THE BEST PASS WINS
+     (2026-09-18). It used to be placed once, at one size, and whatever could
+     not find a clean spot had its line painted across somebody's sentence -
+     which is the fault Ziv photographed. Shrinking the words is the lever that
+     frees the room, so it is pulled; the 15 CSS px floor on a 1280 canvas is
+     what stops it being pulled too far, and a set that will not lay out even
+     at the floor is painted there and REPORTED, never shrunk on quietly.
+     Placed first and painted second: every leader goes down before any
+     callout's text, so a line never crosses a sentence. */
+  var STEPS = [1, 0.94, 0.88, 0.82, 0.78, 0.74], TEXT_MIN = 15;
+
+  /* WHAT A PASS COSTS, worst first: a box on top of a box, then a line across
+     a word - the thing Ziv photographed - then two lines crossing, and last a
+     spot the search had to give up on, which is only a warning sign once the
+     three faults above are zero. */
+  function score(t) {
+    return t.laps * 1000 + t.over * 100 + t.cross * 20 + t.stuck * 3;
+  }
+
+  /* `mapId` is carried only so a fault can NAME the picture it happened on: it
+     read "?" until 2026-09-18, which is a report nobody can act on. */
+  function notes(ctx, p, P, u, ts, G, taken, W, H, size, mapId) {
+    var R = D(), floor = TEXT_MIN * W / (1280 * size * 0.8);
+    var best = null, low = Infinity, i, k, t, c, t2, prio;
+    for (i = 0; i < STEPS.length; i++) {
+      if (i && STEPS[i] < floor) break;
+      t = layout(ctx, p, u, ts, G, taken, W, H, size, STEPS[i]);
+      c = score(t);
+      prio = [];
+      /* AND UP TO THREE MORE GOES AT THE SAME SIZE, each with whatever could
+         not be placed given first refusal of the canvas (`prio`, which keeps
+         the earlier rounds' names too). It is the cheapest fix there is for a
+         callout boxed in by neighbours that were only there because they went
+         first, and it is what took the wide overview notes from three lines
+         over words to none. */
+      for (k = 0; c && k < 3; k++) {
+        prio = prio.concat(t.queue.filter(function (q) {
+          return q.box.pass === 0; }).map(function (q) { return q.id; }));
+        t2 = layout(ctx, p, u, ts, G, taken, W, H, size, STEPS[i], prio);
+        if (score(t2) < c) { t = t2; c = score(t2); }
+        else break;
+      }
+      if (c < low) { low = c; best = t; }
+      if (!c) break;
+    }
+    if (!best) return;
+    best.queue.forEach(function (q) {
+      if (q.rt.len >= 4 * u) L().paint(ctx, P, u, q.rt);
+    });
+    best.queue.forEach(function (q) {
+      var y = q.box.y0 + best.nameSize * 0.65, cx = (q.box.x0 + q.box.x1) / 2;
+      R.text(ctx, P, q.name, cx, y,
+        { size: best.nameSize, weight: 700, halo: 4 * u });
+      q.lines.forEach(function (ln, k) {
+        R.text(ctx, P, ln, cx, y + best.nameSize * 0.72 + (k + 0.5) * q.lineH,
+          { size: best.noteSize, weight: 400, halo: 4 * u, color: P.muted });
       });
+      taken.push(q.box);
+    });
+    /* What this paint achieved, MEASURED FROM THE FINISHED PICTURE and never
+       from the search's own optimism. Both numbers must be zero, both go to
+       the shared check, and a fault names itself in the console.
+       DossierMapExtra.report(). */
+    var far = 0, bad = [];
+    best.queue.forEach(function (q) {
+      if (L().overText(q.rt, taken, q.box, q.s)) bad.push(q.name);
       q.dist = Math.round(Math.hypot((q.box.x0 + q.box.x1) / 2 - q.s.cx,
                                      (q.box.y0 + q.box.y1) / 2 - q.s.cy));
       far = Math.max(far, q.dist);
     });
-    REPORT = { width: W, height: H, maxDist: far, maxDistPct: Math.round(far / W * 100),
-      crossings: cross, overlaps: over, callouts: queue.map(function (q) {
-        return { name: q.name, dist: q.dist, pass: q.box.pass, box: q.box };
-      }) };
+    L().size(best.noteSize, W);
+    L().fault(mapId, "front notes " + W + "x" + H +
+      (bad.length ? " (" + bad.join(", ") + ")" : ""), best.over, best.cross);
+    REPORT = { width: W, height: H, scale: best.scale, maxDist: far,
+      maxDistPct: Math.round(far / W * 100), line_over_text: best.over,
+      crossings: best.cross, overlaps: best.laps, stuck: best.stuck,
+      css: Math.round(best.noteSize * 1280 / W),
+      callouts: best.queue.map(function (q) {
+        return { name: q.name, dist: q.dist, pass: q.box.pass, box: q.box }; }) };
   }
 
   /* ---- the assessment arrows ------------------------------------------------ */
@@ -485,13 +431,30 @@ var DossierMapExtra = (function () {
     });
   }
 
-  /* `kit` is this file's callout SEARCH, handed out so the place notes of
-     2026-09-17 (dossier_map_notes.js, which had to be a new file - this one is
-     at the 500-line cap) run the same search rather than a copy of it. */
+  /* `kit` IS THE NAME THE OTHER PAINTERS KNOW THE SEARCH BY - the place notes
+     of 2026-09-17 (dossier_map_notes.js) and the panel's numbered discs
+     (dossier_map_number.js) run the same search rather than a copy of it. The
+     search itself moved into dossier_map_leader.js on 2026-09-18 and is handed
+     straight through here, so those two files did not have to change and there
+     is still one answer to "does this line touch that rectangle" wherever it
+     is asked. `route` and `paint` are the new half: a caller that wants the
+     one-bend router for a line of its own asks for them by name. */
+  function via(name) {
+    return function (a, b, c, d2, e, f, g, h, i, j, k) {
+      return L()[name](a, b, c, d2, e, f, g, h, i, j, k);
+    };
+  }
   return { relief: relief, notes: notes, arrows: arrows,
-           kit: { findSpot: findSpot, wrap: wrap, leaderSeg: leaderSeg,
-                  leader: leader, boxAt: boxAt, segLen: segLen,
-                  edgeness: edgeness, NOTE_W: NOTE_W, NOTE_LINES: NOTE_LINES },
+           kit: { findSpot: findSpot, wrap: wrap, boxAt: boxAt, fits: fits,
+                  edgeness: edgeness, words: words,
+                  NOTE_W: NOTE_W, NOTE_LINES: NOTE_LINES,
+                  leaderSeg: via("leaderSeg"), segLen: via("segLen"),
+                  segBox: via("segBox"), segCross: via("segCross"),
+                  leader: via("line"), paint: via("paint"), tip: via("tip"),
+                  route: via("best"), straight: via("straight"),
+                  rimBars: via("rimBars"), crossings: via("crossings"),
+                  overText: via("overText"), tell: via("tell"),
+                  size: via("size"), fault: via("fault") },
            report: function () { return REPORT; } };
 })();
 

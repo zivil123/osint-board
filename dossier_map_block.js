@@ -101,6 +101,24 @@ var DossierMapBlock = (function () {
     return rows.slice(0, at).concat(scale, rows.slice(at + 1));
   }
 
+  /* THE SEAM'S ROW, the twin of the painted key's (2026-09-18). A merged map
+     paints the new ground in the Houthi colour and runs a solid brown line
+     where it ends - Ziv: "still make a line that separates the new territories
+     that they conquered so we know what they are" - so both keys name it, in
+     the same words and in the same colour, read from the painter rather than
+     written again here. The swatch RESEMBLES the line, as the zone signs'
+     swatches do: the painted key draws the real thing, casing and all. No seam
+     layer on the page, no row. */
+  function seamRow() {
+    var GN = window.DossierMapGains, LG = window.DossierMapLegend;
+    var G0 = (typeof GEO !== "undefined" && GEO) ? GEO : null;
+    if (!GN || !LG || !GN.hasSeam || !GN.hasSeam(G0)) return [];
+    var theme = (window.DossierMap && DossierMap.screenTheme) || "light";
+    return [{ cls: "sw line",
+      style: "--sw-c: " + GN.seamInk(DossierMap.palette(theme)) + "; --sw-w: 3px",
+      he: LG.seamLabel() }];
+  }
+
   function legendHtml(m) {
     /* A map may carry NO key ON IT - `legend: false`, Ziv 2026-09-17: *"remove
        the box that explains everything, there's no need for it."*
@@ -127,7 +145,7 @@ var DossierMapBlock = (function () {
        Houthi ground and a row naming a colour that is no longer on the picture
        would send the reader hunting for it. Same three the painted key adds. */
     if (m && m.clean && m.control === "merged") {
-      rows = [LEGEND[0], LEGEND[1], LEGEND[4]].concat(CLEAN_LEGEND);
+      rows = [LEGEND[0], LEGEND[1], LEGEND[4]].concat(seamRow(), CLEAN_LEGEND);
     }
     if (m && m.heat) rows = heatRows(rows);
     /* A row appears only when the map carries the thing it names, the same
