@@ -351,9 +351,9 @@ var DossierMap = (function () {
        ones were dropped outright. The mark stays, its disc is glued to it, and
        the list below carries the name; a town that is nobody's objective keeps
        its name if it fits. MAPS_TAB.md, "On a phone". */
-    var numbersOnly = null;
-    if (map.key === "panel" &&
-        !(window.DossierMapKey && DossierMapKey.splitOf())) {
+    var numbersOnly = null, narrow = map.key === "panel" &&
+      !(window.DossierMapKey && DossierMapKey.splitOf());
+    if (narrow) {
       numbersOnly = {};
       (map.notes || []).forEach(function (n) { numbersOnly[n.place] = true; });
     }
@@ -375,17 +375,19 @@ var DossierMap = (function () {
        corner the legend did not take. */
     R.mapOver(ctx, p, P, u, map, taken, W, H, size, legend);
     /* The governorate names go down BEFORE the fighting zones: each has one
-       anchor point and no second choice, while a zone name has a whole shape to
-       find room in. ON THE NOTES PICTURE THEY COME OFF ALTOGETHER (21
-       collisions across 12 callouts with them in, measured at 1400px), and on a
-       CLEAN one for the opposite reason: it is not a map of who holds what.
-       Both, and why nothing is lost by the first, are in DOSSIER_MAPS.md,
-       "Notes live on the FRONT" and DOSSIER_LAYERS.md. */
+       anchor point and no second choice but to shrink a step (the ladder is in
+       dossier_map_gov.js; the closure below is the sum it steps), while a zone
+       name has a whole shape to find room in. ON THE NOTES PICTURE THEY COME
+       OFF ALTOGETHER (21 collisions across 12 callouts, measured at 1400px),
+       and on a CLEAN one for the opposite reason: it is not a map of who holds
+       what. Both are in DOSSIER_MAPS.md, "Notes live on the FRONT" and
+       DOSSIER_LAYERS.md. `narrow` rides along so that a region name may repeat
+       a town name on a full picture and still stand down on the phone. */
     var gov = F.gov || 1;
     if (!notesOn && !clean) {
       R.govLabels(ctx, p, P, u, G,
-        Math.max(size * Math.min(GOV_MIN, gov), 17 * u * ts * gov), taken, points,
-        map.gov_names, map.gov_anchor_he);
+        function (g) { return Math.max(size * Math.min(GOV_MIN, g), 17 * u * ts * g); },
+        taken, points, map.gov_names, map.gov_anchor_he, narrow, gov);
     }
     if (notesOn) R.notes(ctx, p, P, u, ts, G, taken, W, H, size, mapId);
     else if (!clean) R.zoneNames(ctx, p, P, u, W, H, G, size, taken, map, points);

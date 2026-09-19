@@ -102,7 +102,44 @@ var DossierMapGov = (function () {
     console.warn("dossier map: region " + name + " is on gov_names and was not"
       + " printed - " + why);
   }
-  function govLabels(ctx, p, P, u, G, size, taken, points, names, at) {
+
+  /* ONE NAME STEPS DOWN, NEVER THE WHOLE FRAME (2026-09-19). The frame's `gov`
+     factor is how big Ziv asked the region names on THIS picture to be - "make
+     it big" - and until now a single name that could not be fitted at that size
+     was paid for by every other name on the map: the Marib objectives list map
+     had its frame dropped from 1.5 to 1.1 so "מארב" would fit between the discs,
+     and al-Jawf, Hadramawt and Shabwa all shrank with it for nothing. So the
+     LADDER is per name: full size first, then 1.35, 1.2 and a floor of 1.1, and
+     the first step that clears every box already on the picture is the one
+     painted. A frame below the floor keeps its own factor and never steps - the
+     ladder only ever goes DOWN from what the frame asked for.
+
+     The floor is 1.1 and not lower because the smallest of these is still a
+     name a reader has to read: `sizeAt` is written round the 17px reading floor
+     of dossier_map.js, so 1.1 lands well above the checker's 13.5 CSS px on a
+     1280 canvas (dossier_map_check.js, `nameFloor`) on every shape this board
+     paints.
+
+     ONLY A NAME THIS PICTURE ANCHORED BY HAND STEPS. `gov_anchor` is the
+     author saying WHERE on this picture that region is named - a promise the
+     picture's own prose makes - so shrinking it a step to keep that promise is
+     what the override was for. A name standing at its own computed interior
+     point has promised nothing: it fits at the size the frame asked for or it
+     stands down, exactly as it did before, so no other picture on the board
+     gains a name it was not printing. Measured 2026-09-19: stepping every name
+     gave the fighting-heat callouts map a third region name and a leader line
+     across it, and that picture failed its own check. */
+  var STEPS = [1.5, 1.35, 1.2, 1.1];
+  function ladder(gov) {
+    var steps = STEPS.filter(function (g) { return g <= gov; });
+    if (!steps.length || steps[0] !== gov) steps.unshift(gov);
+    return steps;
+  }
+  /* `sizeAt` is the frame's own sizing sum, handed down from dossier_map.js
+     because the 17px floor, the canvas scale and the screen/slide step all live
+     there; `gov` is the factor that file read off the frame. */
+  function govLabels(ctx, p, P, u, G, sizeAt, taken, points, names, at, narrow,
+                     gov) {
     var R = D(), matched = 0, index = idOf(G);
     var marks = (G.labels && G.labels.features || []).map(function (f) {
       return { name: f.properties.name_he, home: f.properties.set === "yem_adm1" ? 0 : 1,
@@ -112,25 +149,43 @@ var DossierMapGov = (function () {
     marks.forEach(function (m) {
       if (!wanted(names, m, index)) return;
       matched++;
-      var c = (at && at[m.name]) || m.c;
+      var own = !!(at && at[m.name]);
+      var c = own ? at[m.name] : m.c;
       if (!p.inside(c[0], c[1], -0.2)) return say(m.name, "off the frame");
       var q = p(c[0], c[1]);
       /* A LABEL NAMING THE SAME PLACE has already printed the word, so the
          region name standing down costs the reader nothing - that is a
-         different thing from losing it, and only the second is reported. */
-      var twice = points.some(function (pt) { return sameName(pt.he, m.name); });
+         different thing from losing it, and only the second is reported.
+         UNLESS THE MAP ASKED FOR IT BY NAME (2026-09-19). On a picture whose
+         SUBJECT is the governorate, the town and the region are two different
+         facts and the reader needs both: Ziv, of the Marib objectives map,
+         "you didn't write the Marib county". A whitelist is a deliberate list
+         of the names this picture prints, so a name on it outranks the
+         same-name rule; a map with no whitelist keeps the old behaviour.
+         NOT ON THE PHONE, though - `narrow` is the key-panel picture that could
+         not split, where rule 7 already trades names for numbers and the word
+         is on the canvas once as the town. Measured at 340px: the region name
+         took the last free anchor and a REQUIRED town label was dropped. */
+      var twice = (!names || narrow) &&
+        points.some(function (pt) { return sameName(pt.he, m.name); });
       if (twice) return;
       if (points.some(function (pt) {
         return Math.hypot(pt.q[0] - q[0], pt.q[1] - q[1]) < 32 * u;
       })) return say(m.name, "a label stands on its anchor");
-      var w = R.width(ctx, m.name, size, 500), h = size * 1.25;
-      var box = { x0: q[0] - w / 2 - 3, y0: q[1] - h / 2 - 2, x1: q[0] + w / 2 + 3, y1: q[1] + h / 2 + 2 };
-      if (taken.some(function (t) { return R.overlaps(box, t); })) {
-        return say(m.name, "no room at its anchor - author gov_anchor for it");
+      var steps = own ? ladder(gov || 1) : [gov || 1], fit = null, size = 0;
+      for (var i = 0; i < steps.length && !fit; i++) {
+        size = sizeAt(steps[i]);
+        var w = R.width(ctx, m.name, size, 500), h = size * 1.25;
+        var box = { x0: q[0] - w / 2 - 3, y0: q[1] - h / 2 - 2, x1: q[0] + w / 2 + 3, y1: q[1] + h / 2 + 2 };
+        if (!taken.some(function (t) { return R.overlaps(box, t); })) fit = box;
+      }
+      if (!fit) {
+        return say(m.name, "no room at its anchor even at the smallest step -"
+          + " author gov_anchor for it");
       }
       R.text(ctx, P, m.name, q[0], q[1], { size: size, color: P.govLabel, halo: 3 * u });
-      taken.push(box);
-      if (window.DossierMapInk) DossierMapInk.word(box, "region " + m.name);
+      taken.push(fit);
+      if (window.DossierMapInk) DossierMapInk.word(fit, "region " + m.name);
       if (window.DossierMapCheck) DossierMapCheck.add("gov_names", 1);
     });
     if (names && names.length && !matched) {

@@ -281,6 +281,19 @@ var DossierMapDraw = (function () {
     polyPath(ctx, p, G.yem_adm0.features[0].geometry);
     if (shore) eachFeature(G.nbr_adm0, function (f) { polyPath(ctx, p, f.geometry); });
   }
+  /* THE GOVERNORATE OUTLINE, seen but quiet (2026-09-19). Ziv, of the Marib
+     objectives picture: "the borders between the counties on the Yemeni side,
+     you don't see them. Don't make them crazy, but make them seen." They were a
+     20%-alpha wash that all but vanished on the pale government fill and under
+     the terrain. Now a thin SOLID grey (the palette's `adm1`), scaled with the
+     canvas like every other line here and about half the weight of the country
+     border and the dashed line of contact - so the eye still reads those two
+     first. District (ADM2) lines are not drawn on these pictures at all. */
+  var GOV_LINE_W = 1.1;
+  function govLine(P, u) {
+    return { stroke: P.adm1, width: Math.max(1, GOV_LINE_W * u) };
+  }
+
   /* `opt` carries the relief variant's business - `{img, bounds}` lays the
      terrain picture inside the coastline and `fade` washes the three territory
      fills back so the terrain stays readable under them - and one flag of its
@@ -350,13 +363,13 @@ var DossierMapDraw = (function () {
         stroke: P.contestedStroke, width: Math.max(0.8, 0.8 * u), dash: [3 * u, 3 * u] });
       if (window.DossierMapLegend) window.DossierMapLegend.frontMarks(ctx, p, P, u, G);
     }
-    fillCollection(ctx, p, G.yem_adm1, { stroke: P.adm1, width: Math.max(0.8, u) });
-    fillCollection(ctx, p, G.sau_adm1, { stroke: P.adm1, width: Math.max(0.8, u) });
+    fillCollection(ctx, p, G.yem_adm1, govLine(P, u));
+    fillCollection(ctx, p, G.sau_adm1, govLine(P, u));
     /* THE COAST FIRST, at the shoreline weight and in Yemen's own dark ink on a
        clean map (the neighbours are half that picture) - and there it is their
        SHORELINE only, never their borders: those go down once, bold, below. */
     var edge = o.clean ? { stroke: P.border, width: Math.max(1.2, CLEAN_COAST * u) }
-      : { stroke: P.adm1, width: Math.max(0.8, u) };
+      : govLine(P, u);
     landPath(ctx, p, G, false);
     paintShape(ctx, { stroke: P.border,
       width: o.clean ? edge.width : P.borderW * u });

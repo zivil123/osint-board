@@ -30,7 +30,13 @@ window.DossierMapLight = {
   sea: "#C9DAEA", land: "#F4F7FA",
   houthi: "#C6BCAE", gov: "#E3E8ED", contested: "#EEF1F4",
   contestedStroke: "#7F8B98", frontMark: "#E01B0F",
-  adm1: "rgba(20, 40, 60, 0.20)",
+  /* The governorate outline. SOLID grey, not a wash (2026-09-19): at 20% alpha
+     it disappeared on the pale government fill and under the terrain, and Ziv
+     asked to see it - "don't make them crazy, but make them seen". This grey
+     measures 3.5:1 on the government fill and 2.3:1 on the Houthi one, against
+     the country border's 9:1, so it reads on both sides and still sits below
+     the border and the line of contact. */
+  adm1: "#6E7B8A",
   border: "#33445A", borderW: 2, control: "#1F2D3D", controlW: 2, controlDash: "6 4",
   ink: "#14202C", muted: "#3A4A5A", faint: "#5A6876", govLabel: "#4A5A6A",
   halo: "rgba(255, 255, 255, 0.92)", violet: "#5B4BC4", violetFill: "#B7A5F7",
