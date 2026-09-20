@@ -99,9 +99,29 @@ var DossierMapCorner = (function () {
       var g = f.geometry || {};
       var polys = g.type === "Polygon" ? [g.coordinates]
         : g.type === "MultiPolygon" ? g.coordinates : [];
-      var pts = [];
+      /* THE OUTLINE IS WALKED, NOT JUST ITS CORNERS (2026-09-20). "A few
+         kilometres apart" is a few kilometres of GROUND, and a frame cut to one
+         governorate blows that up: on the square Marib list picture the al-Hazm
+         belt's vertices are far enough apart in pixels that a box can cross the
+         band between two of them and touch neither - which is what happened,
+         the seven-row key sliding along the top edge onto the head of that belt
+         and scoring it clean. So consecutive vertices are joined by samples
+         about 8px apart, capped so a long ring cannot blow the list up. */
+      var pts = [], step = Math.max(4, 8 * u);
       polys.forEach(function (poly) {
-        poly[0].forEach(function (c) { pts.push(p(c[0], c[1])); });
+        var prev = null;
+        poly[0].forEach(function (c) {
+          var q = p(c[0], c[1]);
+          if (prev) {
+            var n = Math.min(40, Math.ceil(
+              Math.hypot(q[0] - prev[0], q[1] - prev[1]) / step));
+            for (var t = 1; t < n; t++) {
+              pts.push([prev[0] + (q[0] - prev[0]) * t / n,
+                        prev[1] + (q[1] - prev[1]) * t / n]);
+            }
+          }
+          pts.push(q); prev = q;
+        });
       });
       if (pts.length) out.push({ w: W_FRONT, hard: true, pts: pts });
       var c = centre(p, g);
@@ -144,6 +164,19 @@ var DossierMapCorner = (function () {
       var q = p(l.lon, l.lat), g = (mark ? 22 : 10) * u;
       out.push({ w: W_LABEL, hard: !!l.req || mark,
                  box: box(q[0] - g, q[1] - g, q[0] + g, q[1] + g) });
+    });
+    /* A WHITELISTED REGION NAME'S GROUND IS RESERVED BEFORE THE KEY IS PLACED
+       (2026-09-20). A region name has ONE anchor and no second choice: it
+       stands there or it stands down, silently, with only a console line. The
+       key is measured first, so on the square Marib list picture the seven-row
+       box took the empty desert that al-Jawf's anchor sits in - and al-Jawf,
+       the subject of that picture, simply did not print, while the wide shape
+       of the SAME map printed it. `opt.reserve` is that ground, measured by
+       dossier_map_gov.js at the SMALLEST step its ladder would accept, so the
+       key gives up no more than the name actually needs. Hard, because a name
+       the map's own prose promises is not a suggestion. */
+    (opt.reserve || []).forEach(function (b) {
+      out.push({ w: W_LABEL, hard: true, box: b });
     });
     (map.arrows || []).forEach(function (a) {
       var pts = (a.path || []).map(function (c) { return p(c[0], c[1]); });

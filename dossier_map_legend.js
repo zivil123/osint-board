@@ -247,11 +247,13 @@ var DossierMapLegend = (function () {
     /* No rows, no box. Only a clean map can reach this, and an empty key drawn
        anyway would be a white rectangle floating in a corner. */
     if (!L.rows.length) return null;
-    function widest() {
+    function widest(S) {
       return Math.max.apply(null, L.rows.map(function (r) {
-        return R.width(ctx, r.label, L.size, 500);
+        return R.width(ctx, r.label, S.size, 500);
       }));
     }
+    var cu = (window.DossierMapDraw && DossierMapDraw.canvasScale()) || u;
+    var cap = W * 0.44;
     /* THE KEY SHRINKS ITS OWN WORDS RATHER THAN CUTTING THEM (2026-09-19). The
        box is capped at 0.44 of the picture it sits in and the map text now
        scales with the CANVAS, so on the three-band split rows set for 2560 were
@@ -259,40 +261,68 @@ var DossierMapLegend = (function () {
        The size comes down until the widest row fits, never below 13 CSS px of
        the whole picture (MAP_RULES.md, rule 2); if even that will not fit, the
        BOX widens past the cap - a wide key is read, a cut one is not. */
-    var textW = widest(), cap = W * 0.44, extra = L.sw + L.gap + 2 * L.pad;
-    if (textW + extra > cap) {
-      var cu = (window.DossierMapDraw && DossierMapDraw.canvasScale()) || u;
-      var want = Math.max(13 * cu, L.size * (cap - extra) / textW);
-      if (want < L.size) {
-        metrics(L, want);
-        textW = widest(); extra = L.sw + L.gap + 2 * L.pad;
-      }
-    }
-    L.w = Math.max(textW + extra, Math.min(cap, 220 * u + 2 * L.pad));
-    L.h = 2 * L.pad + L.rows.length * L.rowH;
-    var pick = need().corner(L, u, W, H, opt);
-    /* AND WHEN ONE COLUMN CANNOT STAND ANYWHERE CLEAN, THE KEY LIES DOWN
-       (2026-09-20). The Marib list picture's key reached seven rows - the
-       regional-capital row was the seventh - and at that height no corner and
-       no slid position on the right edge missed every mark: the tall box came
-       down the edge onto al-Thaniyah. Half as tall and twice as wide, the same
-       seven rows fit across the empty desert along the top of that frame and
-       cover nothing at all. Tried ONLY when the single column is dirty and kept
-       only if it is cleaner, so every key that is clean today is untouched. */
-    if ((pick.hard || pick.edge) && L.rows.length > 3) {
-      var per = Math.ceil(L.rows.length / 2);
-      L.colW = L.w - 2 * L.pad; L.colGap = 1.6 * L.pad;
-      var alt = { w: 2 * L.colW + L.colGap + 2 * L.pad,
-                  h: 2 * L.pad + per * L.rowH };
-      if (alt.w <= W - 28 * u) {
-        var wide = need().corner(alt, u, W, H, opt);
-        if (wide.hard < pick.hard
-            || (wide.hard === pick.hard
-                && ((pick.edge && !wide.edge) || wide.score < pick.score))) {
-          L.cols = 2; L.per = per; L.w = alt.w; L.h = alt.h; pick = wide;
+    /* ONE CANDIDATE SHAPE OF THE KEY, measured at `size` and placed: the single
+       column, and the two-column lie-down below when the column is dirty. It is
+       a function so the whole question can be asked again a size smaller. */
+    function shape(size) {
+      var S = metrics({}, size);
+      var textW = widest(S), extra = S.sw + S.gap + 2 * S.pad;
+      if (textW + extra > cap) {
+        var want = Math.max(13 * cu, S.size * (cap - extra) / textW);
+        if (want < S.size) {
+          metrics(S, want);
+          textW = widest(S); extra = S.sw + S.gap + 2 * S.pad;
         }
       }
+      S.w = Math.max(textW + extra, Math.min(cap, 220 * u + 2 * S.pad));
+      S.h = 2 * S.pad + L.rows.length * S.rowH;
+      S.pick = need().corner(S, u, W, H, opt);
+      /* AND WHEN ONE COLUMN CANNOT STAND ANYWHERE CLEAN, THE KEY LIES DOWN
+         (2026-09-20). The Marib list picture's key reached seven rows - the
+         regional-capital row was the seventh - and at that height no corner and
+         no slid position on the right edge missed every mark: the tall box came
+         down the edge onto al-Thaniyah. Half as tall and twice as wide, the
+         same seven rows fit across more of the frame. Tried ONLY when the
+         single column is dirty and kept only if it is cleaner, so every key
+         that is clean today is untouched. */
+      if ((S.pick.hard || S.pick.edge) && L.rows.length > 3) {
+        var per = Math.ceil(L.rows.length / 2);
+        S.colW = S.w - 2 * S.pad; S.colGap = 1.6 * S.pad;
+        var alt = { w: 2 * S.colW + S.colGap + 2 * S.pad,
+                    h: 2 * S.pad + per * S.rowH };
+        if (alt.w <= W - 28 * u) {
+          var wide = need().corner(alt, u, W, H, opt);
+          if (wide.hard < S.pick.hard
+              || (wide.hard === S.pick.hard
+                  && ((S.pick.edge && !wide.edge) || wide.score < S.pick.score))) {
+            S.cols = 2; S.per = per; S.w = alt.w; S.h = alt.h; S.pick = wide;
+          }
+        }
+      }
+      return S;
     }
+    /* AND WHEN NO SHAPE OF IT STANDS CLEAR, THE KEY GETS SMALLER (2026-09-20).
+       A key that covers a mark, a disc or a region name's only anchor is a key
+       that has taken something off the picture, and the reader cannot get it
+       back; a key two steps smaller is still a key. So while the best placement
+       covers something HARD, the same search runs again at 0.9, 0.8 ... of the
+       authored size, and the FIRST size that stands clear wins - largest clean,
+       never smallest possible. The floor is 15 CSS px of a 1280-wide canvas
+       (MAP_RULES.md, rule 2), below which nothing is printed smaller and the
+       old least-bad answer stands. A key that is already clean - including one
+       pinned along an edge, which several approved pictures use - never enters
+       this loop, so nothing that reads well today moves by a pixel. */
+    var S = shape(opt.size);
+    if (S.pick.hard) {
+      for (var f = 0.9; f > 0.44; f -= 0.1) {
+        if (opt.size * f < 15 * cu) break;
+        var T = shape(opt.size * f);
+        if (!T.pick.hard) { S = T; break; }
+      }
+    }
+    ["size", "k", "pad", "sw", "gap", "rowH", "w", "h", "cols", "per",
+     "colW", "colGap"].forEach(function (key) { L[key] = S[key]; });
+    var pick = S.pick;
     L.at = pick.at; L.cover = pick.score; L.hard = pick.hard;
     L.x0 = pick.box.x0; L.x1 = pick.box.x1; L.y0 = pick.box.y0;
     L.box = pick.box;

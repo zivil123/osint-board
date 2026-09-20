@@ -135,12 +135,24 @@ var DossierMapGov = (function () {
     if (!steps.length || steps[0] !== gov) steps.unshift(gov);
     return steps;
   }
-  /* `sizeAt` is the frame's own sizing sum, handed down from dossier_map.js
-     because the 17px floor, the canvas scale and the screen/slide step all live
-     there; `gov` is the factor that file read off the frame. */
-  function govLabels(ctx, p, P, u, G, sizeAt, taken, points, names, at, narrow,
-                     gov) {
+  /* THE SIZING SUM CAME HERE FROM dossier_map.js ON 2026-09-20, when the key
+     had to ask the same question ahead of time (`reserve` below) and that file
+     stood at its 500-line cap. It is the region names' own sum and always was:
+     GOV_MIN is the smallest step a governorate name keeps above a town name,
+     and the frame's `gov` factor grows with the CANVAS rather than off the 17px
+     reading floor - multiplying that floor handed a phone region names a
+     quarter of the map wide (345px). Wide canvases reach the frame's factor,
+     narrow ones a step. `size` and `ts` are the caller's: the map's base text
+     size and the screen/slide step. */
+  var GOV_MIN = 1.2;
+  function sizeOf(size, u, ts, g) {
+    return Math.max(size * Math.min(GOV_MIN, g), 17 * u * ts * g);
+  }
+  /* `gov` is the factor dossier_map.js read off the frame. */
+  function govLabels(ctx, p, P, u, G, size0, ts, taken, points, names, at,
+                     narrow, gov) {
     var R = D(), matched = 0, index = idOf(G);
+    var sizeAt = function (g) { return sizeOf(size0, u, ts, g); };
     var marks = (G.labels && G.labels.features || []).map(function (f) {
       return { name: f.properties.name_he, home: f.properties.set === "yem_adm1" ? 0 : 1,
                span: f.properties.span || 0, c: f.geometry.coordinates,
@@ -194,7 +206,40 @@ var DossierMapGov = (function () {
     }
   }
 
-  return { govLabels: govLabels };
+  /* THE GROUND THESE NAMES WILL NEED, measured before anything is placed
+     (2026-09-20). The key box is measured first and painted last, and until now
+     nothing told it that a whitelisted region name has exactly one anchor and
+     no second choice: the square Marib list picture's seven-row key stood on
+     al-Jawf's anchor and that name - the picture's own subject - was dropped
+     with a console line, while the wide shape of the same map printed it.
+
+     Measured at the LAST step of the ladder, the smallest the name may shrink
+     to, so the key is asked to give up only what the name really needs; a name
+     with no authored anchor cannot step at all, so its one size is reserved.
+     The same-name and label-on-anchor stand-downs are NOT applied here: the
+     labels have not been placed yet when this is asked, and reserving a little
+     ground for a name that later yields costs the key nothing it can use. */
+  function reserve(ctx, p, u, G, size0, ts, names, at, gov) {
+    var R = D(), out = [], index = idOf(G);
+    if (!names || !names.length) return out;
+    ((G.labels && G.labels.features) || []).forEach(function (f) {
+      var q0 = f.properties || {};
+      var m = { name: q0.name_he, c: f.geometry.coordinates, props: q0 };
+      if (!wanted(names, m, index)) return;
+      var own = !!(at && at[m.name]);
+      var c = own ? at[m.name] : m.c;
+      if (!p.inside(c[0], c[1], -0.2)) return;
+      var q = p(c[0], c[1]);
+      var steps = own ? ladder(gov || 1) : [gov || 1];
+      var size = sizeOf(size0, u, ts, steps[steps.length - 1]);
+      var w = R.width(ctx, m.name, size, 500), h = size * 1.25;
+      out.push({ x0: q[0] - w / 2 - 3, y0: q[1] - h / 2 - 2,
+                 x1: q[0] + w / 2 + 3, y1: q[1] + h / 2 + 2 });
+    });
+    return out;
+  }
+
+  return { govLabels: govLabels, reserve: reserve };
 })();
 
 window.DossierMapGov = DossierMapGov;

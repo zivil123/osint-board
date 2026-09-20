@@ -40,11 +40,6 @@ var DossierMap = (function () {
   /* Text grows with the canvas (u = W / BASE_W) and then by this factor: a
      little on screen, half again on a slide, read from across a room. */
   var TEXT_SCREEN = 1.15, TEXT_SLIDE = 1.5;
-  /* The smallest step a governorate name keeps above a town name. The frame's
-     `gov` factor grows with the CANVAS, not off the 17px reading floor:
-     multiplying that floor handed a phone region names a quarter of the map wide
-     (345px). Wide canvases reach the frame's factor, narrow ones a step. */
-  var GOV_MIN = 1.2;
   /* The PIN radius, written for BASE_W and floored like the 17px text floor: a
      mark that shrinks with the canvas stops being a mark. 4.2 on the day it was
      built, 3.0 since 2026-09-14 (DOSSIER_LAYERS.md, "Labels"). */
@@ -329,11 +324,18 @@ var DossierMap = (function () {
        16:9 on a slide. Under 800px there is no box at all - six 17px rows would
        cover a third of the map - and none on a map saying `legend: false`,
        whose corner is then not reserved either. Both in DOSSIER_LAYERS.md. */
+    /* `reserve` IS THE REGION NAMES' GROUND, claimed before the key is measured
+       (2026-09-20). They are painted far below, and a name with one anchor has
+       no way out from under a box that got there first - dossier_map_gov.js,
+       `reserve`, asked under exactly the condition that paints them. */
+    var gov = F.gov || 1;
     var legend = W >= 800 && map.legend !== false
       ? R.legendLayout(ctx, P, u, W, H, !!(map.lanes && map.lanes.length), words(),
           { size: size, arrows: !!(map.arrows && map.arrows.length),
             top: titleTop, pref: F.legend, clean: clean, control: map.control,
-            p: p, G: G, map: map, taken: taken.slice() })
+            p: p, G: G, map: map, taken: taken.slice(),
+            reserve: notesOn || clean ? [] : DossierMapGov.reserve(ctx, p, u, G,
+              size, ts, map.gov_names, map.gov_anchor_he, gov) })
       : null;
     if (legend) taken.push(legend.box);
     /* The axes go down after the ground and before every name: they are what
@@ -383,10 +385,8 @@ var DossierMap = (function () {
        what. Both are in DOSSIER_MAPS.md, "Notes live on the FRONT" and
        DOSSIER_LAYERS.md. `narrow` rides along so that a region name may repeat
        a town name on a full picture and still stand down on the phone. */
-    var gov = F.gov || 1;
     if (!notesOn && !clean) {
-      R.govLabels(ctx, p, P, u, G,
-        function (g) { return Math.max(size * Math.min(GOV_MIN, g), 17 * u * ts * g); },
+      R.govLabels(ctx, p, P, u, G, size, ts,
         taken, points, map.gov_names, map.gov_anchor_he, narrow, gov);
     }
     if (notesOn) R.notes(ctx, p, P, u, ts, G, taken, W, H, size, mapId);
