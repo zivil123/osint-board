@@ -492,9 +492,7 @@ var DossierMapZoneNames = (function () {
      this file's 500-line cap - that search, its whitelist matching and the
      per-map anchor override are all there. dossier_map.js merges both files
      into one painter object, so `R.govLabels(...)` reads as it always did. */
-
   return { zoneNames: zoneNames, placeLabels: placeLabels,
            paintLabels: paintLabels };
 })();
-
 window.DossierMapZoneNames = DossierMapZoneNames;

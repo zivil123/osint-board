@@ -42,10 +42,9 @@ var DossierMapRoutes = (function () {
   /* The words this layer prints in the legend. They live beside the drawings
      they name, the way dossier_map.js keeps its own words beside the palette. */
   var HE = {
-    km: 'ק"מ', nm: "מייל ימי",
-    objective: "יעד שהוכרז", heights: "רכס הררי", port: "נמל",
-    lane: "נתיב שיט ראשי", coastal: "נתיב חופי", measure: "מרחק בקו ישר",
-    claim: "טענה, ללא אימות עצמאי"
+    km: 'ק"מ', nm: "מייל ימי", objective: "יעד שהוכרז", heights: "רכס הררי",
+    port: "נמל", capital: "בירת מחוז", lane: "נתיב שיט ראשי",
+    coastal: "נתיב חופי", measure: "מרחק בקו ישר", claim: "טענה, ללא אימות עצמאי"
   };
 
   /* ---- distance ------------------------------------------------------------ */
@@ -83,28 +82,25 @@ var DossierMapRoutes = (function () {
   /* ---- the marker a label may ask for -------------------------------------- */
 
   /* A label may name what KIND of place it is, and the mark follows: a declared
-     objective is a filled square, a ridge a summit triangle, a port a ring, and
-     anything else keeps the town dot exactly as it has been drawn since
-     2026-09-14. No new hue - each is the ink over a halo disc and the legend
-     says in words which is which (design-law: colour, and shape, never carry
-     meaning alone). A dark plate behind the NAME was the other candidate and
-     was not taken: nine filled boxes over terrain is a painted field, which
-     design-law bans, and the names' own halo does the same work. */
-  var SCALE = { objective: 1.7, heights: 1.9, port: 1.7 };
+     objective is a filled square, a ridge a summit triangle, a port a ring, a
+     REGIONAL CAPITAL a ringed disc as wide as that square (2026-09-20: Ziv read
+     al-Hazm as missing where its pinhead stood among nine black squares), and
+     anything else keeps the town dot of 2026-09-14. No new hue - each is the
+     ink over a halo disc and the legend says in words which is which (design-
+     law: colour and shape never carry meaning alone). A dark plate behind the
+     NAME was refused: nine filled boxes over terrain is a painted field. */
+  var SCALE = { objective: 1.7, heights: 1.9, port: 1.7, capital: 1.7 };
 
   function markClear(pinR, kind) { return pinR * (SCALE[kind] || 1); }
 
   function square(ctx, x, y, r, style) {
-    ctx.beginPath();
-    ctx.rect(x - r, y - r, r * 2, r * 2);
+    ctx.beginPath(); ctx.rect(x - r, y - r, r * 2, r * 2);
     D().paintShape(ctx, style);
   }
   function triangle(ctx, x, y, r, style) {
-    ctx.beginPath();
-    ctx.moveTo(x, y - r * 1.15);
+    ctx.beginPath(); ctx.moveTo(x, y - r * 1.15);
     ctx.lineTo(x + r * 1.1, y + r * 0.8);
-    ctx.lineTo(x - r * 1.1, y + r * 0.8);
-    ctx.closePath();
+    ctx.lineTo(x - r * 1.1, y + r * 0.8); ctx.closePath();
     D().paintShape(ctx, style);
   }
   /* `r` is the FINAL radius - dossier_map.js has already run it through
@@ -125,6 +121,10 @@ var DossierMapRoutes = (function () {
     } else if (kind === "objective") {
       square(ctx, x, y, r + lift, { fill: P.halo });
       square(ctx, x, y, r, { fill: P.ink });
+    } else if (kind === "capital") {
+      R.ringMark(ctx, x, y, r + lift, { fill: P.halo });
+      R.ringMark(ctx, x, y, r, { fill: P.ink });
+      R.ringMark(ctx, x, y, r * 0.52, { stroke: P.halo, width: Math.max(1, r * 0.3) });
     } else {
       R.ringMark(ctx, x, y, r, { fill: P.halo });
       R.ringMark(ctx, x, y, r * 0.62, { fill: P.ink });
@@ -225,8 +225,7 @@ var DossierMapRoutes = (function () {
   }
   function arrowHead(ctx, P, u, from, to, size) {
     var pts = headPoly(from, to, size);
-    poly(ctx, pts);
-    ctx.closePath();
+    poly(ctx, pts); ctx.closePath();
     D().paintShape(ctx, { fill: P.ink, stroke: P.halo,
       width: Math.max(1, Math.min(3.2, size * 0.09)) });
     return pts;
@@ -448,7 +447,7 @@ var DossierMapRoutes = (function () {
        picture, and `legend_orphan` counts it when there is none (2026-09-19).
        Ziv, of the heat map: the key still carried the black-triangle row for a
        mountain ridge after Jabal Habashi's triangle had gone off the map. */
-    ["objective", "heights", "port"].forEach(function (k) {
+    ["objective", "capital", "heights", "port"].forEach(function (k) {
       if (kinds[k]) rows.push({ draw: glyph(k), label: HE[k], kind: k });
     });
     /* The zones' own rows - one per TYPE plus the dotted-edge line - are built

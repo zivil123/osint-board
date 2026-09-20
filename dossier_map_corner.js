@@ -66,6 +66,11 @@ var DossierMapCorner = (function () {
      scored like a place. */
   var CORNERS = { top: ["tr", "br", "tl", "bl"], bottom: ["br", "tr", "bl", "tl"] };
   var W_FRONT = 100, W_ARROW = 80, W_LABEL = 60;
+  /* The label kinds that paint a MARK on the map - the square of an objective,
+     the chevron of a height, the anchor of a port, the ringed dot of a regional
+     capital (scripts\dossier_maps.py, KEYED_KINDS). A plain town or country
+     name paints only words, and words can still move. */
+  var MARK_KINDS = { objective: 1, heights: 1, port: 1, capital: 1 };
 
   function inBox(b, q) {
     return q[0] >= b.x0 && q[0] <= b.x1 && q[1] >= b.y0 && q[1] <= b.y1;
@@ -118,10 +123,26 @@ var DossierMapCorner = (function () {
        connector names it, and the mark the connector points at was under the
        box. A place the prose promises is a place the reader must be able to
        find, so the key moves off it or the slide says no corner is free. */
+    /* A REGIONAL CAPITAL is a hard block as well (2026-09-20). It is rarely
+       `req` - the prose is about the fighting, not about the province town the
+       reader steers by - so its point was a 60-weight suggestion and the box
+       simply sat on it: Ataq went under the Marib key and was dropped without a
+       word, which is the same absence `capital: true` was added to cure on
+       al-Hazm. A capital is the one optional name a reader looks for by name. */
+    /* A LABEL THAT DRAWS A MARK IS A HARD BLOCK, AND ITS BLOCK IS WIDE ENOUGH
+       FOR THE NUMBER DISC (2026-09-20). The Marib list picture grew a seventh
+       key row, no corner was clean, and the box slid down the right edge onto
+       al-Thaniyah: its square vanished under the key, its name with it, and the
+       Shabwa region name was pushed out - all of it scored as a 60-weight
+       suggestion the slide was happy to pay. A mark is the thing the reader is
+       being pointed AT; the key may never stand on one. The pad is 22 rather
+       than 10 because an objective's disc is painted beside its square, after
+       the key is measured, and a disc under the box is the same fault. */
     (map.labels || []).forEach(function (l) {
       if (typeof l.lon !== "number" || !p.inside(l.lon, l.lat, 0)) return;
-      var q = p(l.lon, l.lat), g = 10 * u;
-      out.push({ w: W_LABEL, hard: !!l.req,
+      var mark = MARK_KINDS[l.kind] === 1;
+      var q = p(l.lon, l.lat), g = (mark ? 22 : 10) * u;
+      out.push({ w: W_LABEL, hard: !!l.req || mark,
                  box: box(q[0] - g, q[1] - g, q[0] + g, q[1] + g) });
     });
     (map.arrows || []).forEach(function (a) {
@@ -156,7 +177,7 @@ var DossierMapCorner = (function () {
           : R.overlaps(b, it.box);
         if (hit) { score += it.w; if (it.hard) hard++; }
       });
-      return { box: b, score: score, hard: hard, at: name };
+      return { box: b, score: score, hard: hard, at: name, edge: false };
     }
     CORNERS[opt.pref === "top" ? "top" : "bottom"].forEach(function (c) {
       var s = at(c[1] === "r" ? W - inset - L.w : inset,
@@ -194,6 +215,13 @@ var DossierMapCorner = (function () {
       }
     });
     if (!slid) return best;
+    /* `edge` says the box is not in a corner but pinned partway along one
+       (2026-09-20). It is the caller's cue to look for a shape that CAN sit in
+       a corner - two short columns instead of one tall one - because a box
+       halfway down the right edge is clean only in the sense that it covers no
+       mark: it still sits in the middle of the picture, and every name and
+       region label near it has to go somewhere else or be dropped. */
+    slid.edge = true;
     return (slid.hard < best.hard
             || (slid.hard === best.hard && slid.score < best.score))
       ? slid : best;

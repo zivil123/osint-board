@@ -271,6 +271,28 @@ var DossierMapLegend = (function () {
     L.w = Math.max(textW + extra, Math.min(cap, 220 * u + 2 * L.pad));
     L.h = 2 * L.pad + L.rows.length * L.rowH;
     var pick = need().corner(L, u, W, H, opt);
+    /* AND WHEN ONE COLUMN CANNOT STAND ANYWHERE CLEAN, THE KEY LIES DOWN
+       (2026-09-20). The Marib list picture's key reached seven rows - the
+       regional-capital row was the seventh - and at that height no corner and
+       no slid position on the right edge missed every mark: the tall box came
+       down the edge onto al-Thaniyah. Half as tall and twice as wide, the same
+       seven rows fit across the empty desert along the top of that frame and
+       cover nothing at all. Tried ONLY when the single column is dirty and kept
+       only if it is cleaner, so every key that is clean today is untouched. */
+    if ((pick.hard || pick.edge) && L.rows.length > 3) {
+      var per = Math.ceil(L.rows.length / 2);
+      L.colW = L.w - 2 * L.pad; L.colGap = 1.6 * L.pad;
+      var alt = { w: 2 * L.colW + L.colGap + 2 * L.pad,
+                  h: 2 * L.pad + per * L.rowH };
+      if (alt.w <= W - 28 * u) {
+        var wide = need().corner(alt, u, W, H, opt);
+        if (wide.hard < pick.hard
+            || (wide.hard === pick.hard
+                && ((pick.edge && !wide.edge) || wide.score < pick.score))) {
+          L.cols = 2; L.per = per; L.w = alt.w; L.h = alt.h; pick = wide;
+        }
+      }
+    }
     L.at = pick.at; L.cover = pick.score; L.hard = pick.hard;
     L.x0 = pick.box.x0; L.x1 = pick.box.x1; L.y0 = pick.box.y0;
     L.box = pick.box;
@@ -310,9 +332,13 @@ var DossierMapLegend = (function () {
     if (ctx.roundRect) ctx.roundRect(L.x0, L.y0, L.w, L.h, 10 * L.k);
     else ctx.rect(L.x0, L.y0, L.w, L.h);
     R.paintShape(ctx, { fill: P.box, stroke: P.boxLine, width: Math.max(1, u) });
-    var y = L.y0 + L.pad, sh = 16 * L.k;
-    L.rows.forEach(function (r) {
-      var cy = y + L.rowH / 2, sx = L.x1 - L.pad - L.sw, sy = cy - sh / 2;
+    var sh = 16 * L.k, per = L.cols === 2 ? L.per : L.rows.length;
+    L.rows.forEach(function (r, i) {
+      /* RTL: the first column is the RIGHT one, where the reading starts. */
+      var col = Math.floor(i / per);
+      var right = L.x1 - L.pad - col * ((L.colW || 0) + (L.colGap || 0));
+      var y = L.y0 + L.pad + (i - col * per) * L.rowH;
+      var cy = y + L.rowH / 2, sx = right - L.sw, sy = cy - sh / 2;
       if (r.draw) {
         r.draw(ctx, P, u, sx, cy, L.sw, sh);
       } else if (r.arrow) {
@@ -342,7 +368,6 @@ var DossierMapLegend = (function () {
       R.setFont(ctx, L.size, 500);
       ctx.textAlign = "right"; ctx.textBaseline = "middle";
       ctx.fillStyle = P.ink; ctx.fillText(r.label, sx - L.gap, cy);
-      y += L.rowH;
     });
   }
 
