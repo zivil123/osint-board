@@ -71,7 +71,7 @@ var DossierMapZoneNames = (function () {
     }).sort(function (a, b) { return b.span - a.span; }).filter(function (s) {
       return s.span >= w * FIT && s.box.x0 >= 0 && s.box.x1 <= W &&
         s.box.y0 >= 0 && s.box.y1 <= H &&
-        !taken.some(function (t) { return R.overlaps(s.box, t); });
+        !taken.some(function (t) { return DossierMapGap.clash(R, s.box, t); });
     })[0] || null;
   }
 
@@ -147,7 +147,7 @@ var DossierMapZoneNames = (function () {
   }
   function zoneNames(ctx, p, P, u, W, H, G, size, taken, map, points) {
     if (map && map.zone_text === false) return;
-    var R = D(), names = map && map.front_names;
+    var R = D(), names = map && map.front_names, Gap = DossierMapGap;
     ((G.fronts && G.fronts.features) || []).forEach(function (f) {
       var name = (f.properties || {}).name_he;
       if (!name) return;
@@ -200,7 +200,7 @@ var DossierMapZoneNames = (function () {
           var clear = (wide && tall ? Math.max(bw, bh) / 2
                        : tall ? bh / 2 : bw / 2) + extra * u;
           var s = R.place(ctx, name, mx, my, a, size, clear, u, W, H), b = s.box;
-          var free = !taken.some(function (t) { return R.overlaps(b, t); }) &&
+          var free = !taken.some(function (t) { return Gap.clash(R, b, t); }) &&
             b.x0 >= 0 && b.x1 <= W && b.y0 >= 0 && b.y1 <= H;
           if (free) spec = s;
           return free;
@@ -284,15 +284,15 @@ var DossierMapZoneNames = (function () {
      on a 390px phone, where the cluster has no room for the town name, the
      region name prints instead. dossier_map_ink.js holds the name until every
      word is down, then drops or forgives it - same test, one layer later. */
-  function lost(mapId, l, out) {
-    var he = String(l.he || ""), key = l.place || he || "(unnamed)";
+  function lost(mapId, l, out, k) {
+    var D = window.DossierMapDrop, he = String(l.he || ""), key = l.place || he || "(unnamed)";
     if (he && out.some(function (o) { return o.spec.str.indexOf(he) >= 0; })) {
       console.warn("dossier map " + mapId + ": " + key + " is not printed a " +
         "second time - its name is already on the picture");
       if (window.DossierMapCheck) DossierMapCheck.add("req_labels", 1);
       return;
     }
-    if (window.DossierMapInk) return DossierMapInk.pending(key, he);
+    if (window.DossierMapInk) return D && D.ring(k, l), DossierMapInk.pending(key, he);
     console.error("dossier map " + mapId + ": required label " + key +
       " could not be placed: no free anchor");
     if (window.DossierMapCheck) DossierMapCheck.drop(key);
@@ -313,7 +313,7 @@ var DossierMapZoneNames = (function () {
   /* Places one name, or answers FALSE when a required one found no anchor in
      `rings` - the caller decides whether that is a second round or a loss. */
   function oneLabel(ctx, p, P, R, u, l, o, out, rings) {
-    var W = o.W, H = o.H, required = !!l.req;
+    var W = o.W, H = o.H, required = !!l.req, D = window.DossierMapDrop;
     if (!p.inside(l.lon, l.lat, 0)) {
       /* Off the frame is a FRAMING decision, not a placement failure - a square
          crop loses the two ends of a wide picture by design - so it is said out
@@ -350,11 +350,11 @@ var DossierMapZoneNames = (function () {
        everybody else's. */
     var kOwn = o.markOf ? o.markOf.indexOf(l) : -1;
     var own = kOwn >= 0 ? o.markBox[kOwn] : null;
-    /* What it may come as close to as `clear` allows, and no closer: its own
-       dot's clearance circle. Testing the RESERVED box instead let no name sit
-       at its first anchor; skipping the mark altogether let one sit ON its own
-       dot (al-Labanat, measured the same hour). */
-    var ownClear = { x0: q[0] - clear, y0: q[1] - clear,
+    /* What it may come as close to as `clear` allows and no closer: its own
+       dot's clearance circle, `mark: true` so the gap test reads it as a MARK.
+       Testing the RESERVED box instead let no name sit at its first anchor;
+       skipping the mark let one sit ON its own dot (al-Labanat, same hour). */
+    var ownClear = { x0: q[0] - clear, y0: q[1] - clear, mark: true,
                      x1: q[0] + clear, y1: q[1] + clear };
     /* THE PHONE'S LIST MAP PAINTS THE MARK AND ITS NUMBER AND NOT THE NAME
        (2026-09-19). Under the width a key panel needs, the sentences move to
@@ -371,17 +371,17 @@ var DossierMapZoneNames = (function () {
       return true;
     }
     /* ADJACENT OR NOT AT ALL (2026-09-19, MAP_RULES.md rule 8). Every side is
-       offered, EAST INCLUDED - two lanes 28px apart leave room for a name
-       between them, and the earlier "never east of the mark" was a rule about
-       the lanes written before the lanes were reserved - but a candidate that
-       does not touch its own mark, or that touches somebody else's mark more
-       closely, is refused however free the ground under it is. */
-    ((required && !quiet) ? rings : [0]).some(function (extra) {
+       offered, EAST INCLUDED - the earlier "never east of the mark" was a rule
+       about the lanes, written before the lanes were reserved - but a candidate
+       that does not touch its own mark, or that touches somebody else's more
+       closely, is refused however free the ground is. FREE now means a SPACE
+       beside another WORD and the old strict test round a MARK (gap.js). */
+    (((required || W >= 700) && !quiet) ? rings : [0]).some(function (extra) {
       return (quiet ? ["c"] : sides(l, required)).some(function (a) {
         var s = R.place(ctx, l.he, q[0], q[1], a, lSize, clear + extra * u,
           u, W, H, lSpace);
         var b = s.box, free = !o.taken.some(function (t) {
-          return R.overlaps(b, t === own ? ownClear : t);
+          return DossierMapGap.clash(R, b, t === own ? ownClear : t);
         }) &&
           (!quiet || (b.x0 >= 0 && b.x1 <= W && b.y0 >= 0 && b.y1 <= H)) &&
           (quiet || !window.DossierMapInk ||
@@ -390,7 +390,8 @@ var DossierMapZoneNames = (function () {
         return free;
       });
     });
-    if (!spec) return !required;
+    /* AND AN OPTIONAL ONE THAT LOSES IS SAID OUT LOUD, AND KEEPS ITS DOT. */
+    if (!spec) return required ? false : !D || D.lost(l, out, [ctx, p, P, R, u, o]);
       /* A PIN under every town and port, the GAINS INCLUDED - a disc of the
        ground colour under a dot of the ink, so it reads over violet, over
        either side's territory and over the sea and adds no hue. ONLY on real
@@ -454,7 +455,7 @@ var DossierMapZoneNames = (function () {
         o.numbersOnly = keep;
         if (got) { only[l.place] = true; some = true; return; }
       }
-      lost(o.mapId, l, out);
+      lost(o.mapId, l, out, [ctx, p, P, R, u, o]);
     });
     return { labels: out, numbersOnly: some ? only : null,
              points: out.map(function (l) {

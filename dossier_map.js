@@ -269,9 +269,13 @@ var DossierMap = (function () {
     var gOpt = reliefOpt(map, theme, kind) || {};
     gOpt.clean = clean; gOpt.control = map.control || null; gOpt.D = D;
     /* HOW HARD EACH BELT IS BEING FOUGHT (ground() hands `heat` to
-       dossier_map_heat.js), and WHETHER THE GROUND TAKEN IN THIS ROUND IS
-       FILLED (it hands `gainsFill` to dossier_map_gains.js). */
+       dossier_map_heat.js), and WHAT THIS PICTURE DOES WITH THE GROUND TAKEN
+       IN THIS ROUND - `gains`: "seam" (the Houthi colour and a thin border),
+       "tint" (the violet wash and the same border) or "none". The older
+       `gains_fill` rides along until the validator refuses it; ground() reads
+       `gains` first and falls back, so neither flag decides a default here. */
     gOpt.heat = map.heat || null; gOpt.gainsFill = map.gains_fill === true;
+    gOpt.gains = map.gains || null;
     gOpt.fronts = map.fronts !== false;
     /* AND WHETHER THIS PICTURE IS ABOUT THE TRIBES rather than about who holds
        the ground: with it on, ground() paints no holder fill and the tribal
@@ -295,6 +299,11 @@ var DossierMap = (function () {
        outside it), so legend and scale bar start at the same 16*u edge. */
     var titleTop = 16 * u;
     var taken = [];
+    if (window.DossierMapCredit) DossierMapCredit.paint(ctx, P, u, W, H, map, taken);
+    /* THE STRIKE TALLY, after the ground and the control fills and before the
+       key is laid out and any name is placed: its discs are marks, so their
+       ground is claimed first, like every other mark's (dossier_map_ink.js). */
+    if (map.strikes && window.DossierMapStrikes) DossierMapStrikes.paint(ctx, p, P, u, ts, map, taken, W, H);
     /* NO LANES ARE RESERVED HERE ANY MORE. A key-panel picture joined each mark
        to its row along a horizontal lane for one day; Ziv took the lines off on
        2026-09-19 ("replace the lines with numbers next to the squares"), so
@@ -349,6 +358,8 @@ var DossierMap = (function () {
        and the panel row or the list under the picture carries the word. */
     numbersOnly = placed.numbersOnly || numbersOnly;
     var labels = placed.labels, points = placed.points;
+    /* The strike pins join the ink check HERE, after placeLabels reset it. */
+    if (map.strikes && window.DossierMapStrikes) DossierMapStrikes.claim(labels);
     var lanes = notesOn
       ? (map.lanes || []).map(function (l) { return { path: l.path, label_he: "" }; })
       : map.lanes;
@@ -368,7 +379,11 @@ var DossierMap = (function () {
     if (!notesOn && !clean) {
       R.govLabels(ctx, p, P, u, G, size, ts, taken, points, map.gov_names,
         map.gov_anchor_he, narrow, gov, { mapId: mapId, W: W, H: H,
-          shape: shape || "wide", fill: map.gains_fill === true });
+          shape: shape || "wide",
+          /* TRUE ONLY WHEN A TINT IS ACTUALLY PAINTED: this is the region
+             names' preference to stand off somebody else's fill, and a
+             `gains: "seam"` map has no other fill to stand off. */
+          fill: map.gains === "tint" || (!map.gains && map.gains_fill === true) });
     }
     /* THE TRIBAL NAMES, after the place names and the region names and against
        the same `taken`, so a confederation's name walks round everything

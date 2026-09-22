@@ -59,11 +59,13 @@ var DossierMapFrames = (function () {
   function aspect(mapId) { return frameAspect(mapId, "screen"); }
   /* The pictures this painter can draw for a frame, PLAIN FIRST. The page and
      the deck both ask, so a variant added to the record reaches both without a
-     line of code. A `ground` map IS its picture - the terrain is the base, not
+     line of code. A relief-ground map IS its picture - the terrain is the base, not
      a second view of the same frame - so it offers none. */
   function variantsOf(mapId) {
     var m = mapOf(mapId);
-    if (m && m.ground) return ["plain"];
+    /* ... and so IS a `ground: "streets"` map: the street raster is that
+       picture's base, not a second view of the frame. */
+    if (m && (m.ground === "relief" || m.ground === "streets")) return ["plain"];
     return ["plain"].concat(Object.keys((m && m.variants) || {}));
   }
 

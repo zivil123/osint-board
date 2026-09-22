@@ -72,17 +72,15 @@ var DossierMapInk = (function () {
   /* THE MARKS THAT BELONG TO A PLACE, and what ended up saying so. `marks`
      holds every rectangle on the picture, diamonds and level badges included;
      this is the subset a LABEL owns, the one thing on a map that a reader
-     expects a word beside. `drawn` is set when the mark is really painted (a
-     label whose name is dropped never paints one), `named` when something
-     claimed it - its own name, a numbered disc glued to it, a callout arrow. */
+     expects a word beside. `drawn` is set when the mark is really painted - a
+     name handed to `pending` paints its dot anyway (dossier_map_drop.js) - and
+     `named` when something claimed it: its name, its disc, a callout arrow. */
   var owned = [], kinds = {}, pend = [];
 
   function tell(n) {
     if (n && window.DossierMapCheck) DossierMapCheck.add("mark_over_text", n);
   }
-  /* One picture starts. Called by placeLabels, which every map paint reaches
-     and which runs before any name is placed - so the lists can never carry a
-     rectangle from the picture before this one. */
+  /* One picture starts (placeLabels, before any name): nothing carries over. */
   function begin() {
     marks = []; words = []; owned = []; kinds = {}; pend = [];
   }
@@ -95,9 +93,17 @@ var DossierMapInk = (function () {
      names and front names included. At 390 CSS px the Marib cluster has no
      room for the town label מארב; the governorate name מארב stands down only
      while the town label is there, so on the phone it prints and the reader is
-     told where Marib is. `audit` below is where the verdict is taken. */
-  function pending(key, he) {
-    pend.push({ key: String(key || "?"), he: String(he || "") });
+     told where Marib is. `audit` below is where the verdict is taken.
+
+     AN OPTIONAL NAME WAITS IN THE SAME QUEUE (2026-09-22). `opt` is the loss
+     as dossier_map_drop.js described it - the width, and the line naming the
+     anchor and how crowded the picture was. Nothing else here reads it: the
+     hold and the "is the word already printed" test are the required name's,
+     and only the FILING differs, which is that file's business and not this
+     one's. */
+  function pending(key, he, opt) {
+    pend.push({ key: String(key || "?"), he: String(he || ""),
+                opt: opt || null });
   }
   function said(he) {
     return !!he && words.some(function (w) {
@@ -146,8 +152,7 @@ var DossierMapInk = (function () {
       Math.round(gapOf(box, own)) + "px from its own mark, or nearer another " +
       "mark than its own - it reads as that mark's name");
   }
-  /* Is this rectangle buried under a name? `own` is the caller's own name box,
-     which is never a fault: a pin and the word beside it belong together. */
+  /* Is this rectangle buried under a name? `own` (the caller's name) never is. */
   function covered(box, own) {
     return words.filter(function (w) {
       return w.box !== own && hit(box, w.box);
@@ -210,6 +215,9 @@ var DossierMapInk = (function () {
   function claim(own) {
     owned.forEach(function (o) { if (o.box === own) o.named = true; });
   }
+  /* A place's mark painted BEFORE `begin` (a strike pin) is owned from here. */
+  function own(box, tag) { owned.push({ box: box, tag: tag, drawn: true,
+    named: false, disc: false, needsDisc: false }); }
   /* THE MARK WAS REALLY PAINTED, and of this KIND - reported by the one
      function that draws every one of them (dossier_map_routes.js `mark`), so a
      reservation whose name was later dropped is never counted as ink on the
@@ -250,13 +258,23 @@ var DossierMapInk = (function () {
      the territory fills, the line of contact - carries none and is not asked:
      it can never be orphaned by a painter, because no painter decides it. */
   function audit(mapId, legend) {
-    var C = window.DossierMapCheck;
-    if (!C) return null;
+    var C = window.DossierMapCheck, D = window.DossierMapDrop;
+    if (!C) return null; if (C.textPairs) C.textPairs(mapId, words);
     pend.forEach(function (q) {
+      /* SAME HOLD, SAME TEST, ANOTHER COUNTER: an optional name is forgiven or
+         filed by dossier_map_drop.js, which owns the words and `labels_dropped`
+         (2026-09-22). This file answers the one question only it can - is the
+         word on the finished picture - and decides nothing about an optional
+         name, so the required verdict below cannot drift from the optional one.
+         `owned` goes with it: a FORGIVEN name's mark is claimed BY KEY there. */
+      if (q.opt) {
+        if (D) D.verdict(mapId, q, said(q.he), owned);
+        return;
+      }
       if (said(q.he)) {
         console.warn("dossier map " + (mapId || "?") + ": " + q.key + " is " +
           "not printed a second time - its name is already on the picture");
-        C.add("req_labels", 1);
+        C.add("req_labels", 1); if (D) D.claim(owned, q.key);
         return;
       }
       console.error("dossier map " + (mapId || "?") + ": required label " +
@@ -270,7 +288,7 @@ var DossierMapInk = (function () {
        square to the sentence beside the map. A name printed against the mark is
        still wanted and still placed - it just no longer excuses a missing
        disc. Every other mark is held to the older question: does ANYTHING on
-       the picture say what this is. */
+       the picture say what this is - a forgiven label's region name included. */
     var lost = owned.filter(function (o) {
       return o.drawn && (!o.named || (o.needsDisc && !o.disc));
     });
@@ -475,7 +493,7 @@ var DossierMapInk = (function () {
   return { begin: begin, reserve: reserve, mark: mark, word: word,
            covered: covered, report: report, adjacent: adjacent,
            painted: painted, numbered: numbered, pending: pending,
-           audit: audit };
+           audit: audit, own: own };
 })();
 
 window.DossierMapInk = DossierMapInk;

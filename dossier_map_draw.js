@@ -317,6 +317,14 @@ var DossierMapDraw = (function () {
      the fighting is happening today is a different question. */
   function ground(ctx, p, P, u, W, H, G, opt) {
     var X = window.DossierMapExtra, o = opt || {}, merged = o.control === "merged";
+    /* WHAT THIS PICTURE DOES WITH THE GROUND TAKEN, in one word, off the record
+       (`gains`, 2026-09-22): "seam" folds it into the Houthi fill and runs a
+       thin dashed border where it ends, "tint" lays the violet wash and the
+       same border, "none" draws nothing for it. ABSENT is not a default this
+       painter invents - it falls back to the two older flags, so `control:
+       "merged"` and `gains_fill` paint exactly what they painted yesterday
+       until the validator stamps the field on every record. The data decides. */
+    var gm = o.gains || (merged ? "seam" : o.gainsFill ? "tint" : "none");
     SCALE = u || 1;
     ctx.fillStyle = P.sea; ctx.fillRect(0, 0, W, H);
     landPath(ctx, p, G, true);
@@ -339,13 +347,13 @@ var DossierMapDraw = (function () {
     fillCollection(ctx, p, zones, { fill: P.houthi }, byControl("houthi"));
     /* In the SAME pass and at the same alpha, so a gain and the ground it has
        joined are one colour and not two tones of it. */
-    if (merged && window.DossierMapGains) DossierMapGains.mergedGains(ctx, p, P, u, o.D, G);
-    /* AND THE GROUND TAKEN IN THIS ROUND IN ITS OWN REDDISH TONE, over the
+    if (gm === "seam" && window.DossierMapGains) DossierMapGains.mergedGains(ctx, p, P, u, o.D, G);
+    /* OR THE GROUND TAKEN IN THIS ROUND IN A TONE OF ITS OWN, over the
        control fill it sits on and at the same wash, so the terrain still reads
-       through it - `gains_fill` on the record (2026-09-22). One layer moves and
-       nothing else on the picture does; the line round it goes down at the end
-       of this function with the merged map's own. dossier_map_gains.js. */
-    if (o.gainsFill && window.DossierMapGains) DossierMapGains.newGround(ctx, p, P, u, G);
+       through it - `gains: "tint"` on the record (2026-09-22). One layer moves
+       and nothing else on the picture does; the line round it goes down at the
+       end of this function, the same line either way. dossier_map_gains.js. */
+    if (gm === "tint" && window.DossierMapGains) DossierMapGains.newGround(ctx, p, P, u, G);
     ctx.globalAlpha = 1;
     /* THE TRIBAL AREAS, in place of the holder: one of three tones per area by
        its stance toward the Houthis, a thin edge round each area and a thick
@@ -413,12 +421,13 @@ var DossierMapDraw = (function () {
        which is what Ziv asked for, and then: "it's okay that you did all of them
        in the same colour, but still make a line that separates the new
        territories that they conquered so we know what they are." So one more
-       line, solid and brown against the dashed pale line of contact beside it.
+       line - since 2026-09-22 a thin dashed border in the control-line ink,
+       "just a little border" and no fill of its own.
        dossier_map_gains.js owns it, because it owns the gains.
-       A `gains_fill` map takes the same line, and for the same reason: the tone
-       says WHICH ground is new and the line says exactly where it ends. Last of
-       all, so neither the hatch nor a border crosses it. */
-    if ((merged || o.gainsFill) && window.DossierMapGains) {
+       A `gains: "tint"` map takes the same line, and for the same reason: the
+       tone says WHICH ground is new and the line says exactly where it ends.
+       Last of all, so neither the hatch nor a border crosses it. */
+    if (gm !== "none" && window.DossierMapGains) {
       DossierMapGains.seam(ctx, p, P, u, G);
     }
   }

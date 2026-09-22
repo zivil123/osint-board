@@ -151,12 +151,17 @@
 
   /* The relief pictures under the terrain maps carry a credit their licence asks
      for. It is Latin, which a MAP may never show; a line of small type on the
-     title slide is where it goes. The first frame that names one speaks for all. */
+     title slide is where it goes. Frames can carry different credits (terrain and
+     streets tiles differ), so every distinct one is printed, first-seen order. */
   function reliefCredit() {
     const R = (typeof GEO !== "undefined" && GEO && GEO.relief) || null;
     if (!R || typeof R !== "object") return "";
-    const key = Object.keys(R).find(k => R[k] && R[k].attribution);
-    return key ? String(R[key].attribution).trim() : "";
+    const seen = [];
+    Object.keys(R).forEach(k => {
+      const a = R[k] && R[k].attribution ? String(R[k].attribution).trim() : "";
+      if (a && seen.indexOf(a) === -1) seen.push(a);
+    });
+    return seen.join(" · ");
   }
 
   /* The block is measured and centred, so a title that wraps to three lines pushes

@@ -15,7 +15,8 @@
    NO ES modules - the page runs from file://. One global:
 
      window.DossierMapLegend = { legendLayout, paintLegend, frontMarks,
-                                 diamond, markR, centre, seamLabel }
+                                 diamond, markR, centre, seamLabel, drawsSeam,
+                                 drawsTint, tintFill }
 
    It reaches back into DossierMapDraw at call time for the shared helpers
    (hatch, width, setFont, paintShape, dashOf, eachFeature), into
@@ -106,20 +107,14 @@ var DossierMapLegend = (function () {
 
   /* ---- the legend box ------------------------------------------------------- */
 
-  /* NO GAINS, NO GAINS ROW (2026-09-18). The dossier's window is the last five
-     days, so a window in which nothing changed hands carries an EMPTY `gains`
-     list and the painter draws no violet anywhere - while the key went on
-     naming it, which is the one thing every rule about this key forbids: a row
-     naming a colour that is not on the picture sends the reader hunting for it.
-     Same rule the merged map and the heat scale already keep, now kept against
-     the data instead of against a flag on the record.
-
-     Read off the DOSSIER global at call time, the way dossier_map_relief.js
-     reads it, so nothing had to be threaded through the opt the caller builds.
-     `gains` is the whole dossier's list and not this frame's: a gain off the
-     frame is a gain the map does not draw either, but it is also one the reader
-     may find on the picture beside it, and the key is the same key on all of
-     them. Empty is the case this answers, and empty is empty everywhere. */
+  /* NO GAINS, NO GAINS ROW (2026-09-18): a window in which nothing changed
+     hands leaves `DOSSIER.gains` empty, the painter draws no violet for it, and
+     a row naming a colour that is not on the picture sends the reader hunting.
+     Read off the DOSSIER global at call time (as dossier_map_relief.js reads
+     it), so nothing is threaded through the caller's opt; it is the whole
+     dossier's list and not this frame's, and empty is empty everywhere. One leg
+     of `drawsTint` below - the OTHER violet is the wash, and the gate is the
+     paint. */
   function hasGains() {
     var D0 = (typeof DOSSIER !== "undefined" && DOSSIER) ? DOSSIER : null;
     return !!(D0 && D0.gains && D0.gains.length);
@@ -127,15 +122,23 @@ var DossierMapLegend = (function () {
 
   /* ---- the seam row --------------------------------------------------------- */
 
-  /* THE ONE ROW A MERGED MAP DOES GET (2026-09-18). It had no gains row and
-     that was the point - a row naming a colour that is not on the picture sends
-     the reader hunting for it. The seam is not a colour: it is a LINE that is
-     on the picture, drawn by dossier_map_gains.js, and Ziv asked for it by
-     name - "still make a line that separates the new territories that they
-     conquered so we know what they are." A line nobody can name is a line
-     nobody can read, so where there is a key there is now a row for it, and
-     where there is no key (the crossing) the caption says it in words.
-     The row appears only when the seam layer itself is on the page.
+  /* THE ROW EVERY PICTURE THAT DRAWS THE SEAM GETS (2026-09-18; the gate widened
+     2026-09-22). It had no gains row and that was the point - a row naming a
+     colour that is not on the picture sends the reader hunting for it. The seam
+     is not a colour: it is a LINE that is on the picture, drawn by
+     dossier_map_gains.js, and Ziv asked for it by name - "still make a line
+     that separates the new territories that they conquered so we know what they
+     are." A line nobody can name is a line nobody can read, so where there is a
+     key there is now a row for it, and where there is no key (the crossing) the
+     caption says it in words.
+
+     THE GATE IS WHAT THE PICTURE DRAWS, never how it was asked for: `gainsMode`
+     below repeats `ground()`'s own one-word resolution, which runs the border
+     for "seam" and for "tint" alike, and not the old `control === "merged"`
+     flag this row was born on. AND the layer must have an edge to draw: no
+     gains_seam, no row. `drawsSeam` is exported because the HTML key under the
+     canvas (dossier_map_block.js) asks the same question, and two keys to one
+     picture may never disagree about whether the line is there.
 
      THE DATE IS THE GAINS' OWN, never `GEO.recent_gains_since`: that is the
      board's window start (12 July) and the seam is the border of what was taken
@@ -157,13 +160,79 @@ var DossierMapLegend = (function () {
     var w = words || (window.DossierMapWords || {});
     return (w.seam || "גבול השטח שנכבש מאז") + " " + seamDate();
   }
+  /* ONE WORD PER PICTURE, resolved exactly as dossier_map_draw.js `ground()`
+     resolves it, because both rows below must follow the paint and not the ask. */
+  function gainsMode(map) {
+    var m = map || {};
+    return m.gains || (m.control === "merged" ? "seam"
+      : m.gains_fill === true ? "tint" : "none");
+  }
+  function drawsSeam(map, G) {
+    var GN = window.DossierMapGains;
+    return gainsMode(map) !== "none" && !!(GN && GN.hasSeam && GN.hasSeam(G));
+  }
   function seamRows(opt, words) {
     var GN = window.DossierMapGains;
-    if (!GN || !GN.hasSeam || !GN.hasSeam(opt.G)) return [];
+    if (!drawsSeam(opt.map, opt.G)) return [];
     return [{ label: seamLabel(words),
       draw: function (ctx, P0, u0, sx, cy, sw) {
         GN.seamSwatch(ctx, P0, u0, sx, cy, sw);
       } }];
+  }
+
+  /* ---- the violet row: WHICHEVER VIOLET IS ON THE PICTURE (2026-09-22) -------
+     TWO layers paint violet and this row was gated on neither. It asked
+     `DOSSIER.gains` - the dossier's captured places, painted by `gains()` on
+     every NON-clean picture - while a record resolving to `gains: "tint"` lays
+     the WASH over `GEO.recent_gains` (`newGround`, run from `ground()`, on
+     clean and tribal pictures too). That list is empty today, so a tint picture
+     showed a violet NO row named: rule 1, the fault the seam row was regated
+     for, one layer along. So the gate is the PAINT and it says WHICH violet -
+     the list first (it paints its own tone over plain land, and a picture
+     drawing it may not move by a pixel), else the wash. Exported: the HTML key
+     asks it too, and two keys to one picture may never disagree. */
+  var TINT_BOX = { type: "FeatureCollection", features: [{ type: "Feature",
+    geometry: { type: "Polygon",
+      coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]] } }] };
+
+  function drawsTint(map, G) {
+    var m = map || {};
+    if (hasGains() && !m.clean) return "list";
+    var has = G && G.recent_gains && (G.recent_gains.features || []).length;
+    return (gainsMode(m) === "tint" && has) ? "wash" : "";
+  }
+  /* THE SWATCH IS PAINTED BY THE PAINTER, never described again here: the row
+     hands `newGround` a unit square projected onto the swatch box and gets the
+     tone and the alpha the map has. Under it goes the HOLDER'S fill and not
+     bare land, because that is what the wash lies on - every district in the
+     layer changed hands TO the Houthis (dossier_map_gains.js: a government gain
+     needs the layer split upstream first), and over the tan the same wash reads
+     as a dustier mauve than over land. Then the hairline edge every fill row
+     carries. `tintFill` hands the HTML key that composite as ONE CSS colour, by
+     drawing this very swatch on a scratch canvas and reading the middle pixel
+     back - sampled, so the day the tone or its alpha moves, both keys move. */
+  function tintSwatch(ctx, P, u, x, cy, sw, sh) {
+    var R = D(), y = cy - sh / 2;
+    ctx.beginPath(); ctx.rect(x, y, sw, sh);
+    R.paintShape(ctx, { fill: P.land }); R.paintShape(ctx, { fill: P.houthi });
+    window.DossierMapGains.newGround(ctx, function (lon, lat) {
+      return [x + lon * sw, y + lat * sh];
+    }, P, u, { recent_gains: TINT_BOX });
+    ctx.beginPath(); ctx.rect(x, y, sw, sh);
+    R.paintShape(ctx, { stroke: P.boxLine, width: Math.max(1, u) });
+  }
+  function tintFill(P) {
+    var c = document.createElement("canvas"), g;
+    c.width = 12; c.height = 12; g = c.getContext("2d");
+    tintSwatch(g, P, 1, 0, 6, 12, 12);
+    var d = g.getImageData(6, 6, 1, 1).data;
+    return "rgb(" + d[0] + ", " + d[1] + ", " + d[2] + ")";
+  }
+  function tintRows(opt, words, P, u) {
+    var t = drawsTint(opt.map, opt.G);
+    if (!t) return [];
+    return [t === "wash" ? { draw: tintSwatch, label: words.gained }
+      : { gain: window.DossierMapGains.gainStyle(P, u), label: words.gained }];
   }
 
   /* MEASURED before any label is placed, so its box counts as taken ground for
@@ -200,56 +269,63 @@ var DossierMapLegend = (function () {
        to look for a separate colour would name a colour that is not there.
        Since 2026-09-18 it takes a FOURTH: the seam that runs where the new
        ground ends, which is a line on the picture and not a second colour - see
-       seamRows above. */
+       seamRows above.
+
+       THE SEAM ROW IS ADDED TO WHICHEVER LIST THIS PICTURE USES (2026-09-22),
+       plain, clean-merged or tribal, because every one of them can now draw the
+       border: the record's `gains` decides, not `clean` and not `control`. It
+       goes LAST of the ground rows - directly under the line of contact it is
+       told apart from - and before the lane, the axes and the layers' own rows,
+       so both keys list it in the same place. */
     var control = [
       { fill: P.houthi, label: words.houthi },
       { fill: P.gov, label: words.gov },
       { line: P.control, dash: R.dashOf(P.controlDash, u), width: P.controlW * u,
         label: words.front }
     ];
-    var gained = hasGains()
-      ? [{ gain: window.DossierMapGains.gainStyle(P, u), label: words.gained }] : [];
+    var gained = tintRows(opt, words, P, u);
     /* A TRIBAL MAP HAS NO HOLDER ROWS AND NO FIGHTING ROW (2026-09-22): it
        paints neither, and a row naming a fill that is not on the picture is
-       the one thing every rule about this key forbids. Its own three stance
-       swatches and the "no dominant tribe" row come from the file that paints
-       them, exactly as the routes' and the heat scale's rows do. */
+       the one thing every rule about this key forbids. Its own stance swatches
+       come from the file that paints them, as every other layer's rows do. */
     var tribal = !!(opt.map && opt.map.tribes === true && window.DossierMapTribes);
-    L.rows = tribal ? DossierMapTribes.legendRows(ctx, P, u, opt.map)
+    L.rows = (tribal ? DossierMapTribes.legendRows(ctx, P, u, opt.map)
       : !opt.clean ? [
       control[0], control[1],
       { fill: P.contested, hatch: R.hatch(ctx, P.contestedStroke, u),
         stroke: P.contestedStroke,
         dash: [3 * u, 3 * u], width: u, mark: true, label: words.contested }
     ].concat(gained, [control[2]])
-      : opt.control === "merged" ? control.concat(seamRows(opt, words)) : [];
+      : opt.control === "merged" ? control : []
+    ).concat(tribal || opt.clean ? gained : [], seamRows(opt, words));
     if (hasLanes) {
       L.rows.push({ line: P.lane, dash: [8 * u, 6 * u], width: 2 * u, label: words.lane });
     }
-    /* THE SWATCH SHOWS THE MARK THAT IS ON THE MAP (2026-09-17). An axis drawn
-       along a road is a DOTTED run of beads, not a solid shaft, so a solid
-       swatch beside it sends the reader looking for a line that is not there.
-       All-or-nothing on purpose: a map mixing the two keeps the plain swatch,
-       because a key cannot show two marks on one row. */
+    /* THE SWATCH SHOWS THE MARK THAT IS ON THE MAP (2026-09-17): an axis drawn
+       along a road is a DOTTED run of beads, not a solid shaft. All-or-nothing
+       on purpose - a key cannot show two marks on one row. */
     if (opt.arrows) {
       var ax = (opt.map && opt.map.arrows) || [];
       L.rows.push({ arrow: true, label: words.axis,
         dots: ax.length > 0 && ax.every(function (a) { return !!a.road; }) });
     }
-    /* Routes, measures, zones, the marker a label chose and a map that says it
-       is a CLAIM each bring their own row, built by the file that paints them
-       (dossier_map_routes.js) - a row carries its own `draw`, so nothing here
-       has to learn a swatch it does not own. A row appears only when the map
-       carries the thing it names. */
+    /* Routes, measures, zones, the marker a label chose and a CLAIM each bring
+       their own row, built by the file that paints them - a row carries its own
+       `draw`, and appears only when the map carries the thing it names. */
     if (window.DossierMapRoutes) {
       L.rows = L.rows.concat(DossierMapRoutes.legendRows(ctx, P, u, opt.map));
     }
     /* A HEAT map's key is a SCALE: dossier_map_heat.js takes the one fighting-
-       zone row out and puts its five steps in the same place, because on that
-       picture the belts are not one colour and a key must never name a colour
-       that is not on the map. Nothing else about the key changes. */
+       zone row out and puts its five steps in the same place - on that picture
+       the belts are not one colour. Nothing else about the key changes. */
     if (opt.map && opt.map.heat && window.DossierMapHeat) {
       L.rows = DossierMapHeat.legendRows(P, u, opt.map, L.rows);
+    }
+    /* The strike tally's own rows - a colour per weapon category the picture
+       really paints, then the sentence for the number in the disc - built by
+       the file that paints them (dossier_map_strikes_data.js). */
+    if (opt.map && opt.map.strikes && window.DossierMapStrikes) {
+      L.rows = L.rows.concat(DossierMapStrikes.keyRows(opt.map, ctx, P, u));
     }
     /* No rows, no box. Only a clean map can reach this, and an empty key drawn
        anyway would be a white rectangle floating in a corner. */
@@ -416,7 +492,8 @@ var DossierMapLegend = (function () {
 
   return { centre: centre, legendLayout: legendLayout, paintLegend: paintLegend,
            frontMarks: frontMarks, diamond: diamond, markR: markR,
-           seamLabel: seamLabel };
+           seamLabel: seamLabel, drawsSeam: drawsSeam,
+           drawsTint: drawsTint, tintFill: tintFill };
 })();
 
 window.DossierMapLegend = DossierMapLegend;

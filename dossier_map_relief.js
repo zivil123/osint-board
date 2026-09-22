@@ -49,6 +49,15 @@ var DossierMapRelief = (function () {
      stutter. */
   var img = {}, wait = {};
 
+  /* THE GROUNDS THAT ARE A PICTURE, by the record's own word. "relief" is the
+     shaded terrain; "streets" (2026-09-22) is the same raster slot filled with
+     basemap tiles for a city close-up, built by scripts\relief_streets.py off
+     the frame's `source`. Everything below treats them alike - the picture is
+     loaded, placed and washed back the same way, and only what is IN it
+     differs - so a value read is the one thing that must never become a
+     truthiness test here. */
+  var PICTURE = { relief: true, streets: true };
+
   function geo() { return (typeof GEO !== "undefined" && GEO) ? GEO : null; }
   function dossier() { return (typeof DOSSIER !== "undefined" && DOSSIER) ? DOSSIER : null; }
 
@@ -63,7 +72,7 @@ var DossierMapRelief = (function () {
     (D && D.maps || []).forEach(function (m) {
       /* A `ground: "relief"` map has no variant to ask with, and the terrain is
          the only ground it ever draws - so it asks by the flag instead. */
-      var wants = (m.variants && m.variants.relief) || m.ground === "relief";
+      var wants = (m.variants && m.variants.relief) || PICTURE[m.ground] === true;
       if (m.frame && wants) seen[m.frame] = true;
     });
     return Object.keys(seen);
@@ -104,12 +113,15 @@ var DossierMapRelief = (function () {
   /* What ground() needs for this map, or null: the picture, where it goes, and
      how far back to wash the territory fills over it. */
   function optFor(map, theme, variant) {
-    if (variant !== "relief" && (map || {}).ground !== "relief") return null;
+    if (variant !== "relief" && PICTURE[(map || {}).ground] !== true) return null;
     var key = theme === "light" ? "light" : "dark";
     var all = meta(), m = all && all[map.frame];
     var pic = (img[key] || {})[map.frame];
     if (!m || !m.bounds || !pic) return null;
-    var strong = (map || {}).terrain === "strong";
+    /* A STREET picture is laid as built - already toned for print by
+       relief_streets.py `tone()` (2026-09-23) - so no terrain filter ever
+       touches it; `fade` is the territory fills' wash, not the picture's. */
+    var strong = (map || {}).terrain === "strong" && map.ground !== "streets";
     return { img: pic, bounds: m.bounds,
              fade: key === "light" ? (strong ? STRONG_FADE : RELIEF_FADE) : 0,
              filter: strong ? STRONG_FILTER : null };

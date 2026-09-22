@@ -49,9 +49,8 @@
   --geo-control-line: #E6EDF5;
   --geo-control-w: 2;
   --geo-control-dash: 6 4;
-  /* The ground that changed hands inside the window. Density, never a new hue: the
-     border is solid and heavy and the front line is a 6-4 dash, so the free texture
-     is a fine dot over a fill one step brighter than the ground it sits on. */
+  /* Ground that changed hands: density, never a new hue - the border is heavy and the
+     front line a 6-4 dash, so the texture left is a fine dot over a brighter fill. */
   /* THE ONE HUE THAT IS NOT A SIDE OR A VERDICT. Every other colour here answers
      "which front" or "how well confirmed"; this one answers "where is it happening
      right now", and it is loud on purpose - Ziv, 2026-09-15: "make it a color that
@@ -393,6 +392,7 @@ button.lg-row[aria-pressed="false"] .sw { opacity: 0.4; }
 }
 .sw.fill.dash { border-style: dashed; border-color: var(--geo-contested-stroke); background-image: repeating-linear-gradient(-45deg, var(--geo-contested-stroke) 0 1.5px, transparent 1.5px 6px); }
 .sw.fill.dotted { border-style: dotted; border-color: var(--geo-gain-line); }
+.sw.fill.gain { --sw-fill: color-mix(in srgb, var(--f-internal) 50%, transparent); border-color: var(--f-internal); } /* captured places: half alpha inside the solid violet, as the painter lays them */
 /* The mark on an active fighting zone, on the map and in the key. A belt is 12 km
    wide - a few pixels with the whole country in the window, and Ziv could not find
    them (2026-09-15: "it's hard to see them on a big map"). A DIAMOND: a dot here is

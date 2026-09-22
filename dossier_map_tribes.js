@@ -222,7 +222,7 @@ var DossierMapTribes = (function () {
   function open(R, b, W, H, taken, lanes) {
     var L = window.DossierMapLeader;
     return b.x0 >= 0 && b.x1 <= W && b.y0 >= 0 && b.y1 <= H &&
-      !taken.some(function (t) { return R.overlaps(b, t); }) &&
+      window.DossierMapTribesFit.room(R, b, taken) &&
       !(L && lanes.some(function (rt) {
         return rt.segs.some(function (g) { return L.segBox(g, b); });
       }));
@@ -430,23 +430,23 @@ var DossierMapTribes = (function () {
        lose its ground to one it can spare. */
     jobs.sort(function (a, b) { return a.rank - b.rank || b.big - a.big; });
     jobs.forEach(function (j) {
-      /* A NARROW CANVAS DROPS THE MEMBERS, the same trade every tier-2 name
-         on this board makes: at 340 CSS px a confederation's name and four of
-         its tribes cannot all be read, and the block name is the one that
-         tells the reader what he is looking at. */
+      /* A NARROW CANVAS DROPS THE MEMBERS, the trade every tier-2 name on this
+         board makes: at 340 CSS px a confederation and four of its tribes
+         cannot all be read, and the block name is what says what this is.
+         `fit` (dossier_map_tribes_fit.js) offers the same placement once more,
+         one step smaller, where the authored rank found nowhere. */
       if (j.rank === 2 && narrow) return;
       var o = { weight: j.weight, color: j.color, req: j.req,
                 geom: j.geom, wrap: j.wrap, tag: j.key + " " + j.he };
-      var ok = place(ctx, p, P, R, u, W, H, taken, lanes, j.at, j.he, j.size, o);
-      /* NOTHING ON ITS OWN GROUND: print it beside the ground with a leader
-         before giving it up, which is what keeps Yafa and the highland members
-         on the picture at all. */
+      var ok = DossierMapTribesFit.fit(place, ctx, p, P, R, u, W, H,
+        taken, lanes, j, o);
+      /* NOTHING ON ITS OWN GROUND, at either size: print it beside the ground
+         with a leader before giving it up - what keeps Yafa and the highland
+         members on the picture at all. */
       if (!ok && j.at) {
         ok = aside(ctx, p, P, R, u, W, H, taken, lanes, j.at, j.he, j.size, o);
       }
-      if (!ok && j.at && p.inside(j.at[0], j.at[1], 0)) {
-        lost(j.req, j.key, j.he);
-      }
+      if (!ok && j.at && p.inside(j.at[0], j.at[1], 0)) lost(j.req, j.key, j.he);
     });
     /* `points` is what the place names printed; nothing here reads it today,
        and it is taken so a later rule about a tribe sharing a town's name has

@@ -2,8 +2,7 @@
 
    Ziv, with a screenshot of a heat map whose leader ran straight through a
    front's name: *"you have lines that are on actual text, so that is not
-   good... make sure that you don't cut anything off and you don't cut any text
-   off with arrows."*
+   good... make sure that you don't cut any text off with arrows."*
 
    Until today a line over a word was a SCORED PENALTY in the callout search
    (dossier_map_extra.js `clean`): a candidate that crossed a name simply cost
@@ -11,19 +10,19 @@
    HARD REFUSAL - a spot whose line cannot reach its mark without touching
    somebody else's text is not a spot at all - and to keep "never dropped" true
    at the same time, a line that cannot get there straight is allowed ONE BEND,
-   or two, and goes AROUND the words instead.
+   or two, and goes AROUND the words instead. Since 2026-09-22 there is a
+   fourth answer under those three, dossier_map_round.js, asked only where
+   all three were blocked: see `best` and the end of `findSpot`.
 
    CLIPPING IS NOT THE ANSWER and was the old one: a hairline clipped out of a
    label passes behind the text, which reads as a line broken in two and still
    says the line had nowhere to go. The line goes around, or the picture reports
    a fault by name. Nothing is drawn under a word to hide it.
 
-   A NEW FILE because dossier_map_extra.js sits at the 500-line cap, the same
-   reason dossier_map_notes.js had to be one on 2026-09-17; THE WHOLE BOX SEARCH
-   came here with the refusal, and `DossierMapExtra.kit` hands it out under the
-   names dossier_map_notes.js and dossier_map_number.js already call it by, so
-   there is one copy and no chance of two answers to "does this line touch that
-   rectangle". NO ES modules - the page runs from file://. One global:
+   A NEW FILE because dossier_map_extra.js sits at the 500-line cap; THE WHOLE
+   BOX SEARCH came here with the refusal, and `DossierMapExtra.kit` hands it out
+   under the names its callers already use, so there is ONE answer on this board
+   to "does this line touch that rectangle". NO ES modules. One global:
 
      window.DossierMapLeader = { segBox, segCross, straight, options, best,
        findSpot, wrap, boxAt, fits, leaderSeg, segLen, edgeness, rimBars, paint,
@@ -65,8 +64,8 @@ var DossierMapLeader = (function () {
      a neighbour squarely in front. Five positions by four edges, twenty. */
   var ALONG = [0.5, 0.28, 0.72, 0.12, 0.88];
   /* What a bend costs against a straight line of the same length, in pixels: a
-     nudge, not a rule. Clean routes are otherwise judged on length alone, so
-     this only orders the elbows and keeps a straight line when both would do. */
+     nudge, not a rule - it only orders the elbows and keeps a straight line
+     when both would do. */
   var BEND = 8;
 
   function segsOf(pts) {
@@ -97,9 +96,8 @@ var DossierMapLeader = (function () {
 
   /* EVERY WAY A LEADER COULD RUN from this box to this mark: the straight one,
      then twenty one-bend elbows - four edges by five positions along each. The
-     first leg always leaves its edge FACE ON (a vertical edge turns the corner
-     horizontally, a horizontal edge vertically), so no elbow runs back through
-     the box it came out of or slides along its own edge. */
+     first leg always leaves its edge FACE ON, so no elbow runs back through the
+     box it came out of or slides along its own edge. */
   function options(box, s) {
     var out = [straight(box, s)], w = box.x1 - box.x0, h = box.y1 - box.y0;
     ALONG.forEach(function (t) {
@@ -114,8 +112,7 @@ var DossierMapLeader = (function () {
   /* AND, WHEN EVEN THE ELBOWS ARE BLOCKED, A STAIRCASE. Two bends: out of the
      edge, along a corridor part of the way across, then in to the mark - what
      gets a line out of a cluster where the box and its mark are penned in from
-     the same side, the case the wide Marib callouts kept landing in. Tried last
-     and only where the elbows failed, so most pictures never see one. */
+     the same side. Tried only where the elbows failed. */
   var MID = [0.5, 0.32, 0.68];
   function stairs(box, s) {
     var out = [], w = box.x1 - box.x0, h = box.y1 - box.y0;
@@ -149,14 +146,14 @@ var DossierMapLeader = (function () {
     return (l && l.segs) ? l : { segs: [l], box: null };
   }
   /* NEITHER THE MARK'S OWN NEIGHBOURS NOR A MARK ITSELF IS A FAULT: an arrow
-     must reach its place, whose name is a few pixels off it. So a rect the mark
-     sits inside is skipped, and so is one flagged `mark` - rule 4 is WORDS. */
+     must reach its place. A rect the mark sits inside is skipped, and so is one
+     flagged `mark` - rule 4 is about WORDS. */
   function holds(t, s) {
     return !!t.mark || (!!s && s.cx >= t.x0 && s.cx <= t.x1 &&
       s.cy >= t.y0 && s.cy <= t.y1);
   }
-  /* Which of `avoid` this route runs through (`holds` says what is excused).
-     COUNTED, so a report can say how bad, not only that. */
+  /* Which of `avoid` this route runs through (`holds` says what is excused),
+     COUNTED, so a report can say how bad and not only that. */
   function overText(rt, avoid, box, s) {
     var n = 0;
     if (!rt) return 0;
@@ -167,8 +164,7 @@ var DossierMapLeader = (function () {
     return n;
   }
   /* The same question for a yes or a no, stopping at the first hit: the search
-     asks it thousands of times a picture, the count matters once, in the
-     report. */
+     asks it thousands of times a picture; the count matters once. */
   function anyText(rt, avoid, box, s) {
     var i, t;
     for (i = 0; i < avoid.length; i++) {
@@ -197,39 +193,45 @@ var DossierMapLeader = (function () {
   /* The cheapest CLEAN route from this box to this mark, or null when there is
      none - which is the whole point: a null here refuses the box, and the
      search moves to the next candidate spot rather than painting a line across
-     a sentence. `only` is 1 for the straight line alone, 2 for the elbows, 3
-     for the staircases: the search asks the cheap question at every one of its
-     hundreds of candidates and comes back for the bends only where a straight
-     run was blocked, which is what keeps a tightened test affordable. */
-  function best(box, s, avoid, leaders, only) {
+     a sentence. `only` picks one stage - 1 the straight line, 2 the elbows, 3
+     the staircases, 4 the way round - so the search asks the cheap question at
+     every one of its hundreds of candidates and comes back for the dear ones
+     only where a straight run was blocked. */
+  function best(box, s, avoid, leaders, only, W, H) {
     var ls = (leaders || []).map(asLeader), out = null, cost = Infinity;
     var list = only === 1 ? [straight(box, s)]
              : only === 2 ? options(box, s).slice(1)
              : only === 3 ? stairs(box, s)
+             : only === 4 ? []
              : options(box, s).concat(stairs(box, s));
     list.forEach(function (rt) {
       if (!clear(rt, box, s, avoid, ls)) return;
       var c = rt.len + rt.bend * BEND;
       if (c < cost) { cost = c; out = rt; }
     });
+    /* AND THE WAY ROUND when all three shapes were blocked: every one of them
+       is a corridor BETWEEN the box and its mark, so a word that has to be
+       passed on its far side defeats all eighty-one. dossier_map_round.js walks
+       the corners instead. `only` 4 asks for that answer alone. */
+    if (!out && (!only || only === 4) && window.DossierMapRound) {
+      out = DossierMapRound.path(box, s, avoid, ls, W, H);
+    }
     return out;
   }
 
   /* ---- where a callout BOX may stand ---------------------------------------- */
 
-  /* THE SEARCH CAME HERE WITH THE REFUSAL (2026-09-18): a search that now
-     throws away every spot whose LINE is dirty is one thing with the line test
-     and not two, and two files is how the two would drift. */
+  /* THE SEARCH CAME HERE WITH THE REFUSAL (2026-09-18): a search that throws
+     away every spot whose LINE is dirty is one thing with the line test. */
   var NOTE_GAP = 26;       /* how far off the belt's own box the nearest ring sits */
   var RINGS = 34;          /* rings out before the grid backstop */
   var ANGLES = 48;         /* directions between the eight box-relative ones */
   var RIM = 6;             /* how far off the canvas rim a box must stay */
   /* WHAT AN ELBOW COSTS against a straight spot further out, as a fraction of
      canvas width: a bend is a blemish, a long haul is worse, and both must be
-     CLEAN - a dirty leader is a refusal, not a price. REACH RAISED 2026-09-19:
-     put the four back at 26/36/400/200 and the overview's notes picture crosses
-     two of its own leaders at 1230px, which is the width the reader gets. */
-  var BEND_PEN = 0.03, ELBOW_TRIES = 900, STAIR_TRIES = 450;
+     CLEAN. REACH RAISED 2026-09-19: put these back at 26/36/400/200 and the
+     overview's notes picture crosses two of its own leaders at 1230px. */
+  var BEND_PEN = 0.03, ELBOW_TRIES = 900, STAIR_TRIES = 450, ROUND_TRIES = 60;
   var SIDES = ["n", "s", "e", "w"], DIAG = ["ne", "nw", "se", "sw"];
 
   function boxAt(cx, cy, w, h) {
@@ -255,23 +257,21 @@ var DossierMapLeader = (function () {
   function segLen(g) { return Math.hypot(g[2] - g[0], g[3] - g[1]); }
   /* A mark on the canvas edge has fewer free directions than one in the middle,
      and whoever is placed last takes what is left - so the edge ones go first.
-     Measured 2026-09-16 at 2560 without this sort: the furthest callout went
-     from 40% of the slide away to 68%. */
+     Without this sort (2560, 2026-09-16) the furthest callout went 40% -> 68%. */
   function edgeness(s, W, H) {
     return Math.max(Math.abs(s.cx - W / 2) / W, Math.abs(s.cy - H / 2) / H);
   }
   /* THE CANVAS RIM IS GROUND TOO. `fits` only asks that a box be inside the
-     picture, which lets one sit flush against an edge with its halo cut in half
-     - two of the nine Marib callouts did, 7px of 1440 on the slide
-     (2026-09-17). Four bars, so nothing is ever clipped. */
+     picture, which let two of the nine Marib callouts sit flush against an edge
+     with the halo cut in half (2026-09-17). Four bars, so nothing is clipped. */
   function rimBars(W, H, u, inset) {
     var r = (inset || RIM) * u;
     return [{ x0: 0, y0: 0, x1: W, y1: r }, { x0: 0, y0: H - r, x1: W, y1: H },
             { x0: 0, y0: 0, x1: r, y1: H }, { x0: W - r, y0: 0, x1: W, y1: H }];
   }
   /* Greedy wrap to at most `max` lines; an overrun is cut with an ellipsis,
-     never allowed to run, because the box is measured from these lines and an
-     extra one would sit on whatever is under the callout. A backstop. */
+     because the box is measured from these lines and an extra one would sit on
+     whatever is under the callout. A backstop. */
   function wrap(ctx, str, size, maxW, max) {
     var D = R(), words = String(str || "").split(/\s+/).filter(Boolean);
     var lines = [], line = "";
@@ -288,28 +288,25 @@ var DossierMapLeader = (function () {
     return lines;
   }
 
-  /* A NOTE IS NEVER DROPPED, AND IT IS PLACED NEAR THE MARK IT NAMES. A town
+  /* A NOTE IS NEVER DROPPED, AND IT IS PLACED NEAR THE MARK IT NAMES: a town
      name that cannot be placed is dropped, because the pin still says where the
-     town is; a note is the only thing saying what is happening at that front,
-     and a front with no note reads as a quiet one.
+     town is, but a note is the only thing saying what is happening there.
 
-     The old search was four sides, four rings, a spiral, then a coarse grid
-     whose nearest free cell wins - and the grid is what put the callouts a long
-     way off. Measured at 2560: חזית חרד sat 1,771px from its belt, 69% of the
-     slide, four more over 1,100. So the rings ARE the search: forty-four
-     directions at every ring (the authored side, the other three, the corners,
-     thirty-six angles between), twenty-six rings out, stepping by the wider of
-     the old gap and a twenty-fourth of the canvas. Wider than it was, because a
-     candidate whose leader would cross a word is no longer scored down, it is
-     thrown away - so the search must look in more places before it may say
-     there is nowhere. `bars` is ground a BOX may not take, `taken` and `mine`
-     what a LEADER may not cross. The grid stays as the backstop.
+     The old search ended in a coarse grid whose nearest free cell wins, and the
+     grid is what put the callouts a long way off (2560: חזית חרד 1,771px from
+     its belt, 69% of the slide). So the RINGS are the search: fifty-six
+     directions at every one (the authored side, the other three, the corners,
+     forty-eight angles between), rings out to RINGS, stepping by the wider of
+     the old gap and a twenty-fourth of the canvas - wide, because a candidate
+     whose leader would cross a word is thrown away now, not scored down.
+     `bars` is ground a BOX may not take, `taken` and `mine` what a LEADER may
+     not cross. The grid stays as the backstop.
 
-     THREE STAGES, and that is a cost decision. Every candidate is asked the
+     FOUR STAGES, and that is a cost decision. Every candidate is asked the
      cheap question - is the STRAIGHT line clean - and the ones that say no are
-     kept on a list, nearest first. Only then are the twenty elbows tried on
-     that list, and only then the sixty staircases. Asking all eighty-one at
-     every one of a thousand candidates was thirty times the work per picture.
+     kept on a list, nearest first. Only then the twenty elbows, then the sixty
+     staircases, and only for the nearest sixty the way round. Asking all of
+     them at every one of a thousand candidates was thirty times the work.
 
      The winner carries its own `route` - the polyline the leader is to be drawn
      along - so the caller paints exactly the line that was tested. `pass` is 2
@@ -347,8 +344,8 @@ var DossierMapLeader = (function () {
         weigh(b, spot[0], spot[1]);
       }
     }
-    /* The backstop: every position on a coarse grid, which is what makes "never
-       dropped" also mean "never overprinted while there was room". 0-3 ms. */
+    /* The backstop: every position on a coarse grid - "never dropped" also
+       meaning "never overprinted while there was room". 0-3 ms. */
     var gx, gy, cx, cy;
     for (gx = 0; gx <= 64 && W - w >= 0 && !pick; gx++) {
       for (gy = 0; gy <= 40 && H - h >= 0; gy++) {
@@ -378,10 +375,18 @@ var DossierMapLeader = (function () {
       }
     }
     if (pick) return pick;
+    /* AND THE WAY ROUND, for the nearest sixty only: it is the dearest question
+       on the page, and it is asked where no spot ANYWHERE had a clean line -
+       the case that used to end in a fault. Twelve was not enough: the 1230 px
+       callouts picture still crossed two of its own leaders, measured. */
+    for (i = 0; i < lim && i < ROUND_TRIES; i++) {
+      rt = best(pend[i].box, s, avoid, leaders, 4, W, H);
+      if (rt) { b = pend[i].box; b.route = rt; b.pass = 1; return b; }
+    }
     /* NOTHING CLEAN ANYWHERE, so take the LEAST BAD and say so. Still painted -
-       a blank space hides the fault where a line can be seen and counted - but
-       the box chosen is the one whose line touches the fewest words and crosses
-       the fewest leaders, and `pass: 0` makes the caller report it. */
+       a blank space hides a fault a line would show - but the box chosen is the
+       one whose line touches the fewest words and crosses the fewest leaders,
+       and `pass: 0` makes the caller report it. */
     var worst = null, low = Infinity, n2;
     var ls = (leaders || []).map(asLeader);
     for (i = 0; i < lim; i++) {
@@ -419,10 +424,9 @@ var DossierMapLeader = (function () {
     ctx.moveTo(pts[0][0], pts[0][1]);
     for (i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
   }
-  /* Halo under ink, exactly as a town name is set, because a leader crosses
-     terrain and territory colours on its way. One stroke for the whole
-     polyline and not one per leg: two haloes meeting at a bend would print a
-     pale notch through the corner. */
+  /* Halo under ink, as a town name is set, because a leader crosses terrain and
+     territory colours on its way. ONE stroke for the whole polyline: two haloes
+     meeting at a bend would print a pale notch through the corner. */
   function paint(ctx, P, u, rt) {
     var D = R();
     if (!D || !rt || rt.pts.length < 2 || !rt.segs.length) return;
@@ -438,17 +442,15 @@ var DossierMapLeader = (function () {
   function tip(rt) {
     return (rt && rt.segs.length) ? rt.segs[rt.segs.length - 1] : null;
   }
-  /* ONE SEGMENT, for hairlines not routed at all: the panel's number-to-name
-     tie (dossier_map_number.js) is two rectangles a few pixels apart with
-     nowhere to bend to. Re-exported as `kit.leader`, its name there. */
+  /* ONE SEGMENT, for hairlines not routed at all: two rectangles a few pixels
+     apart with nowhere to bend to. Re-exported as `kit.leader`. */
   function line(ctx, P, u, g) {
     paint(ctx, P, u, { pts: [[g[0], g[1]], [g[2], g[3]]], segs: [g] });
   }
 
   /* ---- what the picture is telling the check --------------------------------- */
 
-  /* How many PAIRS of these routes cross each other. Zero on every current map;
-     the number exists so a failure is measured, not argued about. */
+  /* How many PAIRS of these routes cross each other; zero on every map today. */
   function crossings(routes) {
     var n = 0, i, k;
     for (i = 0; i < routes.length; i++) {
@@ -461,24 +463,22 @@ var DossierMapLeader = (function () {
     }
     return n;
   }
-  /* The shared counters (dossier_map_check.js), guarded: a verifier's tool, and
-     the board must draw without it. */
+  /* The shared counters (dossier_map_check.js), guarded: the board draws
+     without a verifier on the page. */
   function tell(key, n) {
     if (n && window.DossierMapCheck && DossierMapCheck.add) {
       DossierMapCheck.add(key, n);
     }
   }
-  /* A painted text size in CSS pixels on a 1280-wide canvas - the width these
-     painters are written for - so one floor means the same thing on a phone, on
-     the page and on a 2560px slide. */
+  /* A painted text size in CSS px on a 1280-wide canvas - the width these
+     painters are written for - so one floor means the same everywhere. */
   function size(px, W) {
     var css = W ? px * 1280 / W : px;
     if (window.DossierMapCheck && DossierMapCheck.text) DossierMapCheck.text(css);
     return css;
   }
-  /* AND IT IS SAID OUT LOUD. A picture that could not place a line cleanly is
-     still painted, but names the map and the note in the console, so a dump can
-     never come back quietly wrong. */
+  /* AND IT IS SAID OUT LOUD: a picture that could not place a line cleanly is
+     still painted, but names the map and the note in the console. */
   function fault(mapId, what, over, cross) {
     if (!over && !cross) return;
     tell("line_over_text", over);

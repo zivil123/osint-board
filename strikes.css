@@ -1,0 +1,107 @@
+/* strikes.css - the strike tally printed as WORDS under a map picture.
+
+   Ziv, 2026-09-22: *"don't put the text inside of the map, put it as something
+   I can take."* The block is built by dossier_map_strikes_list.js and sits
+   between the caption and the map's key, where the numbered explanations sit.
+
+   Its own file because style.css is at its 500-line cap and both of the others
+   under a picture (dossier.css, map_notes.css) are owned elsewhere this round.
+   Every colour here is one of the page's own variables, so the block follows
+   the board's dark skin and cannot drift from it.
+
+   The rows themselves are NOT restyled: they wear `ds-notes`/`ds-note` from
+   map_notes.css, which is the look every list under a picture already has.
+   Only two things are added to a row here - the list must show on the desktop
+   too (map_notes.css hides its own box above the painter's cutoff, and that
+   rule is scoped to `.ds-notes-box`, which this block is not), and a strike
+   line has no name to bold. */
+
+.ds-strikes-box { margin-block-start: 14px; }
+
+.ds-strikes {
+  direction: rtl;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 14px 16px;
+}
+
+/* The heading row: the title and the date range on one side, the button on the
+   other. `align-items: flex-start` so a wrapped button never drags the title
+   off its own baseline. */
+.ds-strikes-top {
+  display: flex; flex-wrap: wrap; gap: 10px 14px;
+  align-items: flex-start; justify-content: space-between;
+  padding-block-end: 10px;
+  border-block-end: 1px solid var(--line);
+}
+.ds-strikes-titles { min-width: 0; }
+
+.ds-strikes-h {
+  margin: 0;
+  font-size: 22px; font-weight: 600; line-height: 1.3;
+  color: var(--ink);
+}
+.ds-strikes-since {
+  margin: 2px 0 0;
+  font-size: 17px; line-height: 1.4; color: var(--ink-muted);
+}
+
+/* The copy button wears the download button's shape (dossier.css .ds-png-btn)
+   because it does the same kind of job under the same picture - a second
+   button under one map that looked like a different species would read as a
+   different kind of action. 44px tall: it is pressed with a thumb. */
+.ds-strikes-copy {
+  flex: none;
+  min-height: 44px; padding-inline: 16px;
+  background: transparent; border: 1px solid var(--line);
+  border-radius: 6px; color: var(--ink-muted);
+  font-size: 18px; font-weight: 500; line-height: 1.2; cursor: pointer;
+  transition: color 200ms var(--ease-tap), border-color 200ms var(--ease-tap),
+              background-color 200ms var(--ease-tap);
+}
+.ds-strikes-copy:hover { border-color: var(--line-strong); color: var(--ink); }
+.ds-strikes-copy:active { transform: scale(0.97); }
+
+/* The confirmation is a COLOUR AND A WORD, never a colour alone: the label
+   itself changes to "copied" for two seconds and the tint only backs it up. */
+.ds-strikes-copy.is-done {
+  color: var(--v-confirmed);
+  border-color: var(--v-confirmed);
+  background: var(--v-confirmed-tint);
+}
+
+/* A place's own sub-heading, with its count beside it. The count is quieter
+   than the name and set in tabular figures so a column of them lines up. */
+.ds-strikes-place {
+  display: flex; flex-wrap: wrap; gap: 4px 10px;
+  align-items: baseline;
+  margin: 14px 0 0;
+  font-size: 19px; font-weight: 600; line-height: 1.35;
+  color: var(--ink);
+}
+.ds-strikes-count {
+  font-size: 16px; font-weight: 500; color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The rows keep map_notes.css's look. The one thing that is undone here is its
+   phone-only gate: that rule hangs off `.ds-notes-box`, so these rows are
+   visible at every width by simply not being in one - said out loud because a
+   reader of that file will expect the gate to apply to every `.ds-notes`. */
+.ds-notes.strikes { margin-block-start: 2px; }
+.ds-notes.strikes .ds-note-t { line-height: 1.55; }
+
+/* THE PHONE: one column, and the button full width under the heading. At 390px
+   a 16px-padded card leaves about 326px, and the title plus the button side by
+   side would squeeze the title to a couple of words per line. So the heading
+   row stacks and the button takes the whole width - the one control in the
+   block, at the size a thumb expects. */
+@media (max-width: 480px) {
+  .ds-strikes { padding: 12px 14px; border-radius: 8px; }
+  .ds-strikes-top { flex-direction: column; align-items: stretch; gap: 10px; }
+  .ds-strikes-copy { inline-size: 100%; width: 100%; }
+  .ds-strikes-h { font-size: 20px; }
+  .ds-strikes-since { font-size: 16px; }
+  .ds-strikes-place { font-size: 18px; }
+}

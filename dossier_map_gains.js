@@ -147,36 +147,36 @@ var DossierMapGains = (function () {
      the coast and the line of contact are already left out of it and nothing on
      this picture is drawn twice.
 
-     WHAT IT LOOKS LIKE, and why. Beside it runs the line of contact: pale,
-     dashed, 2px. So this one is SOLID and BROWN - a different hue, a different
-     rhythm, no chance of reading one as the other - over a casing in the
-     map's own halo colour, which is how every line on these maps survives
-     terrain shading (the black country borders on the crossing do the same).
-     The brown is authored per theme rather than taken from a token: on the
-     light deck it is a near-black earth brown on pale ground, and on the dark
-     board that same hue would be a black line on a black sea, so there it is
-     the warm tan the brown becomes when the ground under it is dark.
+     WHAT IT LOOKED LIKE UNTIL 2026-09-22, and why it does not any more. It was
+     SOLID and heavy - 2.8u of mid-brown at first, then 4.2u near-black, then
+     4.2u of violet when the ground it edged went violet - on the reasoning
+     that a reader had to HUNT for the first version at half scale, so the
+     line had to shout. Two things ended that: the violet fill went back (Ziv,
+     2026-09-22 morning), so there is no fill for the hue to follow; and the
+     ask itself was "just a little border", not a second boundary. The casing
+     in the map's own halo colour is the one thing kept from all of it - it is
+     how every line on these maps survives terrain shading. The style that
+     stands is below; it scales with the canvas and is floored like every
+     other line here, so a small canvas still shows it. */
+  /* JUST A LITTLE BORDER (2026-09-22). Ziv sent the violet wash back and asked
+     for the new ground to keep the Houthi colour exactly - the same colour,
+     "with just a little border" between what they held and what they newly
+     conquered. So the heavy violet rope is gone, and what is left is the
+     thinnest line on this picture that can still be seen at half scale: about
+     1.6u of the map's OWN control-line ink, dashed, over a 1u casing in the
+     halo colour so it survives the terrain shading.
+     NO COLOUR OF ITS OWN, in either deck: it reads `P.control`, authored once
+     per palette (dossier_map_light.js, or the --geo tokens on the board). A
+     border between two parts of ONE holder's ground is not a third party on
+     the map and may not bring a third hue to it. It is told from the line of
+     contact beside it - same ink, 2u, a long 6/4 dash - by being half that
+     weight on a finer rhythm; and the two never touch, the seam being authored
+     with the coast and the line of contact already cut out of it. */
+  var SEAM_W = 1.6, SEAM_MIN = 1.1, SEAM_CASE = 1, SEAM_DASH = [3.2, 2.4];
 
-     AND IT IS THE LOUDEST LINE IN ITS NEIGHBOURHOOD (2026-09-19). The first
-     version was 2.8u of mid-brown, and at half scale on the crossing picture
-     Ziv had to hunt for it: a thin light-brown thread over tan ground, beside
-     a dashed line of the same weight. It exists so a reader SEES which ground
-     is new, so it is now darker to near-black and never thinner than
-     SEAM_OVER times the line of contact - the width is read off the palette's
-     own `controlW` rather than written down twice, so the two can never drift
-     apart. It scales with the canvas and is floored like every other line
-     here, so a small canvas still shows it. */
-  /* Its hue follows the fill (2026-09-22): the ground it edges is violet now,
-     so the seam is a DARK violet on the light deck and the light violet the
-     same hue becomes over the dark board. Weights are untouched. */
-  var SEAM = { light: "#2E1352", dark: "#D9B8FF" };
-  var SEAM_W = 4.2, SEAM_MIN = 3, SEAM_CASE = 3.5, SEAM_OVER = 1.9;
-
-  function seamInk(P) { return SEAM[P.theme] || SEAM.light; }
-  function seamWidth(P, u) {
-    var contact = (P && P.controlW) || 2;
-    return Math.max(SEAM_MIN, Math.max(SEAM_W, contact * SEAM_OVER) * u);
-  }
+  function seamInk(P) { return (P && P.control) || "#1F2D3D"; }
+  function seamWidth(P, u) { return Math.max(SEAM_MIN, SEAM_W * u); }
+  function seamDash(u) { return [SEAM_DASH[0] * u, SEAM_DASH[1] * u]; }
   /* True when there is a seam to draw at all: the key asks before it prints a
      row for it, because a row naming a line that is not on the picture is the
      one thing every rule about this key forbids. */
@@ -185,20 +185,20 @@ var DossierMapGains = (function () {
   }
   function seam(ctx, p, P, u, G) {
     if (!hasSeam(G)) return;
-    var R = D(), w = seamWidth(P, u);
-    R.strokeLines(ctx, p, G.gains_seam, { stroke: P.halo, width: w + SEAM_CASE * u });
-    R.strokeLines(ctx, p, G.gains_seam, { stroke: seamInk(P), width: w });
+    var R = D(), w = seamWidth(P, u), dash = seamDash(u);
+    R.strokeLines(ctx, p, G.gains_seam, { stroke: P.halo, width: w + SEAM_CASE * u, dash: dash });
+    R.strokeLines(ctx, p, G.gains_seam, { stroke: seamInk(P), width: w, dash: dash });
   }
   /* The key's own swatch, drawn by the same two strokes at the same widths, so
      the mark in the box is the mark on the map and not a description of it. */
   function seamSwatch(ctx, P, u, x, cy, sw) {
-    var R = D(), w = seamWidth(P, u);
+    var R = D(), w = seamWidth(P, u), dash = seamDash(u);
     var line = function (style) {
       ctx.beginPath(); ctx.moveTo(x, cy); ctx.lineTo(x + sw, cy);
       R.paintShape(ctx, style);
     };
-    line({ stroke: P.halo, width: w + SEAM_CASE * u });
-    line({ stroke: seamInk(P), width: w });
+    line({ stroke: P.halo, width: w + SEAM_CASE * u, dash: dash });
+    line({ stroke: seamInk(P), width: w, dash: dash });
   }
 
   function gains(ctx, p, P, u, D0, G, mapId) {

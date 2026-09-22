@@ -43,9 +43,22 @@ var DossierMapBlock = (function () {
   ];
   var MISSING_MAP = "המפה אינה זמינה";
 
-  function hasGains() {
-    var D0 = (typeof DOSSIER !== "undefined" && DOSSIER) ? DOSSIER : null;
-    return !!(D0 && D0.gains && D0.gains.length);
+  /* THE VIOLET ROW, GATED ON THE VIOLET THAT IS PAINTED (2026-09-22), by the
+     painted key's own resolver `DossierMapLegend.drawsTint(m, GEO)`: "list" is
+     the dossier's captured places (this row exactly as it was), "wash" the
+     `gains: "tint"` layer over GEO.recent_gains, "" neither. Asking the list
+     alone was the old gate and it was the wrong question - a tint picture drew
+     a violet no row named, which is rule 1. The wash's swatch colour is SAMPLED
+     from the painter (`tintFill`), never written again here, so the two keys
+     cannot show two violets. */
+  function gainRow(m) {
+    var LG = window.DossierMapLegend, G0 = (typeof GEO !== "undefined" && GEO) ? GEO : null;
+    var t = LG && LG.drawsTint ? LG.drawsTint(m, G0) : "";
+    if (!t) return [];
+    if (t !== "wash") return [LEGEND[3]];
+    var theme = (window.DossierMap && DossierMap.screenTheme) || "light";
+    return [{ cls: "sw fill", he: LEGEND[3].he,
+      style: "--sw-fill: " + LG.tintFill(DossierMap.palette(theme)) }];
   }
 
   /* THE ZONE SIGNS, NAMED UNDER THE PICTURE. The rows come from
@@ -101,21 +114,31 @@ var DossierMapBlock = (function () {
     return rows.slice(0, at).concat(scale, rows.slice(at + 1));
   }
 
-  /* THE SEAM'S ROW, the twin of the painted key's (2026-09-18). A merged map
-     paints the new ground in the Houthi colour and runs a solid brown line
-     where it ends - Ziv: "still make a line that separates the new territories
-     that they conquered so we know what they are" - so both keys name it, in
-     the same words and in the same colour, read from the painter rather than
-     written again here. The swatch RESEMBLES the line, as the zone signs'
-     swatches do: the painted key draws the real thing, casing and all. No seam
-     layer on the page, no row. */
-  function seamRow() {
+  /* THE SEAM'S ROW, the twin of the painted key's (2026-09-18; regated and
+     redrawn 2026-09-22). The picture paints the new ground in the Houthi colour
+     and runs a border where it ends - Ziv: "still make a line that separates
+     the new territories that they conquered so we know what they are" - so both
+     keys name it, in the same words and in the same colour, read from the
+     painter rather than written again here.
+
+     THE GATE IS THE PAINTED KEY'S OWN, `DossierMapLegend.drawsSeam(m, GEO)`:
+     the record's `gains` ("seam" or "tint"), else `control: "merged"`, else
+     `gains_fill` - AND an edge in the seam layer. Asking whether the LAYER
+     exists was the old gate and it was the wrong question: it printed the row
+     under a picture that draws no border at all. One resolver, two keys.
+
+     THE SWATCH IS THE MARK THAT IS ON THE MAP: since 2026-09-22 the border is
+     thin and DASHED in the control-line ink, half the weight of the line of
+     contact above it, so this row is `sw line dash` at 1px against that row's
+     2px. It RESEMBLES the line, as the zone signs' swatches do - the painted
+     key draws the real thing, casing and all. */
+  function seamRow(m) {
     var GN = window.DossierMapGains, LG = window.DossierMapLegend;
     var G0 = (typeof GEO !== "undefined" && GEO) ? GEO : null;
-    if (!GN || !LG || !GN.hasSeam || !GN.hasSeam(G0)) return [];
+    if (!GN || !LG || !LG.drawsSeam || !LG.drawsSeam(m, G0)) return [];
     var theme = (window.DossierMap && DossierMap.screenTheme) || "light";
-    return [{ cls: "sw line",
-      style: "--sw-c: " + GN.seamInk(DossierMap.palette(theme)) + "; --sw-w: 3px",
+    return [{ cls: "sw line dash",
+      style: "--sw-c: " + GN.seamInk(DossierMap.palette(theme)) + "; --sw-w: 1px",
       he: LG.seamLabel() }];
   }
 
@@ -161,36 +184,43 @@ var DossierMapBlock = (function () {
        paints territory, fighting belts, a line of contact and, at the strait,
        an ochre line with teeth - taking the words off the CANVAS (`legend`,
        `zone_text`) cannot take away the need to know what they are, so the key
-       moves under the picture instead of vanishing with the box. */
-    if (m && m.legend === false && m.clean) return "";
+       moves under the picture instead of vanishing with the box.
+       **A STRIKE MAP TOO** (Ziv, 2026-09-23: "remove the squares that show what
+       everything means"): it paints the count disc only, its caption says what
+       the number is, and the list under it carries weapon, date and target. */
+    if (m && m.legend === false && (m.clean || m.strikes)) return "";
     /* The tribal rows REPLACE the whole list, exactly as they do in the painted
        key, and nothing below is asked of a tribal map: it is neither clean,
        merged nor heat, and those branches index LEGEND by position. */
-    var rows = tribeRows(m);
+    var rows = tribeRows(m), seam = seamRow(m), gain = gainRow(m);
     if (!rows) {
-      /* NO GAINS, NO GAINS ROW (2026-09-18). A window in which nothing changed
-         hands leaves DOSSIER.gains empty and the painter draws no violet, so
-         the key must not name it - and this key is the painted one's twin
-         (dossier_map_legend.js does the same against the same list), because
-         two keys to one picture may never disagree. Filtered rather than taken
-         out of LEGEND, which the merged branch below indexes by position. */
+      /* NO VIOLET, NO VIOLET ROW (2026-09-18; regated 2026-09-22 - gainRow
+         above). This key is the painted one's twin and asks its resolver, so
+         two keys to one picture cannot disagree. The row is SPLICED IN rather
+         than taken out of LEGEND, which the merged branch below indexes by
+         position; a clean or tribal picture can draw the wash too, so there it
+         is added at the end instead. */
       rows = (m && m.clean) ? CLEAN_LEGEND
-        : hasGains() ? LEGEND
-          : LEGEND.filter(function (r) { return r.cls.indexOf("gain") < 0; });
+        : LEGEND.slice(0, 3).concat(gain, [LEGEND[4]]);
+      if (!(m && m.clean)) gain = [];
       /* A MERGED clean map puts the two territories and the boundary between
          them back (Ziv, 2026-09-17), and takes back exactly those three rows -
-         never the gains row, because he asked for the new ground to read as
-         part of Houthi ground and a row naming a colour that is no longer on
-         the picture would send the reader hunting for it. Same three the
-         painted key adds. */
+         never a row for the MERGED ground, which he asked to read as part of
+         Houthi ground. A WASH is a different matter: it is a colour that IS on
+         the picture, so gainRow's row is spent here too, before the seam, and
+         once. Same rows the painted key adds. */
       if (m && m.clean && m.control === "merged") {
-        rows = [LEGEND[0], LEGEND[1], LEGEND[4]].concat(seamRow(), CLEAN_LEGEND);
+        rows = [LEGEND[0], LEGEND[1], LEGEND[4]].concat(gain, seam, CLEAN_LEGEND);
+        seam = []; gain = [];
       }
       if (m && m.heat) rows = heatRows(rows);
     }
     /* A row appears only when the map carries the thing it names, the same
-       bargain the painted key keeps: no zones, no zone rows. */
-    rows = rows.concat(zoneRows(m));
+       bargain the painted key keeps: no zones, no zone rows. The seam goes in
+       under the line of contact, where the painted key puts it - on the merged
+       branch that is inside the list above, before the route and the ports, so
+       it is spent there and added once. */
+    rows = rows.concat(gain, seam, zoneRows(m));
     return '<div class="ds-legend" aria-label="מקרא המפה">' +
       rows.map(function (r) {
         return '<span class="ds-lg-row"><span class="' + r.cls + '"' +
@@ -245,6 +275,32 @@ var DossierMapBlock = (function () {
     return t.slice(heading.length).replace(/^[\s.,،。—–-]+/, "").trim();
   }
 
+  /* THE STRIKE TALLY IS TEXT, NOT PAINT (2026-09-22). Ziv: "don't put the text
+     inside of the map, put it as something I can take" - so a record carrying
+     `strikes` gets an empty box under its caption and dossier_map_strikes_list.js
+     fills it with the same tally the picture counts, plus a copy button. The box
+     goes where the numbered explanations go, between the caption and the key. */
+  /* ESRI'S LICENCE, UNDER THE PICTURE (2026-09-23). A `ground: "streets"` record
+     is drawn on Esri street tiles, and their terms ask that the credit appear
+     wherever the tiles appear - so the frame's own `attribution` from GEO.relief
+     prints under the caption. Terrain grounds carry a different credit, already
+     on the deck's title slide, so they get nothing here. The text is Latin in an
+     RTL page: `dir="ltr"` keeps the commas at its end. */
+  function creditLine(m) {
+    if (!m || m.ground !== "streets") return "";
+    var G0 = (typeof GEO !== "undefined" && GEO) ? GEO : null;
+    var e = G0 && G0.relief ? G0.relief[m.frame] : null;
+    var text = e && e.attribution ? String(e.attribution).trim() : "";
+    if (!text) return "";
+    return '<div class="ds-credit" dir="ltr" style="font-size:.75em;opacity:.7">' +
+      esc(text) + "</div>";
+  }
+
+  function strikesBox(m) {
+    return (m && m.strikes)
+      ? '<div class="ds-strikes-box" data-map="' + esc(m.id) + '"></div>' : "";
+  }
+
   function blockHtml(m, key, variant) {
     var heading = blockHeading(m, variant);
     var raw = variant ? (variant.caption_he || "") : (m.caption_he || "");
@@ -258,6 +314,8 @@ var DossierMapBlock = (function () {
       (window.DossierMap ? "" : '<p class="ds-map-missing">' + MISSING_MAP + "</p>") +
       "</div></div>" +
       (caption ? '<p class="ds-caption">' + esc(caption) + "</p>" : "") +
+      creditLine(m) +
+      strikesBox(m) +
       legendHtml(m) +
       "</section>";
   }
@@ -265,12 +323,21 @@ var DossierMapBlock = (function () {
   /* One block per (map, variant), every variant of a map together. The plain
      picture reads the map's own caption; a variant reads its own. */
   function html(maps) {
-    return (maps || []).map(function (m) {
+    var out = (maps || []).map(function (m) {
       return variantsOf(m.id).map(function (key) {
         var v = key !== "plain" && m.variants && m.variants[key] ? m.variants[key] : null;
         return blockHtml(m, key, v);
       }).join("");
     }).join("");
+    /* The boxes above are filled on a zero timer, not here: this call returns a
+       STRING and the view writes it into the pane on the next statement, so the
+       fill has to wait until that has happened. Neither view had to learn it. */
+    if ((maps || []).some(function (m) { return m && m.strikes; })) {
+      setTimeout(function () {
+        if (window.DossierStrikesList) DossierStrikesList.mountAll(document);
+      }, 0);
+    }
+    return out;
   }
 
   return { html: html, variantsOf: variantsOf };

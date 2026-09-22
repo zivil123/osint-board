@@ -217,8 +217,15 @@ var DossierMapGov = (function () {
       var box = { x0: x - w / 2 - 3, y0: y - h / 2 - 2,
                   x1: x + w / 2 + 3, y1: y + h / 2 + 2 };
       var bad = null;
+      /* A WORD ALREADY ON THE PICTURE NEEDS A SPACE BESIDE IT, not merely a
+         pixel (2026-09-22). `R.overlaps` asks whether two rectangles INTERSECT,
+         so a region name came to rest flush against a town's name and read as
+         one word with it - "MaribMarib" on west_fronts stretch, and the same
+         fault on five more maps. dossier_map_gap.js asks the counter's own
+         `apart` for the word boxes and keeps the strict test for the marks, so
+         nothing about the clearance round a dot has moved. */
       o.taken.some(function (t) {
-        return R.overlaps(box, t) ? ((bad = t), true) : false;
+        return DossierMapGap.clash(R, box, t) ? ((bad = t), true) : false;
       });
       if (bad) {
         o.why.taken++;
@@ -264,8 +271,8 @@ var DossierMapGov = (function () {
            roomiest few: measured on the wide west picture, the cap at eight
            spots cost two names and the whole pass still paints in its second. */
         if (r && r.bad) {
-          var b = r.bad, bx = r.box;
-          [[b.x1 - bx.x0 + 2, 0], [b.x0 - bx.x1 - 2, 0],
+          var b = r.bad, bx = r.box, g = DossierMapGap.step(bx, b);
+          [[b.x1 - bx.x0 + g, 0], [b.x0 - bx.x1 - g, 0],
            [0, b.y1 - bx.y0 + 2], [0, b.y0 - bx.y1 - 2]].forEach(function (d) {
             if (best) return;
             var r2 = test(o.spots[ci].x + d[0], o.spots[ci].y + d[1]);
