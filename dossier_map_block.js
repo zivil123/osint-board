@@ -119,6 +119,39 @@ var DossierMapBlock = (function () {
       he: LG.seamLabel() }];
   }
 
+  /* THE TRIBAL KEY, FROM THE PAINTER'S OWN ROWS (2026-09-22). A `tribes` map
+     paints no holder fill and no fighting belt, so this key may not name one -
+     MAP_RULES rule 1 asks the painted key and this one to be built from the
+     same flag "so the two cannot disagree", and until now they did: the
+     picture showed three stances and the words under it said Houthi-held.
+     The rows come from DossierMapTribes.legendRows, the same call
+     dossier_map_legend.js makes for the box on the canvas, so the four Hebrew
+     labels and the three tones exist in ONE place and the key can never name a
+     stance the layer does not carry. That call ignores its ctx; u is 1 because
+     nothing here draws a stroke.
+
+     EVERY SWATCH HERE STANDS ON THE MAP'S LAND, and that is why these four
+     rows carry a background of their own. The three tones are laid SEE-THROUGH
+     over the terrain (alpha 0.42), and `.sw.fill` is backed by `--map-bg`, the
+     SEA - so over the page's dark navy a green tribe would have read almost
+     black beside a picture where it is pale green. The land colour comes from
+     the same palette the canvas beside it was painted in. The fourth row takes
+     the ground and no tone at all, with the same thin edge every `.sw.fill`
+     carries: that IS what land with no dominant tribe looks like. */
+  function tribeRows(m) {
+    var T = window.DossierMapTribes;
+    if (!m || m.tribes !== true || !T || !window.DossierMapDraw) return null;
+    if (!window.DossierMap || !DossierMap.palette) return null;
+    var P = DossierMap.palette(DossierMap.screenTheme || "light");
+    var rows = T.legendRows(null, P, 1, m) || [];
+    if (!rows.length) return null;
+    return rows.map(function (r) {
+      return { cls: "sw fill", he: r.label,
+        style: "background-color: " + P.land +
+          (r.fill ? "; --sw-fill: " + r.fill : "") };
+    });
+  }
+
   function legendHtml(m) {
     /* A map may carry NO key ON IT - `legend: false`, Ziv 2026-09-17: *"remove
        the box that explains everything, there's no need for it."*
@@ -130,24 +163,31 @@ var DossierMapBlock = (function () {
        `zone_text`) cannot take away the need to know what they are, so the key
        moves under the picture instead of vanishing with the box. */
     if (m && m.legend === false && m.clean) return "";
-    /* NO GAINS, NO GAINS ROW (2026-09-18). A window in which nothing changed
-       hands leaves DOSSIER.gains empty and the painter draws no violet, so the
-       key must not name it - and this key is the painted one's twin
-       (dossier_map_legend.js does the same against the same list), because two
-       keys to one picture may never disagree. Filtered rather than taken out of
-       LEGEND, which the merged branch below indexes by position. */
-    var rows = (m && m.clean) ? CLEAN_LEGEND
-      : hasGains() ? LEGEND
-        : LEGEND.filter(function (r) { return r.cls.indexOf("gain") < 0; });
-    /* A MERGED clean map puts the two territories and the boundary between them
-       back (Ziv, 2026-09-17), and takes back exactly those three rows - never
-       the gains row, because he asked for the new ground to read as part of
-       Houthi ground and a row naming a colour that is no longer on the picture
-       would send the reader hunting for it. Same three the painted key adds. */
-    if (m && m.clean && m.control === "merged") {
-      rows = [LEGEND[0], LEGEND[1], LEGEND[4]].concat(seamRow(), CLEAN_LEGEND);
+    /* The tribal rows REPLACE the whole list, exactly as they do in the painted
+       key, and nothing below is asked of a tribal map: it is neither clean,
+       merged nor heat, and those branches index LEGEND by position. */
+    var rows = tribeRows(m);
+    if (!rows) {
+      /* NO GAINS, NO GAINS ROW (2026-09-18). A window in which nothing changed
+         hands leaves DOSSIER.gains empty and the painter draws no violet, so
+         the key must not name it - and this key is the painted one's twin
+         (dossier_map_legend.js does the same against the same list), because
+         two keys to one picture may never disagree. Filtered rather than taken
+         out of LEGEND, which the merged branch below indexes by position. */
+      rows = (m && m.clean) ? CLEAN_LEGEND
+        : hasGains() ? LEGEND
+          : LEGEND.filter(function (r) { return r.cls.indexOf("gain") < 0; });
+      /* A MERGED clean map puts the two territories and the boundary between
+         them back (Ziv, 2026-09-17), and takes back exactly those three rows -
+         never the gains row, because he asked for the new ground to read as
+         part of Houthi ground and a row naming a colour that is no longer on
+         the picture would send the reader hunting for it. Same three the
+         painted key adds. */
+      if (m && m.clean && m.control === "merged") {
+        rows = [LEGEND[0], LEGEND[1], LEGEND[4]].concat(seamRow(), CLEAN_LEGEND);
+      }
+      if (m && m.heat) rows = heatRows(rows);
     }
-    if (m && m.heat) rows = heatRows(rows);
     /* A row appears only when the map carries the thing it names, the same
        bargain the painted key keeps: no zones, no zone rows. */
     rows = rows.concat(zoneRows(m));
