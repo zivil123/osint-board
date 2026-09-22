@@ -209,7 +209,14 @@ var DossierMapLegend = (function () {
     ];
     var gained = hasGains()
       ? [{ gain: window.DossierMapGains.gainStyle(P, u), label: words.gained }] : [];
-    L.rows = !opt.clean ? [
+    /* A TRIBAL MAP HAS NO HOLDER ROWS AND NO FIGHTING ROW (2026-09-22): it
+       paints neither, and a row naming a fill that is not on the picture is
+       the one thing every rule about this key forbids. Its own three stance
+       swatches and the "no dominant tribe" row come from the file that paints
+       them, exactly as the routes' and the heat scale's rows do. */
+    var tribal = !!(opt.map && opt.map.tribes === true && window.DossierMapTribes);
+    L.rows = tribal ? DossierMapTribes.legendRows(ctx, P, u, opt.map)
+      : !opt.clean ? [
       control[0], control[1],
       { fill: P.contested, hatch: R.hatch(ctx, P.contestedStroke, u),
         stroke: P.contestedStroke,

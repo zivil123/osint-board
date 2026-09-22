@@ -159,8 +159,9 @@ var DossierMapBlock = (function () {
   }
 
   /* The frame's own shape (3:2 for the close-up, 16:9 for the rest), so the box
-     has the canvas's shape before anything is drawn in it. Always the WIDE
-     frame: the square picture is a download, never a canvas on the page. */
+     has the canvas's shape before anything is drawn in it. The WIDE frame,
+     unless the record's `page_frame` names another - then the box takes that
+     shape and so does what the painter draws in it (2026-09-22). */
   function aspectOf(id) {
     var a = window.DossierMap && DossierMap.aspect ? DossierMap.aspect(id) : 16 / 9;
     return a.toFixed(4);

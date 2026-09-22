@@ -417,8 +417,14 @@ var DossierMapInk = (function () {
     var rows = rowsOf(map);
     begin();
     /* The fighting zones' diamonds, on every map that draws them - a clean map
-       draws none, which is why the flag is read and not guessed at. */
-    if (G && G.fronts && !map.clean) {
+       draws none, which is why the flag is read and not guessed at. AND A MAP
+       SAYING `fronts: false` DRAWS NONE EITHER (2026-09-22): the flag reached
+       the ground painter and the belt painter when it arrived, and not this
+       reservation, so `west_plain` - the same frame WITHOUT the fighting belts
+       - was still walking its names round twelve diamonds nobody can see. It
+       cost that picture four region names and the Marib capital's dot on the
+       16:9 export. Same one token as the other two files read. */
+    if (G && G.fronts && !map.clean && map.fronts !== false) {
       var dr = window.DossierMapLegend ? DossierMapLegend.markR(u) : 11 * u;
       R.eachFeature(G.fronts, function (f) {
         var c = frontCentre(p, f.geometry || {});

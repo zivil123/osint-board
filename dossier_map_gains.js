@@ -84,6 +84,54 @@ var DossierMapGains = (function () {
       }
     });
   }
+  /* ---- the ground taken in THIS round, in its own tone ---------------------- */
+
+  /* A DIFFERENT COLOUR WHERE THEY TOOK, AND NOWHERE ELSE (2026-09-22). Ziv, on
+     a picture whose whole Houthi side had been restyled to make the two sides
+     of the war easier to tell apart: *"Why did you change how the colours look?
+     They should look exactly the same as the map before. I only said put a
+     different colour where the Houthis conquered in the RECENT fights... Don't
+     change the whole map. Not a border - where they took."*
+
+     So this fills ONE layer and touches nothing else on the picture. The layer
+     is `GEO.recent_gains` - the districts that changed hands inside the window,
+     dissolved upstream into one shape - and `GEO.recent_gains_list` says who
+     took each of them: all six are `to: "houthi"` today, which is why the fill
+     can be one tone and be true. A government gain would need the layer split
+     upstream first, because a dissolved shape cannot be filled two ways.
+
+     WHY IT IS NOT THE VIOLET the dossier's own gains overlay uses: that one
+     paints plain land underneath and so ERASES the terrain, and it answers a
+     different question (which places the dossier's text is about). This is the
+     control map's own layer, laid at the same wash as the control fills - the
+     hillshade still reads through it.
+
+     VIOLET, AND SEE-THROUGH (2026-09-22). It was a flat red, and Ziv, looking
+     at it: low quality. So it is now a LIGHT VIOLET TINT - a hue neither the
+     warm grey of Houthi ground nor the cool grey of government ground can be
+     mistaken for - laid thin enough that the terrain reads straight through it
+     and the seam line below does the work of saying where the new ground ends.
+     Authored per theme, like the seam: the board's own dark ground needs the
+     lighter step of the same violet.
+
+     The alpha is set HERE rather than taken from the caller, because this tint
+     only works at one strength: too heavy and it erases the hillshade, too
+     light and the reader stops seeing it at half scale. It hands back at 1,
+     because the line that follows is a line and no line on these maps is
+     washed back. */
+  var NEW_GROUND = { light: "#6E46AA", dark: "#A886E8" };
+  var NEW_GROUND_ALPHA = 0.32;
+
+  function newGround(ctx, p, P, u, G) {
+    var R = D();
+    if (!G || !G.recent_gains) return;
+    ctx.beginPath();
+    R.eachFeature(G.recent_gains, function (f) { R.polyPath(ctx, p, f.geometry); });
+    ctx.globalAlpha = NEW_GROUND_ALPHA;
+    R.paintShape(ctx, { fill: NEW_GROUND[P.theme] || NEW_GROUND.light });
+    ctx.globalAlpha = 1;
+  }
+
   /* ---- the seam: where the new ground meets the old ------------------------- */
 
   /* A LINE ROUND THE NEW GROUND, THOUGH IT IS THE SAME COLOUR (2026-09-18).
@@ -118,7 +166,10 @@ var DossierMapGains = (function () {
      own `controlW` rather than written down twice, so the two can never drift
      apart. It scales with the canvas and is floored like every other line
      here, so a small canvas still shows it. */
-  var SEAM = { light: "#2A1707", dark: "#F5B45C" };
+  /* Its hue follows the fill (2026-09-22): the ground it edges is violet now,
+     so the seam is a DARK violet on the light deck and the light violet the
+     same hue becomes over the dark board. Weights are untouched. */
+  var SEAM = { light: "#2E1352", dark: "#D9B8FF" };
   var SEAM_W = 4.2, SEAM_MIN = 3, SEAM_CASE = 3.5, SEAM_OVER = 1.9;
 
   function seamInk(P) { return SEAM[P.theme] || SEAM.light; }
@@ -173,7 +224,7 @@ var DossierMapGains = (function () {
 
   return { gains: gains, mergedGains: mergedGains, gainStyle: gainStyle,
            seam: seam, seamSwatch: seamSwatch, seamInk: seamInk,
-           hasSeam: hasSeam };
+           hasSeam: hasSeam, newGround: newGround };
 })();
 
 window.DossierMapGains = DossierMapGains;

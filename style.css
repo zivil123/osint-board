@@ -33,13 +33,9 @@
   --v-none-tint: rgba(143, 163, 184, 0.10);
   --v-pending: #8FA3B8;
   --v-pending-tint: rgba(143, 163, 184, 0.10);
-  /* Geography — every decorative hue above is already spoken for, so territory is
-     told apart by LIGHTNESS on the navy field, never by a new colour. */
-  /* Territory is a GROUND layer, so it takes no hue - every hue is spoken for by
-     a front or a status. It gets its step from lightness instead, and the two
-     sides are pushed to OPPOSITE sides of the basemap's own grey: one washes the
-     land lighter, the other darker. A 0.07/0.02 pair was tried first and was
-     invisible on the Esri tiles at every zoom. */
+  /* Geography — territory is a GROUND layer and takes no hue: every hue above is
+     spoken for by a front or a status. Its step is LIGHTNESS, the two sides pushed
+     to opposite sides of the basemap's grey (0.07/0.02 was invisible on the tiles). */
   --geo-fill-houthi: rgba(233, 240, 248, 0.20);
   --geo-fill-gov: rgba(6, 20, 36, 0.45);
   --geo-fill-contested: rgba(233, 240, 248, 0.07);
@@ -53,27 +49,31 @@
   --geo-control-line: #E6EDF5;
   --geo-control-w: 2;
   --geo-control-dash: 6 4;
-  /* The ground that changed hands inside the window. Density, never a new hue:
-     the border is solid and heavy and the front line is a 6-4 dash, so the free
-     texture is a fine dot, over a fill one step brighter than the ground it sits
-     on. */
+  /* The ground that changed hands inside the window. Density, never a new hue: the
+     border is solid and heavy and the front line is a 6-4 dash, so the free texture
+     is a fine dot over a fill one step brighter than the ground it sits on. */
   /* THE ONE HUE THAT IS NOT A SIDE OR A VERDICT. Every other colour here answers
      "which front" or "how well confirmed"; this one answers "where is it happening
      right now", and it is loud on purpose - Ziv, 2026-09-15: "make it a color that
-     stands out and make it maybe bigger so people see it fast when they look on the
-     map, especially on the big map." Red, because that is what a fight is called
-     everywhere and teal, pink, amber, violet, green and orange are taken; deeper and
-     far more saturated than --v-denied's salmon, and a DIAMOND not a circle. */
+     stands out and make it maybe bigger so people see it fast... especially on the
+     big map." Red, because that is what a fight is called everywhere; deeper than
+     --v-denied's salmon, and a DIAMOND not a circle. */
   --geo-front-mark: #FF2D20;
   --geo-gain-line: #E6EDF5;
   --geo-gain-w: 2.6;
   --geo-gain-dash: 3 4;
   --geo-gain-fill: rgba(233, 240, 248, 0.22);
+  /* THE TRIBAL MAP'S THREE STANCES (2026-09-22): SUPPORT for the Houthis - neither a
+     side nor a verdict - told by hue alone (green, blue, amber, clear of every hue
+     above) and laid see-through over the relief. `-deck` is the LIGHT deck's value,
+     which is what every download, slide and screen paints. DOSSIER_COLOUR.md. */
+  --tribe-with: #7FD9A6; --tribe-with-deck: #1E7A4C;
+  --tribe-against: #7FB6F2; --tribe-against-deck: #1B5FA6;
+  --tribe-split: #E9A13B; --tribe-split-deck: #B46F12;
   --site-mark: #7C8FA3;
-  /* The Esri canvas draws its own roads and wadis. On a board that carries its own
-     boundaries, control fill and names, that detail reads as scribble, so the tiles
-     are held back to a ground: dark enough to still tell land from sea, faint enough
-     that a road is not a line anybody has to read. */
+  /* The Esri canvas draws its own roads and wadis, which read as scribble under our
+     own boundaries, fill and names: the tiles are held back to a ground, dark enough
+     to tell land from sea, faint enough that no road is a line anybody must read. */
   --gov-label: #9FB2C6;    /* quieter than a claim, louder than the basemap */
   --map-halo: rgba(6, 16, 30, 0.92);
   --ease-tap: cubic-bezier(0.2, 0.8, 0.2, 1);

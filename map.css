@@ -136,7 +136,8 @@
      legend already caused over the enlarge button. */
   pointer-events: none;
 }
-.cl-note { color: var(--ink-faint); font-size: 14px; margin-block-end: 6px; }
+/* 15px, never 14: the absolute type floor is in the SHARED rule, not per view. */
+.cl-note { color: var(--ink-faint); font-size: 15px; margin-block-end: 6px; }
 .cl-list { display: flex; flex-direction: column; gap: 2px; }
 .cl-row {
   display: grid; grid-template-columns: 8px auto 1fr auto;

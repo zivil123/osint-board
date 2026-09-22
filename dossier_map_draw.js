@@ -325,7 +325,12 @@ var DossierMapDraw = (function () {
        carries meaning, and clipped to the coastline that was just drawn. */
     if (o.img && X) X.relief(ctx, p, o.img, o.bounds, o.filter);
     var byControl = function (c) { return function (f) { return f.properties.control === c; }; };
-    var zones = (o.clean && !merged) ? null : G.control_zones;
+    /* A TRIBAL map paints NO HOLDER (2026-09-22): its three fills answer a
+       different question - which tribes back the Houthis - and a control fill
+       under them would be a second colour on the same ground saying something
+       else. The line of contact below stays, so the stances can be read against
+       it. docs\dossier_map_tribes.js. */
+    var zones = (o.tribes || (o.clean && !merged)) ? null : G.control_zones;
     /* On the light deck the three fills are opaque; over the terrain they would
        erase it, so they are washed back. The dark palette's fills already carry
        their own alpha and are left alone. */
@@ -335,7 +340,18 @@ var DossierMapDraw = (function () {
     /* In the SAME pass and at the same alpha, so a gain and the ground it has
        joined are one colour and not two tones of it. */
     if (merged && window.DossierMapGains) DossierMapGains.mergedGains(ctx, p, P, u, o.D, G);
+    /* AND THE GROUND TAKEN IN THIS ROUND IN ITS OWN REDDISH TONE, over the
+       control fill it sits on and at the same wash, so the terrain still reads
+       through it - `gains_fill` on the record (2026-09-22). One layer moves and
+       nothing else on the picture does; the line round it goes down at the end
+       of this function with the merged map's own. dossier_map_gains.js. */
+    if (o.gainsFill && window.DossierMapGains) DossierMapGains.newGround(ctx, p, P, u, G);
     ctx.globalAlpha = 1;
+    /* THE TRIBAL AREAS, in place of the holder: one of three tones per area by
+       its stance toward the Houthis, a thin edge round each area and a thick
+       one round each confederation. It sets its own wash and hands back at 1,
+       and it draws nothing at all when the layer is absent. */
+    if (o.tribes && window.DossierMapTribes) DossierMapTribes.fills(ctx, p, P, u, G);
     /* The ACTIVE FIGHTING zones are their own layer (data\fronts.json ->
        GEO.fronts), drawn over the territory instead of replacing a district's
        fill. Until 2026-09-14 the hatch WAS a district's control value, so a
@@ -343,7 +359,7 @@ var DossierMapDraw = (function () {
        of longitude as a war zone and a district one side plainly held lost its
        colour. Ziv reported it on al-Jawf, on Maqbanah and on the Lahij coast in
        one message. Territory now says WHO HOLDS, this says WHAT IS HAPPENING. */
-    if (G.fronts && !o.clean) {
+    if (G.fronts && !o.clean && o.fronts !== false) {
       /* ONE WASH, OR FIVE (2026-09-17). A record carrying `heat` says how hard
          each belt is being fought this window, and dossier_map_heat.js fills
          every belt with its own step of that scale instead of the one contested
@@ -398,79 +414,24 @@ var DossierMapDraw = (function () {
        in the same colour, but still make a line that separates the new
        territories that they conquered so we know what they are." So one more
        line, solid and brown against the dashed pale line of contact beside it.
-       dossier_map_gains.js owns it, because it owns the gains. */
-    if (merged && window.DossierMapGains) DossierMapGains.seam(ctx, p, P, u, G);
-  }
-
-  /* ---- shipping lanes ------------------------------------------------------------ */
-
-  /* The part of segment a-b inside the canvas (Liang-Barsky), or null. */
-  function clip(a, b, W, H) {
-    var dx = b[0] - a[0], dy = b[1] - a[1], t0 = 0, t1 = 1;
-    var edges = [[-dx, a[0]], [dx, W - a[0]], [-dy, a[1]], [dy, H - a[1]]];
-    for (var i = 0; i < 4; i++) {
-      var q = edges[i][0], r = edges[i][1];
-      if (q === 0) { if (r < 0) return null; continue; }
-      var t = r / q;
-      if (q < 0) { if (t > t1) return null; if (t > t0) t0 = t; }
-      else { if (t < t0) return null; if (t < t1) t1 = t; }
+       dossier_map_gains.js owns it, because it owns the gains.
+       A `gains_fill` map takes the same line, and for the same reason: the tone
+       says WHICH ground is new and the line says exactly where it ends. Last of
+       all, so neither the hatch nor a border crosses it. */
+    if ((merged || o.gainsFill) && window.DossierMapGains) {
+      DossierMapGains.seam(ctx, p, P, u, G);
     }
-    return [[a[0] + dx * t0, a[1] + dy * t0], [a[0] + dx * t1, a[1] + dy * t1]];
-  }
-
-  function segLen(seg) {
-    return seg ? Math.hypot(seg[1][0] - seg[0][0], seg[1][1] - seg[0][1]) : 0;
-  }
-
-  function lanes(ctx, p, P, u, W, H, list, size, taken, legend) {
-    (list || []).forEach(function (lane) {
-      var pts = (lane.path || []).map(function (c) { return p(c[0], c[1]); });
-      if (pts.length < 2) return;
-      ctx.beginPath();
-      pts.forEach(function (q, i) { if (i) ctx.lineTo(q[0], q[1]); else ctx.moveTo(q[0], q[1]); });
-      paintShape(ctx, { stroke: P.lane, width: 2 * u, dash: [8 * u, 6 * u] });
-      if (!lane.label_he) return;
-      /* The name rides the segment with the most FREE length: on screen and
-         not under the legend box. On the close-up the Gulf of Aden leg runs
-         mostly off the canvas and then under the legend, so the leg through
-         the strait wins there; on the overview the Gulf leg is the long one. */
-      var best = null, len = -1;
-      for (var i = 1; i < pts.length; i++) {
-        var seg = clip(pts[i - 1], pts[i], W, H), d = segLen(seg);
-        if (seg && legend) {
-          var under = clip([seg[0][0] - legend.x0, seg[0][1] - legend.y0],
-            [seg[1][0] - legend.x0, seg[1][1] - legend.y0], legend.x1 - legend.x0, legend.y1 - legend.y0);
-          d -= segLen(under);
-        }
-        if (seg && d > len) { len = d; best = seg; }
-      }
-      if (!best) return;
-      var a = best[0], b = best[1], w = width(ctx, lane.label_he, size, 500);
-      var ang = Math.atan2(b[1] - a[1], b[0] - a[0]);
-      if (Math.cos(ang) < 0) ang += Math.PI;         /* never upside down */
-      /* Slide along the visible part until the name lands inside the canvas
-         and clear of every place label and the legend box. */
-      var spot = [0.5, 0.35, 0.65, 0.2, 0.8].map(function (t) {
-        var x = a[0] + (b[0] - a[0]) * t, y = a[1] + (b[1] - a[1]) * t;
-        return { x: x, y: y, box: { x0: x - w / 2, y0: y - size * 1.6, x1: x + w / 2, y1: y + 2 * u } };
-      }).filter(function (s) {
-        return s.box.x0 >= 0 && s.box.x1 <= W && s.box.y0 >= 0 && s.box.y1 <= H &&
-          !taken.some(function (t) { return overlaps(s.box, t); });
-      })[0];
-      if (!spot) return;
-      ctx.save(); ctx.translate(spot.x, spot.y); ctx.rotate(ang);
-      text(ctx, P, lane.label_he, 0, -6 * u, { size: size, color: P.muted, halo: 3 * u,
-        align: "center", baseline: "bottom" });
-      ctx.restore();
-      taken.push(spot.box);
-    });
   }
 
   /* ---- MOVED OUT ------------------------------------------------------------
      The governorate names left for dossier_map_zone_names.js on 2026-09-18,
      with the place names, when that file became the one place that answers what
-     a picture names and this one reached its cap. This file keeps the GROUND
-     and the primitives every painter draws with.
+     a picture names and this one reached its cap. THE SHIPPING LANES left for
+     dossier_map_lanes.js on 2026-09-22, when the tribal layer needed a hook
+     here and this file stood at 499 lines: `clip`, `segLen` and `lanes` moved
+     whole, and dossier_map.js merges that file in so `R.lanes(...)` is
+     unchanged. This file keeps the GROUND and the primitives every painter
+     draws with.
      ------------------------------------------------------------------------ */
 
   return {
@@ -478,8 +439,7 @@ var DossierMapDraw = (function () {
     place: place, ringMark: ringMark, setFont: setFont, paintShape: paintShape,
     canvasScale: canvasScale,
     hatch: hatch, dashOf: dashOf, eachFeature: eachFeature, polyPath: polyPath,
-    strokeLines: strokeLines,
-    ground: ground, lanes: lanes,
+    strokeLines: strokeLines, ground: ground,
     CLEAN_TEXT: CLEAN_TEXT, COUNTRY_TEXT: COUNTRY_TEXT,
     COUNTRY_SPACE: COUNTRY_SPACE
   };

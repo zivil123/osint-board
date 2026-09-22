@@ -10,6 +10,7 @@
        draw(records),        // replace the attack markers with these records
        select(id),           // pan to a record's marker and open its popup
        onSelect(cb),         // cb(id) fires when a marker is clicked
+       instance(),           // the Leaflet map itself, for a view that shares it
        invalidate()          // re-measure the map container
      }
 
@@ -484,6 +485,7 @@ var MapView = (function () {
     draw: draw,
     select: select,
     fitTo: fitTo,
+    instance: function () { return map; },   /* asked at call time, never stored */
     onSelect: function (cb) { if (typeof cb === "function") selectHandlers.push(cb); },
     invalidate: function () {
       if (!map) return;
