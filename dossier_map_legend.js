@@ -3,14 +3,10 @@
    else), the red diamond every active-fighting zone carries, and the plain
    picture's zone names.
 
-   Split out of dossier_map_draw.js on 2026-09-15, when the relief raster, the
-   fighting notes and the assessment arrows took that file past its 500-line
-   cap. Same bargain as the first split: dossier_map.js owns the frames, the
-   projection and the palette, and looks this file up at paint time, so the
-   three painter files may load in any order as long as all of them are on the
-   page before the view draws. `zoneNames` came across from dossier_map_extra.js
-   on 2026-09-16 and went on to dossier_map_zone_names.js on 2026-09-17, when
-   the hard-block corner scoring and the road swatch took this file to its cap.
+   Split out of dossier_map_draw.js on 2026-09-15 at its line cap; looked up at
+   paint time, so the painter files may load in any order. IN OVERLAY MODE
+   (2026-09-23) the diamond, the box, each row's word and each swatch - as a
+   small picture - are RECORDED instead of drawn (dossier_map_draw.js, `rec`).
 
    NO ES modules - the page runs from file://. One global:
 
@@ -69,6 +65,7 @@ var DossierMapLegend = (function () {
   function markR(u) { return Math.max(MARK_MIN, MARK_R * u); }
 
   function diamond(ctx, x, y, r, style) {
+    if (D().recMark(ctx, "diamond", x, y, r, style)) return;
     ctx.beginPath();
     ctx.moveTo(x, y - r); ctx.lineTo(x + r, y);
     ctx.lineTo(x, y + r); ctx.lineTo(x - r, y);
@@ -440,55 +437,57 @@ var DossierMapLegend = (function () {
   }
 
   function paintLegend(ctx, P, u, L) {
-    var R = D();
-    ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(L.x0, L.y0, L.w, L.h, 10 * L.k);
-    else ctx.rect(L.x0, L.y0, L.w, L.h);
-    R.paintShape(ctx, { fill: P.box, stroke: P.boxLine, width: Math.max(1, u) });
+    var R = D(), rr = ctx.roundRect ? 10 * L.k : 0;
+    if (!R.rec(ctx, { kind: "box", x: L.x0, y: L.y0, w: L.w, h: L.h, fill: P.box,
+        stroke: P.boxLine, strokeW: Math.max(1, u), radius: rr })) {
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(L.x0, L.y0, L.w, L.h, 10 * L.k);
+      else ctx.rect(L.x0, L.y0, L.w, L.h);
+      R.paintShape(ctx, { fill: P.box, stroke: P.boxLine, width: Math.max(1, u) });
+    }
     var sh = 16 * L.k, per = L.cols === 2 ? L.per : L.rows.length;
     L.rows.forEach(function (r, i) {
       /* RTL: the first column is the RIGHT one, where the reading starts. */
       var col = Math.floor(i / per);
       var right = L.x1 - L.pad - col * ((L.colW || 0) + (L.colGap || 0));
       var y = L.y0 + L.pad + (i - col * per) * L.rowH;
-      var cy = y + L.rowH / 2, sx = right - L.sw, sy = cy - sh / 2;
-      if (r.draw) {
-        r.draw(ctx, P, u, sx, cy, L.sw, sh);
-      } else if (r.arrow) {
-        arrowSwatch(ctx, P, u, sx, cy, L.sw, r.dots);
-      } else if (r.line) {
-        ctx.beginPath(); ctx.moveTo(sx, cy); ctx.lineTo(sx + L.sw, cy);
-        R.paintShape(ctx, { stroke: r.line, width: r.width, dash: r.dash });
-      } else {
-        /* Land under the fill, so the swatch is the colour the map shows; a
-           hairline edge, because the government wash is a dark step that
-           would otherwise vanish into the box. */
-        ctx.beginPath(); ctx.rect(sx, sy, L.sw, sh);
-        R.paintShape(ctx, { fill: P.land });
-        if (r.hatch) {
-          R.paintShape(ctx, { fill: r.fill });
-          R.paintShape(ctx, { fill: r.hatch });
-        }
-        ctx.beginPath(); ctx.rect(sx, sy, L.sw, sh);
-        R.paintShape(ctx, r.gain || { fill: r.hatch ? null : r.fill,
-          stroke: r.stroke || P.boxLine,
-          width: r.width || Math.max(1, u), dash: r.dash });
-        if (r.mark) {
-          diamond(ctx, sx + L.sw / 2, cy, markR(u) * 0.8,
-            { fill: P.frontMark, stroke: P.halo, width: Math.max(1, u) });
+      var cy = y + L.rowH / 2, sx = right - L.sw, sy = cy - sh / 2, m = L.rowH;
+      if (!R.recImage(ctx, sx - m, cy - m, L.sw + 2 * m, 2 * m, swatch)) swatch(ctx);
+      R.setFont(ctx, L.size, 500);
+      ctx.textAlign = "right"; ctx.textBaseline = "middle"; ctx.fillStyle = P.ink;
+      if (!R.recText(ctx, P, r.label, sx - L.gap, cy, { size: L.size })) {
+        ctx.fillText(r.label, sx - L.gap, cy);
+      }
+      function swatch(ctx) {
+        if (r.draw) {
+          r.draw(ctx, P, u, sx, cy, L.sw, sh);
+        } else if (r.arrow) {
+          arrowSwatch(ctx, P, u, sx, cy, L.sw, r.dots);
+        } else if (r.line) {
+          ctx.beginPath(); ctx.moveTo(sx, cy); ctx.lineTo(sx + L.sw, cy);
+          R.paintShape(ctx, { stroke: r.line, width: r.width, dash: r.dash });
+        } else {
+          /* Land under the fill, so the swatch is the colour the map shows; a
+             hairline edge, because the government wash is a dark step that
+             would otherwise vanish into the box. */
+          ctx.beginPath(); ctx.rect(sx, sy, L.sw, sh);
+          R.paintShape(ctx, { fill: P.land });
+          if (r.hatch) {
+            R.paintShape(ctx, { fill: r.fill });
+            R.paintShape(ctx, { fill: r.hatch });
+          }
+          ctx.beginPath(); ctx.rect(sx, sy, L.sw, sh);
+          R.paintShape(ctx, r.gain || { fill: r.hatch ? null : r.fill,
+            stroke: r.stroke || P.boxLine,
+            width: r.width || Math.max(1, u), dash: r.dash });
+          if (r.mark) {
+            diamond(ctx, sx + L.sw / 2, cy, markR(u) * 0.8,
+              { fill: P.frontMark, stroke: P.halo, width: Math.max(1, u) });
+          }
         }
       }
-      R.setFont(ctx, L.size, 500);
-      ctx.textAlign = "right"; ctx.textBaseline = "middle";
-      ctx.fillStyle = P.ink; ctx.fillText(r.label, sx - L.gap, cy);
     });
   }
-
-  /* ---- MOVED OUT ------------------------------------------------------------
-     The plain picture's zone names left for dossier_map_zone_names.js on
-     2026-09-17, when the hard-block corner scoring and the road swatch took
-     this file past the 500-line cap. Nothing about the search changed.
-     ------------------------------------------------------------------------ */
 
   return { centre: centre, legendLayout: legendLayout, paintLegend: paintLegend,
            frontMarks: frontMarks, diamond: diamond, markR: markR,

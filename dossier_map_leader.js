@@ -14,23 +14,18 @@
    fourth answer under those three, dossier_map_round.js, asked only where
    all three were blocked: see `best` and the end of `findSpot`.
 
-   CLIPPING IS NOT THE ANSWER and was the old one: a hairline clipped out of a
-   label passes behind the text, which reads as a line broken in two and still
-   says the line had nowhere to go. The line goes around, or the picture reports
-   a fault by name. Nothing is drawn under a word to hide it.
+   CLIPPING IS NOT THE ANSWER: the line goes around, or the picture reports a
+   fault by name. IN OVERLAY MODE (2026-09-23) `paint` records two lines.
 
-   A NEW FILE because dossier_map_extra.js sits at the 500-line cap; THE WHOLE
-   BOX SEARCH came here with the refusal, and `DossierMapExtra.kit` hands it out
-   under the names its callers already use, so there is ONE answer on this board
-   to "does this line touch that rectangle". NO ES modules. One global:
+   THE WHOLE BOX SEARCH lives here and `DossierMapExtra.kit` hands it out, so
+   there is ONE answer to "does this line touch that rectangle". One global:
 
      window.DossierMapLeader = { segBox, segCross, straight, options, best,
        findSpot, wrap, boxAt, fits, leaderSeg, segLen, edgeness, rimBars, paint,
        line, tip, segsOf, lengthOf, overText, crossings, tell, size, fault,
        SIDES }
 
-   A page without this file draws no dossier map at all, and says so by name
-   rather than by an undefined function out of a canvas paint. */
+   A page without this file draws no dossier map at all, and says so by name. */
 "use strict";
 
 var DossierMapLeader = (function () {
@@ -430,6 +425,11 @@ var DossierMapLeader = (function () {
   function paint(ctx, P, u, rt) {
     var D = R();
     if (!D || !rt || rt.pts.length < 2 || !rt.segs.length) return;
+    var pts = function () { return rt.pts.map(function (q) { return [q[0], q[1]]; }); };
+    if (D.rec(ctx, { kind: "line", pts: pts(), stroke: P.halo, width: Math.max(3, 3.5 * u) })) {
+      D.rec(ctx, { kind: "line", pts: pts(), stroke: P.ink, width: Math.max(1.5, 1.5 * u) });
+      return;
+    }
     var j0 = ctx.lineJoin;
     ctx.lineJoin = "round";
     trace(ctx, rt.pts);

@@ -4,12 +4,8 @@
    API; it calls into this file at paint time, so the painter files may load in
    any order as long as all of them are on the page before the view draws.
 
-   Split out the day the painter passed the 480-line cap, exactly as the brief
-   allowed. The LEGEND and the fighting-zone diamond left for
-   dossier_map_legend.js on 2026-09-15, and the relief raster, the fighting
-   notes and the assessment arrows went into dossier_map_extra.js the same day.
-   THE GAINS OVERLAY left for dossier_map_gains.js on 2026-09-17, when the heat
-   painter's hook in ground() brought this file back to its cap.
+   Split out at the line cap; the legend, the extras and the gains left for
+   their own files (2026-09-15/17). THE OVERLAY RECORDER lives here (2026-09-23).
 
    NO ES modules - the page runs from file://. One global:
 
@@ -127,6 +123,7 @@ var DossierMapDraw = (function () {
     paintShape(ctx, style);
   }
   function ringMark(ctx, x, y, r, style) {
+    if (recMark(ctx, style.fill ? "dot" : "ring", x, y, r, style)) return;
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
     paintShape(ctx, style);
@@ -188,8 +185,7 @@ var DossierMapDraw = (function () {
      EVERY painted string passes through here, so this is also where the
      picture check is told how small the smallest text on the map got
      (`min_text_px` against the map area, `min_name_px` against the canvas):
-     one sink, so a painter that sets its own size cannot be forgotten.
-     Guarded - the check file is optional at runtime. */
+     one sink, so a painter that sets its own size cannot be forgotten. */
   function text(ctx, P, str, x, y, o) {
     if (window.DossierMapCheck) {
       DossierMapCheck.text(o.size / (SCALE || 1));
@@ -200,9 +196,69 @@ var DossierMapDraw = (function () {
     ctx.textBaseline = o.baseline || "middle";
     if (o.halo > 0) {
       ctx.lineJoin = "round"; ctx.lineWidth = o.halo;
-      ctx.strokeStyle = P.halo; ctx.strokeText(str, x, y);
+      ctx.strokeStyle = P.halo; if (!REC) ctx.strokeText(str, x, y);
     }
-    ctx.fillStyle = o.color || P.ink; ctx.fillText(str, x, y);
+    ctx.fillStyle = o.color || P.ink;
+    if (!recText(ctx, P, str, x, y, o)) ctx.fillText(str, x, y);
+  }
+
+  /* ---- OVERLAY MODE (2026-09-23) ---------------------------------------------
+     DossierMap.exportLayers() paints ONCE with a recorder armed: every word and
+     mark ON the map is pushed as a record instead of drawn, for a slide to
+     rebuild as objects. Placement runs as ever; only the ink is swapped. Unarmed,
+     every sink draws as before and the picture is byte-identical. Records are
+     CANVAS px through any translate/rotate on the context; `rot` in degrees
+     turns an item (and its unrotated `box`) about the box's own centre. */
+  var REC = null;
+  function record(list) { var was = REC; if (list !== undefined) REC = list; return was; }
+  function rec(ctx, o) {
+    if (!REC) return false;
+    var t = ctx.getTransform ? ctx.getTransform() : null, q, b = o.box;
+    if (t && !t.isIdentity) {
+      var k = Math.hypot(t.a, t.b), f = function (x, y) {
+        return [t.a * x + t.c * y + t.e, t.b * x + t.d * y + t.f];
+      };
+      if (b) {
+        q = f(b.x + b.w / 2, b.y + b.h / 2);
+        o.box = { x: q[0] - b.w * k / 2, y: q[1] - b.h * k / 2, w: b.w * k, h: b.h * k };
+      }
+      if (typeof o.x === "number") { q = f(o.x, o.y); o.x = q[0]; o.y = q[1]; }
+      if (o.pts) o.pts = o.pts.map(function (p) { return f(p[0], p[1]); });
+      ["r", "size", "haloW", "strokeW", "width", "w", "h", "radius"].forEach(function (n) {
+        if (typeof o[n] === "number") o[n] *= k;
+      });
+      if (t.b) o.rot = Math.atan2(t.b, t.a) * 180 / Math.PI;
+    }
+    REC.push(o);
+    return true;
+  }
+  /* The glyph box is measured as set, align and baseline included. */
+  function recText(ctx, P, str, x, y, o) {
+    if (!REC) return false;
+    var m = ctx.measureText(str), l = m.actualBoundingBoxLeft, a = m.actualBoundingBoxAscent;
+    return rec(ctx, { kind: "text", str: str, box: { x: x - l, y: y - a,
+      w: l + m.actualBoundingBoxRight, h: a + m.actualBoundingBoxDescent },
+      x: x, y: y, align: ctx.textAlign, baseline: ctx.textBaseline, size: o.size,
+      weight: o.weight || 500, font: FONT, spacing: o.spacing || 0,
+      fill: o.color || P.ink, halo: o.halo > 0 ? P.halo : null, haloW: o.halo > 0 ? o.halo : 0 });
+  }
+  function recMark(ctx, kind, x, y, r, s) {
+    return rec(ctx, { kind: kind, x: x, y: y, r: r, fill: s.fill || null,
+      stroke: s.stroke && s.width > 0 ? s.stroke : null, strokeW: s.stroke ? s.width || 0 : 0,
+      dash: s.dash || null });
+  }
+  /* A swatch too rich for one shape (a hatch, a pattern, an arrow): painted by
+     `fn` onto its own canvas, unarmed, and recorded as a picture. */
+  function recImage(ctx, x, y, w, h, fn) {
+    if (!REC) return false;
+    var c = document.createElement("canvas"), keep = REC, g;
+    var x0 = Math.floor(x), y0 = Math.floor(y);
+    c.width = Math.ceil(x + w) - x0; c.height = Math.ceil(y + h) - y0;
+    g = c.getContext("2d"); g.direction = ctx.direction; g.translate(-x0, -y0);
+    REC = null;
+    try { fn(g); } finally { REC = keep; }
+    return rec(ctx, { kind: "image", x: x0, y: y0, w: c.width, h: c.height,
+      src: c.toDataURL("image/png") });
   }
   function width(ctx, str, size, weight, sp) {
     setFont(ctx, size, weight, sp);
@@ -316,7 +372,7 @@ var DossierMapDraw = (function () {
      off: the picture answers who holds which side of one boundary, and where
      the fighting is happening today is a different question. */
   function ground(ctx, p, P, u, W, H, G, opt) {
-    var X = window.DossierMapExtra, o = opt || {}, merged = o.control === "merged";
+    var X = window.DossierMapExtra, o = opt || {}, merged = o.control === "merged", cross = null;
     /* WHAT THIS PICTURE DOES WITH THE GROUND TAKEN, in one word, off the record
        (`gains`, 2026-09-22): "seam" folds it into the Houthi fill and runs a
        thin dashed border where it ends, "tint" lays the violet wash and the
@@ -380,11 +436,11 @@ var DossierMapDraw = (function () {
         fillCollection(ctx, p, G.fronts, { fill: P.contested });
         ctx.globalAlpha = 1;
       }
-      /* The hatch, the outline and the diamond are never washed back - they are
-         what says a fight is happening here, and a terrain picture underneath
-         is no reason to say it more quietly. */
+      /* Hatch, outline and diamond are never washed back: they say a fight is
+         here. Overlay mode watches the lines after them (dossier_map_cross.js). */
       fillCollection(ctx, p, G.fronts, { fill: hatch(ctx, P.contestedStroke, u),
         stroke: P.contestedStroke, width: Math.max(0.8, 0.8 * u), dash: [3 * u, 3 * u] });
+      if (REC && window.DossierMapCross) cross = DossierMapCross.watch(ctx, REC);
       if (window.DossierMapLegend) window.DossierMapLegend.frontMarks(ctx, p, P, u, G);
     }
     fillCollection(ctx, p, G.yem_adm1, govLine(P, u));
@@ -416,37 +472,23 @@ var DossierMapDraw = (function () {
       strokeLines(ctx, p, G.control_line, { stroke: P.control, width: P.controlW * u,
         dash: dashOf(P.controlDash, u) });
     }
-    /* AND ON A MERGED MAP, THE SEAM (2026-09-18). The new ground is painted in
-       the Houthi colour and a reader cannot tell it from the ground it joined -
-       which is what Ziv asked for, and then: "it's okay that you did all of them
-       in the same colour, but still make a line that separates the new
-       territories that they conquered so we know what they are." So one more
-       line - since 2026-09-22 a thin dashed border in the control-line ink,
-       "just a little border" and no fill of its own.
-       dossier_map_gains.js owns it, because it owns the gains.
-       A `gains: "tint"` map takes the same line, and for the same reason: the
-       tone says WHICH ground is new and the line says exactly where it ends.
-       Last of all, so neither the hatch nor a border crosses it. */
+    /* THE SEAM (2026-09-18): the new ground keeps the Houthi fill and one thin
+       dashed border says where it ends (Ziv: "still make a line that separates
+       the new territories"); a tint map takes the same line. dossier_map_gains.js
+       owns it. Last of all, so neither the hatch nor a border crosses it. */
     if (gm !== "none" && window.DossierMapGains) {
       DossierMapGains.seam(ctx, p, P, u, G);
     }
+    if (cross) cross();
   }
 
-  /* ---- MOVED OUT ------------------------------------------------------------
-     The governorate names left for dossier_map_zone_names.js on 2026-09-18,
-     with the place names, when that file became the one place that answers what
-     a picture names and this one reached its cap. THE SHIPPING LANES left for
-     dossier_map_lanes.js on 2026-09-22, when the tribal layer needed a hook
-     here and this file stood at 499 lines: `clip`, `segLen` and `lanes` moved
-     whole, and dossier_map.js merges that file in so `R.lanes(...)` is
-     unchanged. This file keeps the GROUND and the primitives every painter
-     draws with.
-     ------------------------------------------------------------------------ */
-
+  /* MOVED OUT: the governorate and place names (dossier_map_zone_names.js,
+     2026-09-18) and the shipping lanes (dossier_map_lanes.js, 2026-09-22). */
   return {
     mix: mix, alpha: alpha, text: text, width: width, overlaps: overlaps,
     place: place, ringMark: ringMark, setFont: setFont, paintShape: paintShape,
-    canvasScale: canvasScale,
+    canvasScale: canvasScale, record: record, rec: rec, recText: recText,
+    recMark: recMark, recImage: recImage,
     hatch: hatch, dashOf: dashOf, eachFeature: eachFeature, polyPath: polyPath,
     strokeLines: strokeLines, ground: ground,
     CLEAN_TEXT: CLEAN_TEXT, COUNTRY_TEXT: COUNTRY_TEXT,

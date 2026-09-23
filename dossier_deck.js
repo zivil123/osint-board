@@ -386,5 +386,6 @@
       });
   }
 
-  window.DossierDeck = { build: build_ };
+  /* loadLib is shared with dossier_pptx_edit.js: one loader, one CDN pin. */
+  window.DossierDeck = { build: build_, loadLib: loadLib };
 })();

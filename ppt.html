@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'">
+<title>PowerPoint</title>
+<!--
+  Opens one slide from the owner's OneDrive in the PowerPoint APP (PC and phone).
+  The link is ppt.html#<cid>/Maps/<name>.pptx - written by scripts/onedrive_link.py.
+  Only the HASH is read: it never reaches any server. Nothing else is loaded.
+-->
+<style>
+  body { font: 18px/1.5 system-ui, sans-serif; margin: 2em; }
+  a.btn { display: inline-block; margin-top: .6em; padding: .5em 1.2em; border-radius: 6px;
+          background: #b7472a; color: #fff; text-decoration: none; }
+</style>
+</head>
+<body>
+<p id="msg">פותח את המצגת ב-PowerPoint... אם היא לא נפתחה, לחצו על הכפתור.</p>
+<a id="go" class="btn" href="#" hidden>פתח ב-PowerPoint</a>
+<script>
+(function () {
+  var raw = "";
+  try { raw = decodeURIComponent(location.hash.slice(1)); } catch (e) { raw = ""; }
+  var m = /^([0-9A-Fa-f]{8,32})\/Maps\/([A-Za-z0-9][A-Za-z0-9_.-]*\.pptx)$/.exec(raw);
+  if (!m || raw.indexOf("..") >= 0) {
+    document.getElementById("msg").textContent = "הקישור אינו תקין.";
+    return;
+  }
+  var uri = "ms-powerpoint:ofe|u|https://d.docs.live.net/" + m[1] + "/Maps/" + m[2];
+  var go = document.getElementById("go");
+  go.href = uri;
+  go.hidden = false;
+  location.href = uri;
+})();
+</script>
+</body>
+</html>

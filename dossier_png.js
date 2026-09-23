@@ -2,7 +2,10 @@
    tab and on the maps tab, and the dry path that proves them without putting a
    file on anybody's screen.
 
-   window.DossierPng = { mount(pane), dry }
+   window.DossierPng = { mount(pane), dry, shapes, fileName(id, variant, shape,
+                         ext), stash(item) } - the last three for the editable
+   slide's button (dossier_pptx_edit.js), so its sizes, name and dry item come
+   from here.
 
    Ziv asked for the maps as PNG files he can download (2026-09-17), and the
    same day for two SHAPES of each: wide for a whole slide, square for a slide
@@ -62,9 +65,9 @@ var DossierPng = (function () {
   /* The SHAPE rides in the name, before the date: two pictures of the same map
      land in the same folder on the same day, and "which one is this" must be
      answerable without opening either. */
-  function fileName(id, variant, shape) {
+  function fileName(id, variant, shape, ext) {
     return "osint-map-" + id + (variant && variant !== "plain" ? "-" + variant : "") +
-      "-" + (shape || "wide") + "-" + stamp() + ".png";
+      "-" + (shape || "wide") + "-" + stamp() + "." + (ext || "png");
   }
   /* A data URL is what the painter returns; a blob is what a save needs. Done
      by hand rather than through fetch(), which a file:// page refuses. */
@@ -104,14 +107,21 @@ var DossierPng = (function () {
        same list by docs\maps_tab.js and has no map painters in it at all, so
        one word on the item tells the two apart instead of a list of ids in the
        Python that would go stale the first time a map is added. */
-    var item = { id: id, variant: variant, shape: s.shape, kind: "map",
-                 width: s.w, height: s.h,
-                 name: fileName(id, variant, s.shape),
-                 bytes: Math.round((png.length - png.indexOf(",") - 1) * 3 / 4),
-                 dataUrl: png };
+    return stash({ id: id, variant: variant, shape: s.shape, kind: "map",
+                   width: s.w, height: s.h,
+                   name: fileName(id, variant, s.shape),
+                   bytes: Math.round((png.length - png.indexOf(",") - 1) * 3 / 4),
+                   dataUrl: png });
+  }
+  /* ONE stash for every dry item, the pictures and the editable slides of
+     dossier_pptx_edit.js alike (2026-09-23). A new press replaces the old item
+     of the same picture AND the same kind - keyed without the kind, the slide
+     and the picture of one map would keep evicting each other. */
+  function stash(item) {
     out.dry = out.dry || { done: false, items: [] };
     out.dry.items = out.dry.items.filter(function (it) {
-      return it.id !== id || it.variant !== variant || it.shape !== s.shape;
+      return it.id !== item.id || it.variant !== item.variant ||
+        it.shape !== item.shape || it.kind !== item.kind;
     });
     out.dry.items.push(item);
     return item;
@@ -146,10 +156,37 @@ var DossierPng = (function () {
     });
   }
 
-  /* TWO buttons per PICTURE, which on these tabs means two per (map, variant):
-     each block on the page is its own canvas, so each saves what is above it
-     and nothing else has to be chosen; the pair is the wide picture and the
-     square one. Quiet secondary controls - they are not what the dossier is
+  /* THE THIRD BUTTON: the same picture as an EDITABLE slide (Ziv, 2026-09-23) -
+     every word, pin and number a PowerPoint object over the picture's own
+     ground. Wide only: the slide is 16:9. dossier_pptx_edit.js builds it and
+     saves it, or under ?png=dry stashes it here and saves nothing. */
+  var PPTX = { shape: "wide", label: "מצגת לעריכה (שקף מלא)" };
+  var PPTX_BUSY = "מכין את המצגת…";
+  var PPTX_FAILED = "יצירת המצגת נכשלה.";
+
+  function pressPptx(section, btn) {
+    var id = section.dataset.map, variant = section.dataset.variant || "plain";
+    var label = btn.textContent, P = window.DossierPptx;
+    if (!P || typeof P.build !== "function") { status(section, MISSING); return; }
+    btn.disabled = true; btn.textContent = PPTX_BUSY; status(section, "");
+    P.build(id, THEME, variant, PPTX.shape).then(function (res) {
+      btn.disabled = false; btn.textContent = label;
+      if (res && res.kind === "pptx") {
+        status(section, "בדיקה בלבד — מצגת של " + ((res.counts && res.counts.placed) || 0) +
+          " פריטים. הקובץ לא נשמר.");
+      }
+    }, function (err) {
+      btn.disabled = false; btn.textContent = label;
+      console.error("dossier_png: pptx", err);
+      var msg = err && err.message;
+      status(section, /[֐-׿]/.test(msg || "") ? msg : PPTX_FAILED);
+    });
+  }
+
+  /* THREE buttons per PICTURE, which on these tabs means three per (map,
+     variant): each block on the page is its own canvas, so each saves what is
+     above it and nothing else has to be chosen - the wide picture, the square
+     one, and the wide one as an editable slide. Quiet secondary controls - they are not what the dossier is
      for, and its own primary control (the deck) sits in the header (design-law:
      hierarchy from weight and shade, never a second colour). */
   function mount(pane) {
@@ -164,6 +201,10 @@ var DossierPng = (function () {
         btn.addEventListener("click", function () { press(section, btn, s); });
         row.appendChild(btn);
       });
+      var edit = document.createElement("button");
+      edit.type = "button"; edit.className = "ds-png-btn"; edit.textContent = PPTX.label;
+      edit.addEventListener("click", function () { pressPptx(section, edit); });
+      row.appendChild(edit);
       var line = document.createElement("p");
       line.className = "ds-map-status";
       line.setAttribute("aria-live", "polite");
@@ -219,7 +260,10 @@ var DossierPng = (function () {
     (document.head || document.documentElement).appendChild(st);
   }
 
-  return { mount: mount, get dry() { return out.dry; } };
+  /* shapes, fileName and stash are read by dossier_pptx_edit.js, so the slide's
+     sizes, its filename and its dry item come from this one place. */
+  return { mount: mount, shapes: SHAPES, fileName: fileName, stash: stash,
+           get dry() { return out.dry; } };
 })();
 
 window.DossierPng = DossierPng;

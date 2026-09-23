@@ -10,6 +10,7 @@
      window.DossierMap = {
        draw(canvas, mapId, theme, cssWidth, variant),   // paints in place
        exportPng(mapId, theme, w, h, variant, shape),   // -> PNG data URL
+       exportLayers(...same) // -> Promise {w, h, base: PNG data URL, items}
        variantsOf(mapId),        // ["plain", ...] the pictures of this frame
        ready(theme),             // Promise: the theme's relief pictures landed
        frame(mapId, w, h), aspect(mapId), project(mapId, W, H), palette,
@@ -28,11 +29,9 @@
    dossier_map_*.js files, looked up at paint time so they may load in any
    order. Every string painted is Hebrew - the build refuses Latin.
 
-   FRAMES ARE AUTHORED, in data\dossier_maps.json, and reach here as
-   DOSSIER.frames: a latitude range and a longitude CENTRE, the span following
-   from the aspect painted, so nothing is cropped - UNLESS the shape authors a
-   `lon` range, which is pulled out to the full width (a STRETCHED picture,
-   2026-09-22). The rubric is in DOSSIER_LAYERS.md, "Frames". */
+   FRAMES ARE AUTHORED (data\dossier_maps.json -> DOSSIER.frames): a latitude
+   range and a longitude centre, or a `lon` range that STRETCHES (2026-09-22).
+   DOSSIER_LAYERS.md, "Frames". */
 "use strict";
 
 var DossierMap = (function () {
@@ -152,12 +151,8 @@ var DossierMap = (function () {
   function dossier() { return (typeof DOSSIER !== "undefined" && DOSSIER) ? DOSSIER : null; }
 
   /* ---- frames, maps and their pictures ---------------------------------------- */
-  /* MOVED OUT on 2026-09-22, to dossier_map_frames.js, when the tribal layer's
-     flag had to be read below and this file stood at its 500-line cap: the map
-     lookup, the shape table, the rectangle each shape cuts and the variant
-     list went whole. Reached BY NAME, the way the optional painters are, so the
-     two files may load in any order; these five are the names the paint pass
-     below already used and nothing about a call site changed. */
+  /* MOVED OUT on 2026-09-22 to dossier_map_frames.js (the map lookup, shapes,
+     rectangles, variants), reached BY NAME; the call sites did not change. */
   function FR() { return need("dossier_map_frames.js", window.DossierMapFrames); }
   function mapOf(mapId) { return FR().mapOf(mapId); }
   function frameOf(mapId, shape) { return FR().frameOf(mapId, shape); }
@@ -227,20 +222,13 @@ var DossierMap = (function () {
     ctx.beginPath(); ctx.rect(a.map.x, a.map.y, a.map.w, a.map.h); ctx.clip();
     ctx.translate(a.map.x, a.map.y);
     /* THE MAP'S TEXT SCALES WITH THE CANVAS, NEVER WITH ITS OWN BAND
-       (2026-09-19). Sizes in paintMap are written for a 1280-wide picture and
-       grown by `u`, the width it is handed - about HALF the canvas on the
-       three-band split, so a town name reading 25 CSS px elsewhere came out 13
-       here the day the map band went 68% -> 51%. Ziv: "make it big". The fix
-       is the right unit, not a floor: `ts` carries the ratio, so names, pins,
+       (2026-09-19, Ziv: "make it big"): `ts` carries the ratio, so names, pins,
        discs and the key box are sized as an unsplit picture would size them. */
     var taken = paintMap(ctx, mapId, theme, a.map.w, a.map.h,
                          ts * (a.map.w > 0 ? W / a.map.w : 1), variant, a.frame);
     ctx.restore();
-    /* THE PANEL IS HANDED WHAT THE MAP ALREADY COVERED - every rectangle the
-       map area reserved, the SAME array and objects, so anything drawn beside
-       the map can be measured against every name on it. NOT TRANSLATED:
-       map-area pixels and canvas pixels are the same numbers here, because the
-       wide split puts the map at the canvas origin. */
+    /* THE PANEL IS HANDED WHAT THE MAP ALREADY COVERED, untranslated: the wide
+       split puts the map at the canvas origin. */
     K.panel(ctx, P, u, ts, map, a, W, taken);
     if (C) C.end();
   }
@@ -283,7 +271,10 @@ var DossierMap = (function () {
        Houthis (docs\dossier_map_tribes.js). The line of contact stays. */
     gOpt.tribes = map.tribes === true;
     R.ground(ctx, p, P, u, W, H, G, gOpt);
+    /* The gains are GROUND: never recorded in overlay mode (exportLayers). */
+    var rec = R.record(null);
     if (!clean) R.gains(ctx, p, P, u, D, G, mapId);
+    R.record(rec);
     /* A clean picture carries two or three names, so it sets them larger - one
        factor, in dossier_map_draw.js, which the route's own block reads too. */
     var labelSize = clean ? size * R.CLEAN_TEXT : size;
@@ -336,12 +327,8 @@ var DossierMap = (function () {
        all - so a name Ziv is reading about cannot lose its place to a name
        nobody asked for. The search is in dossier_map_zone_names.js. */
     /* A KEY-PANEL MAP TOO NARROW FOR ITS PANEL PAINTS NUMBERS AND NO OBJECTIVE
-       NAMES (2026-09-19). The sentences have moved to the HTML list under the
-       picture, numbered the same way, so a name here would be the same word
-       twice - and at 340 CSS px they crowded the cluster until two required
-       ones were dropped outright. The mark stays, its disc is glued to it, and
-       the list below carries the name; a town that is nobody's objective keeps
-       its name if it fits. MAPS_TAB.md, "On a phone". */
+       NAMES (2026-09-19): the HTML list under it carries the words, the disc
+       stays glued to the mark. MAPS_TAB.md, "On a phone". */
     var numbersOnly = null, narrow = map.key === "panel" &&
       !(window.DossierMapKey && DossierMapKey.splitOf());
     if (narrow) {
@@ -471,6 +458,22 @@ var DossierMap = (function () {
           variant, shape);
     return c.toDataURL("image/png");
   }
+  /* OVERLAY MODE (2026-09-23): the same paint with the recorder armed, so every
+     word and mark comes back as a record and `base` keeps the ground. The sinks
+     and the record kinds are in dossier_map_draw.js, `rec`. */
+  function exportLayers(mapId, theme, width, height, variant, shape) {
+    var Dr = need("dossier_map_draw.js", window.DossierMapDraw);
+    return ready(theme).catch(function () { return null; }).then(function () {
+      var c = document.createElement("canvas"), items = [];
+      c.width = Math.round(width); c.height = Math.round(height);
+      Dr.record(items);
+      try {
+        paint(c.getContext("2d"), mapId, theme, c.width, c.height, TEXT_SLIDE,
+              variant, shape);
+      } finally { Dr.record(null); }
+      return { w: c.width, h: c.height, base: c.toDataURL("image/png"), items: items };
+    });
+  }
 
   /* The frame's own rectangle, never the canvas's: a default height comes off
      `frameAspect`, so a key-panel map reports the ground its MAP AREA shows. */
@@ -481,15 +484,14 @@ var DossierMap = (function () {
       height || BASE_W / frameAspect(mapId)).extent;
   }
 
-  /* The deck's EDITABLE map slide (dossier_deck_map.js) paints the same picture
-     out of PowerPoint shapes, so it must use this file's own projection and
-     palette - copied, the two would drift apart on the first frame change. */
+  /* The deck's editable slide (dossier_deck_map.js) shares this projection. */
   function project(mapId, W, H) {
     var f = frameOf(mapId);
     return f ? projector(f, W, H) : null;
   }
 
-  return { draw: draw, exportPng: exportPng, frame: frame, aspect: aspect,
+  return { draw: draw, exportPng: exportPng, exportLayers: exportLayers,
+           frame: frame, aspect: aspect,
            variantsOf: variantsOf, ready: ready, screenTheme: SCREEN_THEME,
            project: project, palette: palette, words: words };
 })();

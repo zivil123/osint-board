@@ -1,13 +1,9 @@
 /* Sea routes, straight-line measures, reported and assessed zones, the place
    markers a label may choose, and the scale bar every terrain map carries.
 
-   Added 2026-09-17 with the first maps drawn ON the terrain: the crossing from
-   the port of Mocha to Djibouti, the threats reported at the strait, and the
-   objectives a Houthi officer declared in Marib. Those three needed four things
-   no dossier map had ever drawn - a sailing route with its length, a straight
-   line with the direct distance, a hatched area that says "reported" or
-   "assessed", and a bar saying how far a centimetre is - so they live here
-   rather than growing dossier_map_extra.js past its cap.
+   Added 2026-09-17 with the first maps drawn ON the terrain (the Mocha
+   crossing, the strait, Marib). IN OVERLAY MODE (2026-09-23) a place marker's
+   square and triangle are recorded, not drawn (dossier_map_draw.js, `rec`).
 
    NO ES modules - the page runs from file://. One global:
 
@@ -94,10 +90,12 @@ var DossierMapRoutes = (function () {
   function markClear(pinR, kind) { return pinR * (SCALE[kind] || 1); }
 
   function square(ctx, x, y, r, style) {
+    if (D().recMark(ctx, "square", x, y, r, style)) return;
     ctx.beginPath(); ctx.rect(x - r, y - r, r * 2, r * 2);
     D().paintShape(ctx, style);
   }
   function triangle(ctx, x, y, r, style) {
+    if (D().recMark(ctx, "triangle", x, y, r, style)) return;
     ctx.beginPath(); ctx.moveTo(x, y - r * 1.15);
     ctx.lineTo(x + r * 1.1, y + r * 0.8);
     ctx.lineTo(x - r * 1.1, y + r * 0.8); ctx.closePath();

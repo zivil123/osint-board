@@ -64,6 +64,10 @@ var DossierMapNumber = (function () {
      here is spoken for by a front, a zone or a route. */
   function disc(ctx, P, x, y, r, n, u) {
     var R = D(), str = String(n);
+    /* OVERLAY MODE (2026-09-23): ONE badge record - disc, ring, halo, digit. */
+    if (R.rec(ctx, { kind: "badge", x: x, y: y, r: r, str: str, size: r * 1.35,
+        fill: "#FFFFFF", color: P.ink, stroke: P.ink, strokeW: Math.max(1.2, 1.4 * u),
+        halo: P.halo, haloW: Math.max(1.5, 1.5 * u), weight: 700, dy: r * 0.04 })) return;
     ctx.beginPath(); ctx.arc(x, y, r + Math.max(1.5, 1.5 * u), 0, Math.PI * 2);
     R.paintShape(ctx, { fill: P.halo });
     ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
