@@ -397,6 +397,7 @@ var DossierMapNumber = (function () {
         DossierMapInk.numbered(s.q[0], s.q[1], !!spot.glued);
       }
       disc(ctx, P, spot.x, spot.y, s.r, s.n, u);
+      if (window.DossierMapInk) DossierMapInk.mark(spot.box, "disc " + s.n);
       if (!s.slot || spot.box !== s.slot.box) {
         bars.push(spot.box); taken.push(spot.box);
       }

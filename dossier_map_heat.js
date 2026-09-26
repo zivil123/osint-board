@@ -1,24 +1,15 @@
 /* HOW HARD EACH FRONT IS BEING FOUGHT, as a colour on the belt itself.
 
    A dossier map record may carry `heat`:
+     map.heat = { window: {from, to}, scale?: 10,
+                  fronts: [{front, level, date, src}, ...] }   // one per belt
+   `front` is a GEO.fronts feature's `properties.id`; `level` is 1..5, or 1..10
+   with `scale: 10`. The build guarantees every belt is there; a belt with no
+   level is painted the ordinary contested wash, so a gap reads "no reading".
 
-     map.heat = { window: {from, to},
-                  fronts: [{front, level, date, src}, ...] }   // 12 entries
-
-   `front` is a GEO.fronts feature's `properties.id` and `level` is 1..5. The
-   build guarantees all twelve are there; a belt this file cannot find a level
-   for is painted the ordinary contested wash rather than left blank or guessed
-   at, so a data gap shows as "no reading" and never as "quiet".
-
-   WHY A COLOUR AND NOT A WIDTH. A belt's width is already spoken for - 12 km
-   of sourced contact either side of the line (UI.md, "A front is a BELT ON THE
-   LINE") - so thickening one would say the fighting covers more ground than the
-   source said. A rank on this board is a colour scale with a key, and no more.
-
-   EACH BELT IS FILLED ON ITS OWN, one beginPath/fill per feature, which the
-   single even-odd path in draw.js could not do - safe only because the build
-   refuses a front shape that is not a simple ring and refuses any two that
-   overlap (UI.md L174-219): no fill here can punch a hole in another.
+   WHY A COLOUR AND NOT A WIDTH: a belt's width is already spoken for (12 km of
+   sourced contact, UI.md "A front is a BELT ON THE LINE"); a rank is a colour.
+   EACH BELT IS FILLED ON ITS OWN - safe as the build refuses overlapping belts.
 
    AND THE SAME NUMBER, WRITTEN ON THE BELT (2026-09-18). Ziv: *"mark on the
    map, on the fronts, the number of how much fighting there is... And also show
@@ -26,15 +17,10 @@
    and back before it says anything - so badges() writes every belt's level on it
    as a digit and stamps the window beside the key, LAST so nothing covers them.
 
-   NO ES modules - the page runs from file://. One global:
-     window.DossierMapHeat = { fronts, legendRows, ramp, words, badges, report,
-                               audit, windowText }
-   ground() in dossier_map_draw.js calls fronts() in place of the one contested
-   fill and then paints its hatch, outline and red diamond on top, unchanged; the
-   legend calls legendRows(); dossier_map.js calls badges() as the last thing on
-   a heat map. Shared helpers come from DossierMapDraw and DossierMapExtra.kit at
-   call time, so the files may load in any order. The scale's Hebrew words are
-   authored HERE, as dossier_map_zones.js owns its own. */
+   One global, window.DossierMapHeat (no ES modules - file://): ground() in
+   dossier_map_draw.js calls fronts() in place of the contested fill, the legend
+   legendRows(), dossier_map.js badges() last. `ground` and `kit` are for the
+   report's focus / rank pictures, dossier_map_focus.js. Words authored HERE. */
 "use strict";
 
 var DossierMapHeat = (function () {
@@ -88,9 +74,18 @@ var DossierMapHeat = (function () {
      where it is), the ATTENTION is. Ascending, so the hotter glow is on top. */
   var GLOW_W = 22, GLOW_A = 0.32;
 
-  /* A palette or a bare theme name: the HTML key has only the name. */
-  function ramp(P) {
-    var t = typeof P === "string" ? P : (P && P.theme);
+  /* THE 1-10 SCALE, `heat.scale: 10` (2026-09-25, the Word report's overview -
+     "in one glance I will know which fronts are the most active"): the Fronts
+     tab's own colours, BfMarks.SCALE in battlefronts_marks.js, read at call time;
+     TEN copies it (2026-09-25) for a page without the tab. Key: 1, 4, 7, 10. */
+  var TEN = ["#8494A8", "#968E9C", "#A78890", "#B68084", "#C37877",
+             "#D06F69", "#DD645B", "#E9574C", "#F44639", "#FF2D20"];
+  var TEN_KEY = [1, 4, 7, 10], TEN_WORD = "מדד פעילות";
+  function top(heat) { return heat && heat.scale === 10 ? 10 : 5; }
+  /* A palette or a bare theme name (the HTML key has only the name) + heat. */
+  function ramp(P, heat) {
+    var B = window.BfMarks, t = typeof P === "string" ? P : (P && P.theme);
+    if (top(heat) === 10) return (B && B.SCALE && B.SCALE.length === 10) ? B.SCALE : TEN;
     return RAMP[t === "light" ? "light" : "dark"];
   }
 
@@ -102,7 +97,7 @@ var DossierMapHeat = (function () {
     ((heat && heat.fronts) || []).forEach(function (r) {
       if (!r || !r.front) return;
       var n = Math.round(r.level);
-      if (isFinite(n) && n >= 1 && n <= 5) out[r.front] = n;
+      if (isFinite(n) && n >= 1 && n <= top(heat)) out[r.front] = n;
     });
     return out;
   }
@@ -111,7 +106,8 @@ var DossierMapHeat = (function () {
      terrain keeps the relief readable as the plain one does; the hatch, the
      outline and the diamond that follow in ground() are not its business. */
   function fronts(ctx, p, P, u, G, heat, opt) {
-    var R = D(), o = opt || {}, colors = ramp(P), lv = levels(heat), list = [];
+    var R = D(), o = opt || {}, colors = ramp(P, heat), lv = levels(heat), list = [];
+    if (heat && heat.focus && window.DossierMapFocus) DossierMapFocus.quiet(ctx, p, P, u, o);
     R.eachFeature(G.fronts, function (f) {
       list.push({ f: f, n: lv[(f.properties || {}).id] || 0 });
     });
@@ -146,18 +142,18 @@ var DossierMapHeat = (function () {
       if (list[i] && list[i].mark && list[i].hatch) { at = i; break; }
     }
     if (at < 0) return list;
-    var old = list[at];
-    var scale = ramp(P).map(function (c, n) {
-      return { fill: c, label: WORDS[n],
+    var old = list[at], steps = ramp(P, map && map.heat), ten = steps.length === 10;
+    var scale = (ten ? TEN_KEY : [1, 2, 3, 4, 5]).map(function (n) {
+      var c = steps[n - 1];
+      return { fill: c, label: ten ? TEN_WORD + " " + n : WORDS[n - 1],
         draw: function (cx2, P2, u2, sx, cy, sw, sh) {
-          badge(cx2, P2, sx + sw / 2, cy, keyR(sw, sh, u2), n + 1, u2, c);
+          badge(cx2, P2, sx + sw / 2, cy, keyR(sw, sh, u2), n, u2, c);
         } };
     });
-    /* AND ONE ROW FOR THE MARK, under the scale. Every belt still carries the
-       red diamond, whatever its level, and a mark with no row in the key is a
-       mark nobody can read - so the row the scale replaced hands its own words
-       and swatch straight back, minus the fill no longer on this picture. Once,
-       never per level: the diamond says the same thing on all five. */
+    if (window.DossierMapFocus) scale = DossierMapFocus.keyRows(scale, map && map.heat, P);
+    /* AND ONE ROW FOR THE MARK, under the scale: every belt still carries the
+       red diamond, and a mark with no row is a mark nobody can read - so the
+       row the scale replaced hands its words and swatch back, minus the fill. */
     scale.push({ hatch: old.hatch, stroke: old.stroke, dash: old.dash,
                  width: old.width, mark: true, label: old.label });
     return list.slice(0, at).concat(scale, list.slice(at + 1));
@@ -342,19 +338,19 @@ var DossierMapHeat = (function () {
      unscored belt gets no chip. */
   function badges(ctx, p, P, u, ts, G, map, taken, W, H, size, legend) {
     var R = D(), heat = (map && map.heat) || null, lv = levels(heat);
-    var colors = ramp(P), kit = (window.DossierMapExtra || {}).kit;
+    var colors = ramp(P, heat), kit = (window.DossierMapExtra || {}).kit;
     var mark = window.DossierMapLegend ? DossierMapLegend.markR(u) : 11 * u;
     var r = Math.max(BADGE_MIN, BADGE_R * u * ts), gap = GAP * u;
     var leaders = leadersOf(p, u, map, W, H), list = [];
     R.eachFeature(G && G.fronts, function (f) {
-      var id = (f.properties || {}).id, g = ringsOf(p, f.geometry), s = heart(g);
+      var id = (f.properties || {}).id, g = ringsOf(p, f.geometry), s = heart(g); if (s && window.DossierMapBeltWords) DossierMapBeltWords.slideHeart(s, f);
       if (s && lv[id]) list.push({ id: id, n: lv[id], rings: g, s: s });
     });
     /* EVERY DIAMOND IS GROUND A CHIP MAY NOT TAKE, its own included - and the
        marks reserved before the names (dossier_map_ink.js) are NOT: a chip is
        placed exactly as it was, so that reservation costs the badges nothing. */
     var placed = taken.length, bars = kit ? kit.words(taken) : taken.slice();
-    list.forEach(function (it) { bars.push(boxAt(it.s.cx, it.s.cy, mark + gap)); });
+    list.forEach(function (it) { bars.push(boxAt(it.s.cx, it.s.cy, mark + gap)); }); if (window.DossierMapBeltWords) bars = bars.concat(DossierMapBeltWords.lineBars());
     /* The cramped ones first (extra.js, `edgeness`): the rim has fewer ways. */
     if (kit) list.sort(function (a, b) {
       return kit.edgeness(b.s, W, H) - kit.edgeness(a.s, W, H);
@@ -395,7 +391,7 @@ var DossierMapHeat = (function () {
             over += kit.overText(rt, taken.slice(0, placed), spot.box, it.s); }
         }
       }
-      badge(ctx, P, spot.x, spot.y, r, it.n, u, colors[it.n - 1]);
+      badge(ctx, P, spot.x, spot.y, r, (heat.numbers || {})[it.id] || it.n, u, colors[it.n - 1]);
       bars.push(spot.box); taken.push(spot.box);
       /* THE LAST MARK ON THE PICTURE, and it goes on the one list every name
          is checked against (dossier_map_ink.js): a chip printed over a town
@@ -445,8 +441,8 @@ var DossierMapHeat = (function () {
      ramp step whose digit measures under 4.5:1. */
   function contrast() {
     var out = [];
-    ["light", "dark"].forEach(function (t) {
-      RAMP[t].forEach(function (c, i) {
+    ["light", "dark", "ten"].forEach(function (t) {
+      (t === "ten" ? ramp(t, { scale: 10 }) : RAMP[t]).forEach(function (c, i) {
         out.push({ theme: t, level: i + 1, step: c, ink: digitInk(c),
                    ratio: Math.round(ratio(digitInk(c), c) * 100) / 100 });
       });
@@ -493,7 +489,9 @@ var DossierMapHeat = (function () {
      labels in the same order - one list, two keys, no drift. */
   return { fronts: fronts, legendRows: legendRows, ramp: ramp, words: WORDS,
            badges: badges, audit: audit, windowText: windowText,
-           report: function () { return REPORTS; } };
+           report: function () { return REPORTS; }, kit: { badge: badge, keyR: keyR },
+           ground: function () { var F = window.DossierMapFocus;
+             return (F || D()).ground.apply(null, arguments); } };
 })();
 
 window.DossierMapHeat = DossierMapHeat;

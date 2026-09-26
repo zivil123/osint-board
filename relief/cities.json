@@ -1,0 +1,155 @@
+{
+ "bf_bayda_zahir": {
+  "photo": {
+   "bytes": 28806,
+   "file": "relief/cities/bf_bayda_zahir_photo.webp",
+   "hash": "3624181f"
+  },
+  "photo_streets": {
+   "bytes": 29780,
+   "file": "relief/cities/bf_bayda_zahir_photo_streets.webp",
+   "hash": "8a67a31d"
+  },
+  "plan": {
+   "bytes": 10484,
+   "file": "relief/cities/bf_bayda_zahir_plan.webp",
+   "hash": "bd53a28b"
+  }
+ },
+ "bf_jawf_hazm_east": {
+  "photo": {
+   "bytes": 22464,
+   "file": "relief/cities/bf_jawf_hazm_east_photo.webp",
+   "hash": "00e3327f"
+  },
+  "photo_streets": {
+   "bytes": 23034,
+   "file": "relief/cities/bf_jawf_hazm_east_photo_streets.webp",
+   "hash": "df93d648"
+  },
+  "plan": {
+   "bytes": 7192,
+   "file": "relief/cities/bf_jawf_hazm_east_plan.webp",
+   "hash": "e590071c"
+  }
+ },
+ "bf_lahj_madaribah_north": {
+  "photo": {
+   "bytes": 16486,
+   "file": "relief/cities/bf_lahj_madaribah_north_photo.webp",
+   "hash": "651bd3c5"
+  },
+  "photo_streets": {
+   "bytes": 16772,
+   "file": "relief/cities/bf_lahj_madaribah_north_photo_streets.webp",
+   "hash": "1baa8f1c"
+  },
+  "plan": {
+   "bytes": 6406,
+   "file": "relief/cities/bf_lahj_madaribah_north_plan.webp",
+   "hash": "6718ff91"
+  }
+ },
+ "bf_marib_jubah": {
+  "photo": {
+   "bytes": 87148,
+   "file": "relief/cities/bf_marib_jubah_photo.webp",
+   "hash": "5a339ab7"
+  },
+  "photo_streets": {
+   "bytes": 88474,
+   "file": "relief/cities/bf_marib_jubah_photo_streets.webp",
+   "hash": "dd041cc2"
+  },
+  "plan": {
+   "bytes": 23348,
+   "file": "relief/cities/bf_marib_jubah_plan.webp",
+   "hash": "2484357e"
+  }
+ },
+ "bf_marib_raghwan": {
+  "photo": {
+   "bytes": 38182,
+   "file": "relief/cities/bf_marib_raghwan_photo.webp",
+   "hash": "5febc9c5"
+  },
+  "photo_streets": {
+   "bytes": 38938,
+   "file": "relief/cities/bf_marib_raghwan_photo_streets.webp",
+   "hash": "0c4e3270"
+  },
+  "plan": {
+   "bytes": 13476,
+   "file": "relief/cities/bf_marib_raghwan_plan.webp",
+   "hash": "734f27fa"
+  }
+ },
+ "bf_marib_sirwah": {
+  "photo": {
+   "bytes": 64512,
+   "file": "relief/cities/bf_marib_sirwah_photo.webp",
+   "hash": "e1896ac1"
+  },
+  "photo_streets": {
+   "bytes": 65306,
+   "file": "relief/cities/bf_marib_sirwah_photo_streets.webp",
+   "hash": "1e69d79a"
+  },
+  "plan": {
+   "bytes": 16108,
+   "file": "relief/cities/bf_marib_sirwah_plan.webp",
+   "hash": "2031bdcb"
+  }
+ },
+ "bf_shabwah_markhah": {
+  "photo": {
+   "bytes": 512,
+   "file": "relief/cities/bf_shabwah_markhah_photo.webp",
+   "hash": "9438ecff"
+  },
+  "photo_streets": {
+   "bytes": 512,
+   "file": "relief/cities/bf_shabwah_markhah_photo_streets.webp",
+   "hash": "9438ecff"
+  },
+  "plan": {
+   "bytes": 512,
+   "file": "relief/cities/bf_shabwah_markhah_plan.webp",
+   "hash": "9438ecff"
+  }
+ },
+ "bf_taiz_hayfan": {
+  "photo": {
+   "bytes": 184658,
+   "file": "relief/cities/bf_taiz_hayfan_photo.webp",
+   "hash": "f4d08bda"
+  },
+  "photo_streets": {
+   "bytes": 188920,
+   "file": "relief/cities/bf_taiz_hayfan_photo_streets.webp",
+   "hash": "4b29cdbf"
+  },
+  "plan": {
+   "bytes": 67702,
+   "file": "relief/cities/bf_taiz_hayfan_plan.webp",
+   "hash": "b9c37c79"
+  }
+ },
+ "bf_taiz_kadaha": {
+  "photo": {
+   "bytes": 116770,
+   "file": "relief/cities/bf_taiz_kadaha_photo.webp",
+   "hash": "c298eb55"
+  },
+  "photo_streets": {
+   "bytes": 121506,
+   "file": "relief/cities/bf_taiz_kadaha_photo_streets.webp",
+   "hash": "0705da7f"
+  },
+  "plan": {
+   "bytes": 37980,
+   "file": "relief/cities/bf_taiz_kadaha_plan.webp",
+   "hash": "d99e0f48"
+  }
+ }
+}

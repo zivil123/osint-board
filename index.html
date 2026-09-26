@@ -18,19 +18,20 @@
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-<link rel="stylesheet" href="style.css?v=20260923214425-d81573c1">
-<link rel="stylesheet" href="cards.css?v=20260923214425-d81573c1">
-<link rel="stylesheet" href="map.css?v=20260923214425-d81573c1">
-<link rel="stylesheet" href="tabs.css?v=20260923214425-d81573c1">
-<link rel="stylesheet" href="daily.css?v=20260923214425-d81573c1">
-<link rel="stylesheet" href="dossier.css?v=20260923214425-d81573c1">
-<link rel="stylesheet" href="maps_tab.css?v=20260923214425-d81573c1">
-<link rel="stylesheet" href="roads.css?v=20260923214425-d81573c1">
-<link rel="stylesheet" href="trend_chart.css?v=20260923214425-d81573c1">
-<link rel="stylesheet" href="map_notes.css?v=20260923214425-d81573c1">
-<link rel="stylesheet" href="places.css?v=20260923214425-d81573c1">
-<link rel="stylesheet" href="strikes.css?v=20260923214425-d81573c1">
-<link rel="stylesheet" href="unlock.css?v=20260923214425-d81573c1">
+<link rel="stylesheet" href="style.css?v=20260926191258-3deb8f5f">
+<link rel="stylesheet" href="cards.css?v=20260926191258-3deb8f5f">
+<link rel="stylesheet" href="map.css?v=20260926191258-3deb8f5f">
+<link rel="stylesheet" href="tabs.css?v=20260926191258-3deb8f5f">
+<link rel="stylesheet" href="daily.css?v=20260926191258-3deb8f5f">
+<link rel="stylesheet" href="dossier.css?v=20260926191258-3deb8f5f">
+<link rel="stylesheet" href="maps_tab.css?v=20260926191258-3deb8f5f">
+<link rel="stylesheet" href="roads.css?v=20260926191258-3deb8f5f">
+<link rel="stylesheet" href="trend_chart.css?v=20260926191258-3deb8f5f">
+<link rel="stylesheet" href="map_notes.css?v=20260926191258-3deb8f5f">
+<link rel="stylesheet" href="places.css?v=20260926191258-3deb8f5f">
+<link rel="stylesheet" href="battlefronts.css?v=20260926191258-3deb8f5f">
+<link rel="stylesheet" href="strikes.css?v=20260926191258-3deb8f5f">
+<link rel="stylesheet" href="unlock.css?v=20260926191258-3deb8f5f">
 </head>
 <body>
 
@@ -95,6 +96,11 @@
        left. ORGANISATIONS at their seat city, never premises - CLAUDE.md. -->
   <button type="button" class="tab" role="tab" data-view="places"
           aria-selected="false">מוסדות וכוחות</button>
+  <!-- The seventh, 2026-09-25: what is happening at each ground front inside
+       Yemen, one card per front beside the board's own map. The sorting is done
+       upstream into docs\battlefronts_data.js; this screen only draws it. -->
+  <button type="button" class="tab" role="tab" data-view="battlefronts"
+          aria-selected="false">חזיתות</button>
 </nav>
 
 <!-- Every group says what question its chips answer. Ziv, 2026-08-31, on his
@@ -231,6 +237,11 @@
        that keeps the board's map - places.css hides the attack list instead. -->
   <section class="places-pane" data-pane="places" role="tabpanel"
            aria-label="מוסדות וכוחות"></section>
+  <!-- The fronts view (the חזיתות tab). Filled by battlefronts.js from const
+       BATTLEFRONTS. Inside the wrap, in the list pane's column, like the
+       apparatus view: it keeps the board's map and hides the attack list. -->
+  <section class="bf-pane" data-pane="battlefronts" role="tabpanel"
+           aria-label="חזיתות"></section>
 </main>
 
 <!-- The brief view (the סיכומים tab: daily and weekly). Filled by daily.js from const BRIEF;
@@ -263,125 +274,150 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script src="bundle.js?v=20260923214425-d81573c1"></script>
-<script src="unlock.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="geo.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="roads_geo.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="labels.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="legend.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="icons.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="cluster.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="gains.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="fronts.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="map.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="expand.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="filters.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="app.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="tabs.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="daily.js?v=20260923214425-d81573c1"></script>
+<script src="bundle.js?v=20260926191258-3deb8f5f"></script>
+<script src="unlock.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="geo.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="roads_geo.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="labels.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="legend.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="icons.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="cluster.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="gains.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="fronts.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="map.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="expand.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="filters.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="app.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="tabs.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="daily.js?v=20260926191258-3deb8f5f"></script>
 <!-- FIRST of the dossier map scripts: every painter reports into it, and a
      call before it exists would throw. See MAP_RULES.md. -->
-<script type="text/plain" data-locked-src="dossier_map_check.js?v=20260923214425-d81573c1"></script>
+<script type="text/plain" data-locked-src="dossier_map_check.js?v=20260926191258-3deb8f5f"></script>
 <!-- The placers' side of the same rule: may this box stand beside that one?
      Asks the counter's own `apart` for a WORD, the strict test for a MARK.
      Out of dossier_map_zone_names.js, which is at its 500-line cap. -->
-<script type="text/plain" data-locked-src="dossier_map_gap.js?v=20260923214425-d81573c1"></script>
+<script type="text/plain" data-locked-src="dossier_map_gap.js?v=20260926191258-3deb8f5f"></script>
 <!-- Beside it: the one list of every MARK and every WORD a picture painted,
      which is how a name under a diamond and a pin under a name are counted. -->
-<script type="text/plain" data-locked-src="dossier_map_ink.js?v=20260923214425-d81573c1"></script>
+<script type="text/plain" data-locked-src="dossier_map_ink.js?v=20260926191258-3deb8f5f"></script>
 <!-- And what happens when an OPTIONAL name loses: a console line at every
      width, a `labels_dropped` key at the export widths. Out of
      dossier_map_zone_names.js, which is at its 500-line cap. -->
-<script type="text/plain" data-locked-src="dossier_map_drop.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="dossier_map_relief.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="dossier_map_credit.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="dossier_map_light.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="dossier_map.js?v=20260923214425-d81573c1"></script>
+<script type="text/plain" data-locked-src="dossier_map_drop.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="dossier_map_relief.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="dossier_map_credit.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="dossier_map_light.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="dossier_map.js?v=20260926191258-3deb8f5f"></script>
 <!-- Which rectangle a map id is cut to, out of the file above on 2026-09-22 when
      it reached its 500-line cap. Reached by name at call time, like the optional
      painters, so the order between these two does not matter. -->
-<script type="text/plain" data-locked-src="dossier_map_frames.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="dossier_map_draw.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="dossier_map_cross.js?v=20260923214425-d81573c1"></script>
+<script type="text/plain" data-locked-src="dossier_map_frames.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="dossier_map_draw.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="dossier_map_cross.js?v=20260926191258-3deb8f5f"></script>
 <!-- The shipping lanes, out of the file above on 2026-09-22 at its own cap;
      dossier_map.js merges both into the one painter object. -->
-<script type="text/plain" data-locked-src="dossier_map_lanes.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="dossier_map_legend.js?v=20260923214425-d81573c1"></script>
+<script type="text/plain" data-locked-src="dossier_map_lanes.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="dossier_map_legend.js?v=20260926191258-3deb8f5f"></script>
 <!-- Where the key box may stand, out of the file above on 2026-09-19 when it
      reached its 500-line cap; the two look each other up at call time. -->
-<script type="text/plain" data-locked-src="dossier_map_corner.js?v=20260923214425-d81573c1"></script>
+<script type="text/plain" data-locked-src="dossier_map_corner.js?v=20260926191258-3deb8f5f"></script>
 <!-- Where a leader line may run, and where it may not. Before the painters
      that route through it (dossier_map_extra.js hands it out as `kit`). -->
-<script type="text/plain" data-locked-src="dossier_map_leader.js?v=20260923214425-d81573c1"></script>
+<script type="text/plain" data-locked-src="dossier_map_leader.js?v=20260926191258-3deb8f5f"></script>
 <!-- The way round, asked only where the straight line, the elbow and the
      staircase were all blocked; optional at runtime, and without it a blocked
      leader reports the fault it reported before 2026-09-22. -->
-<script type="text/plain" data-locked-src="dossier_map_round.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="dossier_map_extra.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="dossier_map_routes.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="dossier_map_route_label.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="dossier_map_gains.js?v=20260923214425-d81573c1"></script>
+<script type="text/plain" data-locked-src="dossier_map_round.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="dossier_map_extra.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="dossier_map_routes.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="dossier_map_route_label.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="dossier_map_gains.js?v=20260926191258-3deb8f5f"></script>
 <!-- The tribal areas and their key rows, on the one map that carries
      `tribes: true`. Optional at runtime: a page without it draws every other
      picture exactly as before. -->
-<script type="text/plain" data-locked-src="dossier_map_tribes.js?v=20260923214425-d81573c1"></script>
+<script type="text/plain" data-locked-src="dossier_map_tribes.js?v=20260926191258-3deb8f5f"></script>
 <!-- And the room its names must find: the gap that keeps a tribal name from
      running into a city name, and the one step of shrinking that buys a name
      back. It asks dossier_map_check.js `apart` - the counter's own test. -->
-<script type="text/plain" data-locked-src="dossier_map_tribes_fit.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="dossier_map_heat.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="dossier_map_zone_names.js?v=20260923214425-d81573c1"></script>
+<script type="text/plain" data-locked-src="dossier_map_tribes_fit.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="dossier_map_heat.js?v=20260926191258-3deb8f5f"></script>
+<!-- The report's focus / rank pictures; the heat file hands it `ground`. -->
+<script type="text/plain" data-locked-src="dossier_map_focus.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="dossier_map_zone_names.js?v=20260926191258-3deb8f5f"></script>
 <!-- The region names, out of the file above on 2026-09-19 when it reached its
      500-line cap; dossier_map.js merges both into the one painter object. -->
-<script type="text/plain" data-locked-src="dossier_map_gov.js?v=20260923214425-d81573c1"></script>
+<script type="text/plain" data-locked-src="dossier_map_gov.js?v=20260926191258-3deb8f5f"></script>
 <!-- And WHERE each of those names stands: the pole of inaccessibility of the
      part of its own governorate the frame shows (2026-09-22, rule 10). Beside
      dossier_map_gov.js and not inside it - that file places, this one derives,
      and neither may grow past the 500-line cap. -->
-<script type="text/plain" data-locked-src="dossier_map_gov_point.js?v=20260923214425-d81573c1"></script>
+<script type="text/plain" data-locked-src="dossier_map_gov_point.js?v=20260926191258-3deb8f5f"></script>
 <!-- LAST of the painters: its arrows() stands in for dossier_map_extra.js's,
      and dossier_map.js merges them last-wins. -->
-<script type="text/plain" data-locked-src="dossier_map_roads.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="dossier_map_zones.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="dossier_map_notes.js?v=20260923214425-d81573c1"></script>
+<script type="text/plain" data-locked-src="dossier_map_roads.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="dossier_map_zones.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="dossier_map_note_lines.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="dossier_map_notes.js?v=20260926191258-3deb8f5f"></script>
 <!-- Beside it and not inside it: the notes' self-check paints nothing, and
      DossierMapNotes.check() is a one-line call into this file. -->
-<script type="text/plain" data-locked-src="dossier_map_notes_check.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="dossier_map_key.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="dossier_map_number.js?v=20260923214425-d81573c1"></script>
+<script type="text/plain" data-locked-src="dossier_map_notes_check.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="dossier_map_key.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="dossier_map_number.js?v=20260926191258-3deb8f5f"></script>
 <!-- Where a numbered disc may stand: the ground reserved for it before any word
      is placed, and the searches that place it. Split off the file above on
      2026-09-19 at its 500-line cap; dossier_map_ink.js calls it while it
      reserves the marks, so it only has to be on the page, not before it. -->
-<script type="text/plain" data-locked-src="dossier_map_spot.js?v=20260923214425-d81573c1"></script>
+<script type="text/plain" data-locked-src="dossier_map_spot.js?v=20260926191258-3deb8f5f"></script>
 <!-- The strike-tally layer. The tally module FIRST: the painter, the key row
      builder and the list under the canvas all read it and nothing else. All
      three are optional at runtime - a board without them draws every other
      map exactly as before. -->
-<script type="text/plain" data-locked-src="dossier_map_strikes_data.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="dossier_map_strikes.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="dossier_map_strikes_list.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="dossier_deck_map.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="dossier_deck.js?v=20260923214425-d81573c1"></script>
+<script type="text/plain" data-locked-src="dossier_map_strikes_data.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="dossier_map_strikes.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="dossier_map_strikes_list.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="dossier_map_pins.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="dossier_map_story_marks.js?v=20260926191258-3deb8f5f"></script>
+<!-- No word on a belt (2026-09-26, MAP_CHECK.md rule 12 `word_on_belt`): the
+     counter, the belts held as ground for words, the led name, the diamond off an arrow. -->
+<script type="text/plain" data-locked-src="dossier_map_belt_words.js?v=20260926191258-3deb8f5f"></script>
+<!-- The under-layers registry (painted with the ground, under every word) and
+     the main-roads layer that registers into it (record field roads: "main"). -->
+<script type="text/plain" data-locked-src="dossier_map_under.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="roads_map_geo.js?v=20260926191258-3deb8f5f"></script>
+<!-- The drawn roads registered for the words and the check (rule 12 `word_on_road`). -->
+<script type="text/plain" data-locked-src="dossier_map_road_words.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="dossier_map_roadnet.js?v=20260926191258-3deb8f5f"></script>
+<!-- City street patches (record field city_streets: true), order 10 in the
+     registry; wraps DossierMapRelief.ready so its pictures load with the terrain. -->
+<script type="text/plain" data-locked-src="dossier_map_cities.js?v=20260926191258-3deb8f5f"></script>
+<!-- The locator inset on a report close-up (2026-09-26): stashes the projector
+     through the under-layers registry, painted from dossier_map_credit.js. -->
+<script type="text/plain" data-locked-src="dossier_map_locator.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="dossier_deck_map.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="dossier_deck.js?v=20260926191258-3deb8f5f"></script>
 <!-- Before the views: they render on load and ask DossierPng to write their
      buttons in and DossierMapBlock for the blocks themselves, so both globals
      have to exist by then. -->
-<script type="text/plain" data-locked-src="dossier_png.js?v=20260923214425-d81573c1"></script>
+<script type="text/plain" data-locked-src="dossier_png.js?v=20260926191258-3deb8f5f"></script>
 <!-- The editable slide of each picture (the third button). Reads DossierPng,
      DossierDeck.loadLib and DossierMap.exportLayers at press time only. -->
-<script type="text/plain" data-locked-src="dossier_pptx_edit.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="dossier_map_block.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="map_notes.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="dossier_view.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="trend_chart.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="maps_tab.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="roads_marks.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="roads_map.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="roads_cards.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="roads_tab.js?v=20260923214425-d81573c1"></script>
+<script type="text/plain" data-locked-src="dossier_pptx_edit.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="dossier_map_block.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="map_notes.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="dossier_view.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="trend_chart.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="maps_tab.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="roads_marks.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="roads_map.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="roads_cards.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="roads_tab.js?v=20260926191258-3deb8f5f"></script>
 <!-- The apparatus view. places_map.js before places.js (the list hands it the
      records), and both after tabs.js, cluster.js, icons.js and map.js. -->
-<script type="text/plain" data-locked-src="places_map.js?v=20260923214425-d81573c1"></script>
-<script type="text/plain" data-locked-src="places.js?v=20260923214425-d81573c1"></script>
+<script type="text/plain" data-locked-src="places_map.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="places.js?v=20260926191258-3deb8f5f"></script>
+<!-- The fronts view, after tabs.js, map.js and app.js (it calls render()).
+     battlefronts_marks.js (strip, score colour, named places) goes first. -->
+<script type="text/plain" data-locked-src="battlefronts_marks.js?v=20260926191258-3deb8f5f"></script>
+<script type="text/plain" data-locked-src="battlefronts.js?v=20260926191258-3deb8f5f"></script>
 </body>
 </html>

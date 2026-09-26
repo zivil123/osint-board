@@ -297,7 +297,7 @@
     const maps = Array.isArray(DOSSIER.maps) ? DOSSIER.maps : [];
     const out = [];
     maps.forEach(map => {
-      if (!map || !map.id || map.tab === "maps") return;
+      if (!map || !map.id || map.tab === "maps" || map.tab === "report") return;
       variantsOf(map.id).forEach(variant => out.push({ map: map, variant: variant }));
     });
     return out;

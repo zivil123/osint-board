@@ -1,0 +1,258 @@
+/* The fronts view (the חזיתות tab) - one analysis card per ground front beside
+   the board's own map. Loaded after places.css. No report is listed on this
+   tab (round 2): a card is written text, so this file is mostly about reading.
+
+   Built from what the board already has: the pane is the list pane's shape (as
+   places.css does it). Round 3 adds ONE colour meaning: the 1-10 activity
+   scale, a ramp from a muted slate to the board's fighting red, set in
+   battlefronts_marks.js and handed to CSS as --bf-c (fill) and --bf-t (ink on
+   the fill). Everything else stays neutral. */
+
+/* ---- which pane is on screen ------------------------------------------- */
+
+/* The band asks which front and which kind of fighting - this view answers
+   neither, so it is not drawn (an empty control band is worse than none). */
+body:not(.view-battlefronts) [data-pane="battlefronts"] { display: none; }
+body.view-battlefronts .band { display: none; }
+body.view-battlefronts .list-pane { display: none; }
+
+/* Column one of `.wrap`, exactly where the list pane sits, so the map keeps
+   its share and the grid never sees a change. */
+.bf-pane { order: 1; min-width: 0; }
+
+@media (min-width: 901px) {
+  .bf-pane {
+    block-size: 100%; min-block-size: 0;
+    overflow-y: auto; overscroll-behavior: contain;
+    padding-inline-end: 8px;
+  }
+}
+
+/* Phone: the map first and the cards under it, the order the board uses. */
+@media (max-width: 900px) {
+  .bf-pane { order: 2; }
+}
+
+.bf-missing { padding: 24px 12px; font-size: 16px; color: var(--ink-muted); }
+.bf-window {
+  margin-block-start: 6px; font-size: 15px; color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- reading: the analysis is long text --------------------------------- */
+
+/* Body copy one step ABOVE the board's own 16px, and loose leading - these are
+   paragraphs read end to end, not a list scanned. The line is capped near 65
+   characters so a wide pane never makes a line too long to follow back. */
+.bf-prose {
+  font-size: 17px; line-height: 1.75; color: var(--ink);
+  max-inline-size: 65ch; overflow-wrap: anywhere;
+}
+.bf-prose + .bf-prose { margin-block-start: 10px; }
+.bf-prose.bf-empty { font-size: 15px; color: var(--ink-faint); }
+
+/* A section's name: small, quiet, and set above its text - it labels, the
+   text below carries the weight. */
+.bf-h {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin: 0 0 6px; font-size: 16px; font-weight: 600; line-height: 1.4;
+  color: var(--ink-muted);
+}
+
+/* The overall picture: the first thing read, above every card. */
+.bf-overall {
+  margin: 4px 12px 8px; padding-block: 14px 18px;
+  border-block-end: 1px solid var(--line-strong);
+}
+.bf-overall > .bf-h { font-size: 18px; color: var(--ink); }
+
+/* ---- a front's card ----------------------------------------------------- */
+
+.bf-cards { list-style: none; margin: 0; padding: 0; }
+.bf-card {
+  padding-block: 18px 16px; padding-inline: 12px;
+  border-block-end: 1px solid var(--line-strong); cursor: pointer;
+}
+.bf-card.active { background: var(--surface-2); border-radius: 10px; }
+.bf-card:focus-visible { outline: 2px solid var(--accent-text); outline-offset: -2px; }
+
+.bf-head { display: flex; align-items: flex-start; gap: 10px; }
+/* The front's number - the same number printed beside its belt on the map.
+   A SQUARE plate, never a disc: a numbered disc on this board is an attack pin
+   and says "claims". */
+.bf-num {
+  flex: none; inline-size: 30px; block-size: 30px;
+  display: grid; place-items: center;
+  border: 1px solid var(--line-strong); border-radius: 6px;
+  background: var(--surface); color: var(--ink);
+  font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.bf-card.active .bf-num { border-color: var(--accent-text); color: var(--accent-text); }
+.bf-title { min-width: 0; }
+.bf-title h3 { font-size: 19px; font-weight: 600; line-height: 1.35; margin: 2px 0 0; }
+.bf-gov { display: block; font-size: 15px; color: var(--ink-muted); }
+
+/* The score under the name: a chip in the front's scale colour, the
+   direction in words, and the one line saying why. */
+.bf-score {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin-block-start: 10px; font-size: 15px;
+}
+.bf-chip {
+  font-size: 15px; font-weight: 600; line-height: 1.5;
+  border-radius: 6px; padding: 1px 9px;
+  background: var(--bf-c); color: var(--bf-t);
+  font-variant-numeric: tabular-nums;
+}
+.bf-chip-of { font-weight: 500; }
+.bf-why {
+  margin-block-start: 6px; font-size: 15px; line-height: 1.6;
+  color: var(--ink-muted); max-inline-size: 65ch;
+}
+
+.bf-sit { margin-block-start: 16px; }
+
+/* What is likely next is a JUDGEMENT. It says so in a word (the הערכה tag)
+   and looks it: a faint tint and a DASHED start rule - dashed is this board's
+   "not settled" - and no new hue. */
+.bf-out {
+  margin-block-start: 16px; padding: 12px 14px 14px;
+  background: rgba(230, 237, 245, 0.04); border-radius: 8px;
+  border-inline-start: 3px dashed var(--line-strong);
+}
+.bf-out .bf-prose { color: var(--ink-muted); }
+.bf-assess {
+  font-size: 15px; font-weight: 500; line-height: 1.4;
+  padding: 0 8px; border-radius: 6px;
+  border: 1px dashed var(--line-strong); color: var(--ink-muted);
+}
+
+/* Who holds the ground: context under the analysis, set off by the neutral
+   rule places.css uses for its notes - never the verification palette. */
+.bf-holds {
+  margin-block-start: 14px; font-size: 15px; line-height: 1.6; color: var(--ink-muted);
+  border-inline-start: 3px solid var(--line-strong); padding-inline-start: 10px;
+}
+.bf-holds .tn-label { display: block; }
+
+/* What the writing rests on: a count and a date, the quietest line on the card. */
+.bf-basis {
+  margin-block-start: 12px; font-size: 15px; color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- on the map ---------------------------------------------------------- */
+
+/* The belt's number: bare plate beside the red diamond, 15px floor for map
+   text, a dark halo so it reads on either side's fill. Its press target is the
+   plate itself (28px) plus a transparent rim to 36px - no larger, so it never
+   swallows a press meant for a pin beside it. */
+.bf-numk { background: none; border: 0; }
+.bf-numk-b {
+  position: relative;
+  display: grid; place-items: center;
+  inline-size: 28px; block-size: 28px;
+  border: 1px solid var(--ink); border-radius: 6px;
+  background: var(--bf-c, var(--bg)); color: var(--bf-t, var(--ink));
+  font: 600 15px/1 Heebo, system-ui, sans-serif; font-variant-numeric: tabular-nums;
+  box-shadow: 0 0 0 2px var(--map-halo);
+  cursor: pointer;
+}
+.bf-numk-b::before { content: ""; position: absolute; inset: -4px; border-radius: 8px; }
+
+/* ---- round 3: the activity strip (first thing on the tab) ----------------- */
+
+.bf-strip {
+  margin: 4px 12px 12px; padding-block: 12px 14px;
+  border-block-end: 1px solid var(--line-strong);
+}
+.bf-strip-h { margin: 0 0 8px; font-size: 18px; font-weight: 600; color: var(--ink); }
+.bf-rows { list-style: none; margin: 0; padding: 0; }
+/* One row = one press target: number, name, bar, score, direction. The bar
+   fills from the START (the right, in Hebrew) - more activity, longer bar. */
+.bf-row {
+  display: grid; align-items: center; gap: 4px 10px;
+  grid-template-columns: 28px minmax(0, 1.4fr) minmax(80px, 1fr) 2.2ch auto;
+  grid-template-areas: "num name bar score dir";
+  inline-size: 100%; min-block-size: 40px; padding: 6px 4px;
+  border: 0; border-radius: 6px; background: none; color: var(--ink);
+  font: inherit; font-size: 16px; text-align: start; cursor: pointer;
+}
+.bf-row:hover { background: var(--surface-2); }
+.bf-row:focus-visible { outline: 2px solid var(--accent-text); outline-offset: -2px; }
+.bf-row-num {
+  grid-area: num; display: grid; place-items: center;
+  inline-size: 26px; block-size: 26px; border-radius: 6px;
+  border: 1px solid var(--line-strong);
+  font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.bf-row-name { grid-area: name; font-weight: 500; line-height: 1.35; overflow-wrap: anywhere; }
+.bf-bar {
+  grid-area: bar; display: block; block-size: 10px; border-radius: 3px;
+  background: rgba(230, 237, 245, 0.08);
+}
+.bf-bar-fill { display: block; block-size: 100%; border-radius: 3px; background: var(--bf-c); }
+.bf-row-score {
+  grid-area: score; text-align: center;
+  font-size: 19px; font-weight: 700; line-height: 1;
+  color: var(--bf-c, var(--ink-faint)); font-variant-numeric: tabular-nums;
+}
+.bf-row .bf-dir { grid-area: dir; }
+.bf-dir { font-size: 15px; color: var(--ink-muted); white-space: nowrap; }
+.bf-dir-up { color: var(--ink); font-weight: 600; }
+/* Read by a screen reader, not shown ("score 7 of 10"). */
+.bf-sr {
+  position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
+}
+
+/* The key: ten swatches, 1 and 10 named at the ends. */
+.bf-key {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin-block-start: 10px; font-size: 15px; color: var(--ink-faint);
+}
+.bf-key-sw { display: inline-flex; gap: 2px; }
+.bf-key-sw i { inline-size: 14px; block-size: 10px; border-radius: 2px; }
+
+/* Phone: the name gets its own line; bar, score and direction go under it. */
+@media (max-width: 520px) {
+  .bf-row {
+    grid-template-columns: 28px minmax(80px, 1fr) 2.2ch auto;
+    grid-template-areas: "num name name name" "num bar score dir";
+  }
+  .bf-key-sw i { inline-size: 10px; }
+}
+
+/* ---- a named place in the text ---------------------------------------------- */
+
+/* A word that marks its place on the map: tinted, underlined, and a real
+   button (Tab reaches it, Enter presses it). Inline, so the line still reads. */
+.bf-place {
+  display: inline; min-block-size: 24px; padding: 0 2px; margin: 0;
+  border: 0; border-radius: 3px; cursor: pointer;
+  font: inherit; color: var(--ink); line-height: inherit;
+  background: rgba(110, 168, 255, 0.14);
+  text-decoration: underline; text-decoration-color: var(--accent-text);
+  text-decoration-thickness: 2px; text-underline-offset: 4px;
+}
+.bf-place:hover { background: rgba(110, 168, 255, 0.26); }
+.bf-place:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 1px; }
+
+/* ---- the places on the map ---------------------------------------------------- */
+
+/* The label: the map's 15px floor and dark halo. A point's label sits BESIDE
+   its dot, to the LEFT as the board's own place labels do - the right side is
+   where a belt's number plate hangs. An area's sits at its centre. No leader
+   lines, so nothing crosses a word. That is only the first-paint default: the
+   placement pass in battlefronts_marks.js then sets left/top on each span so
+   no two names overlap (right, above, below... when the left side is taken). */
+.bf-plabel { background: none; border: 0; pointer-events: none; }
+.bf-plabel span {
+  position: absolute; inset-block-start: -10px; inset-inline: -160px;
+  inline-size: max-content; margin-inline: auto;
+  white-space: nowrap; font-size: 15px; font-weight: 600; line-height: 1.2;
+  color: var(--ink);
+  text-shadow: 0 0 3px var(--map-halo), 0 1px 4px var(--map-halo), 0 0 8px var(--map-halo);
+}
+.bf-plabel-pt span { right: 10px; left: auto; margin: 0; }
+.bf-plabel.on span { color: var(--accent-text); font-size: 16px; }

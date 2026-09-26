@@ -42,6 +42,11 @@ var DossierMapRelief = (function () {
      raised to show. */
   var STRONG_FADE = 0.40,
       STRONG_FILTER = "brightness(0.93) contrast(1.6) saturate(1.15)";
+  /* ROUND 9 (2026-09-26): on the two Word-report story frames the strong wash
+     let the hills' tint pass for the Houthi fill - Ziv could not tell who holds
+     what. There, and only on a strong map, the fills go back to near the house
+     wash; whichever ground look relief_frames.GROUND_LOOK names, the same. */
+  var REPORT_FADE = { bf_lahj_madaribah_north: 0.58, bf_marib_jubah: 0.58 };
 
   /* Loaded ONCE per theme and kept: the deck exports every map at 2560, the
      PNG button exports two shapes of each, and the page redraws on every
@@ -123,7 +128,7 @@ var DossierMapRelief = (function () {
        touches it; `fade` is the territory fills' wash, not the picture's. */
     var strong = (map || {}).terrain === "strong" && map.ground !== "streets";
     return { img: pic, bounds: m.bounds,
-             fade: key === "light" ? (strong ? STRONG_FADE : RELIEF_FADE) : 0,
+             fade: key !== "light" ? 0 : !strong ? RELIEF_FADE : REPORT_FADE[map.frame] || STRONG_FADE,
              filter: strong ? STRONG_FILTER : null };
   }
 

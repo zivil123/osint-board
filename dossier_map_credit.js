@@ -45,6 +45,7 @@ var DossierMapCredit = (function () {
 
   /* Paints the line and returns its box, or null when nothing was painted. */
   function paint(ctx, P, u, W, H, map, taken) {
+    if (window.DossierMapLocator) DossierMapLocator.paint(ctx, P, u, W, H, map, taken); /* report inset, dossier_map_locator.js */
     if (!map || map.ground !== "streets") return null;
     var str = textOf(map);
     if (!str) return null;

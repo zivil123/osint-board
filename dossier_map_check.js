@@ -207,6 +207,10 @@
      * when the picture is clean: the line is the evidence the rule RAN. */
     textPairs: function (mapId, words) {
       if (!cur) return 0;
+      /* and every word against the belts (dossier_map_belt_words.js, `word_on_belt`) */
+      if (window.DossierMapBeltWords) window.DossierMapBeltWords.count(mapId, words);
+      /* and against the drawn roads (dossier_map_road_words.js, `word_on_road`) */
+      if (window.DossierMapRoadWords) window.DossierMapRoadWords.count(mapId, words);
       var list = words || [], said = [], keys = [], i, k;
       for (i = 0; i < list.length; i++) {
         for (k = i + 1; k < list.length; k++) {

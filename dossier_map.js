@@ -270,11 +270,11 @@ var DossierMap = (function () {
        areas take its place, one of three tones by their stance toward the
        Houthis (docs\dossier_map_tribes.js). The line of contact stays. */
     gOpt.tribes = map.tribes === true;
-    R.ground(ctx, p, P, u, W, H, G, gOpt);
-    /* The gains are GROUND: never recorded in overlay mode (exportLayers). */
+    if (window.DossierMapBeltWords) DossierMapBeltWords.start(map, p, u, G, W, H); R.ground(ctx, p, P, u, W, H, G, gOpt);
+    /* Gains and the under-layers (roads, city patches) are GROUND: never recorded in overlay mode. */
     var rec = R.record(null);
     if (!clean) R.gains(ctx, p, P, u, D, G, mapId);
-    R.record(rec);
+    if (window.DossierMapUnder) DossierMapUnder.draw(ctx, p, P, u, map, W, H); R.record(rec);
     /* A clean picture carries two or three names, so it sets them larger - one
        factor, in dossier_map_draw.js, which the route's own block reads too. */
     var labelSize = clean ? size * R.CLEAN_TEXT : size;
@@ -295,10 +295,9 @@ var DossierMap = (function () {
        key is laid out and any name is placed: its discs are marks, so their
        ground is claimed first, like every other mark's (dossier_map_ink.js). */
     if (map.strikes && window.DossierMapStrikes) DossierMapStrikes.paint(ctx, p, P, u, ts, map, taken, W, H);
-    /* NO LANES ARE RESERVED HERE ANY MORE. A key-panel picture joined each mark
-       to its row along a horizontal lane for one day; Ziv took the lines off on
-       2026-09-19 ("replace the lines with numbers next to the squares"), so
-       nothing is claimed before the legend and the names. MAP_RULES.md rule 3. */
+    if (map.pins && window.DossierMapPins) DossierMapPins.paint(ctx, p, P, u, ts, map, taken, W, H);
+    /* NO LANES ARE RESERVED HERE (taken off 2026-09-19, MAP_RULES.md rule 3);
+       the story pins above are claimed like marks (dossier_map_pins.js). */
     /* WHICH CORNER the legend takes is decided per render, by what would be
        under each of the four (dossier_map_legend.js); the frame's authored
        `legend` only breaks a tie, one frame being drawn 3:2 on the page and
@@ -311,17 +310,17 @@ var DossierMap = (function () {
     var gov = F.gov || 1;
     var legend = W >= 800 && map.legend !== false
       ? R.legendLayout(ctx, P, u, W, H, !!(map.lanes && map.lanes.length), words(),
-          { size: size, arrows: !!(map.arrows && map.arrows.length),
+          { size: size, arrows: (map.arrows || []).some(function (a) { return a.head !== false; }),
             top: titleTop, pref: F.legend, clean: clean, control: map.control,
             p: p, G: G, map: map, taken: taken.slice(),
             reserve: notesOn || clean ? [] : DossierMapGov.reserve(ctx, p, u, G,
               size, ts, map.gov_names, map.gov_anchor_he, gov, W, H) })
       : null;
     if (legend) taken.push(legend.box);
-    /* The axes go down after the ground and before every name: they are what
-       the Aden frame is for, and a town name is still free to be dropped for
-       one rather than the other way round. */
-    R.arrows(ctx, p, P, u, ts, map, taken, W, H);
+    /* The axes go down after the ground and before every name (they are what
+       the Aden frame is for); `head: false` ones as a road (dossier_map_pins.js). */
+    if (window.DossierMapPins) DossierMapPins.lines(R, ctx, p, P, u, ts, map, taken, W, H);
+    else R.arrows(ctx, p, P, u, ts, map, taken, W, H);
     /* THE MAP'S OWN NAMES, the ones it exists to point at, go down before
        every other kind of text, and the ones its prose talks about first of
        all - so a name Ziv is reading about cannot lose its place to a name
@@ -347,6 +346,7 @@ var DossierMap = (function () {
     var labels = placed.labels, points = placed.points;
     /* The strike pins join the ink check HERE, after placeLabels reset it. */
     if (map.strikes && window.DossierMapStrikes) DossierMapStrikes.claim(labels);
+    if (map.pins && window.DossierMapPins) DossierMapPins.claim(ctx, labels);
     var lanes = notesOn
       ? (map.lanes || []).map(function (l) { return { path: l.path, label_he: "" }; })
       : map.lanes;
@@ -397,7 +397,7 @@ var DossierMap = (function () {
       need("dossier_map_key.js", window.DossierMapKey)
         .discs(ctx, p, P, u, ts, map, taken, W, H, pinR, numbersOnly, labels);
     }
-    R.paintLabels(ctx, P, R, u, labels);
+    if (window.DossierMapBeltWords) DossierMapBeltWords.pull(taken); R.paintLabels(ctx, P, R, u, labels);
     if (legend) R.paintLegend(ctx, P, u, legend);
     /* LAST OF ALL, AND ONLY ON A HEAT MAP: the level digit on every belt and
        the days they were read in, beside the key (dossier_map_heat.js). After

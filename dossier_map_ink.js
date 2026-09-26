@@ -35,24 +35,20 @@
      legend_orphan       a key row names a mark the picture never painted, or
                          the picture painted a mark kind the key never names.
 
-   Both are counted into `DossierMapCheck` (dossier_map_check.js) and neither is
-   on its `info` list, so either one above zero FAILS the picture in
-   scripts\dossier_png_dump.py. That is the point: a counter nobody can raise is
-   a rule nobody keeps.
+   All go to `DossierMapCheck`, none on its `info` list, so any above zero FAILS
+   the picture in the dump: a counter nobody can raise is a rule nobody keeps.
 
    THE FIX IS NOT THIS FILE, IT IS THE RESERVATION. Every mark's rectangle goes
    into `taken` BEFORE any name is placed (dossier_map_zone_names.js,
    `reserve()`), so the placement engines walk round the marks the way they
    already walk round each other. This file is what proves they did.
 
-   NO ES modules - the page runs from file://. One global:
-
-     window.DossierMapInk = { begin, reserve, mark, word, covered, report,
-                              adjacent, painted, numbered, pending, audit }
-
-   Loaded beside dossier_map_check.js, before every painter, and OPTIONAL at
-   runtime exactly as the check is: every caller guards on the global, so a
-   board without this file paints precisely as it did. */
+   EVERY MARK AND EVERY WORD REGISTERS, or the check is blind (2026-09-26):
+   a box reserved before the names with an `ink` tag (an arrowhead) is a mark
+   from `reserve`, the key box is one at `audit`, a note is a word.
+   NO ES modules - the page runs from file://. One global, window.DossierMapInk
+   { begin, reserve, mark, word, covered, report, adjacent, painted, numbered,
+   pending, audit }, OPTIONAL at runtime like the check: callers guard on it. */
 "use strict";
 
 var DossierMapInk = (function () {
@@ -259,7 +255,9 @@ var DossierMapInk = (function () {
      it can never be orphaned by a painter, because no painter decides it. */
   function audit(mapId, legend) {
     var C = window.DossierMapCheck, D = window.DossierMapDrop;
-    if (!C) return null; if (C.textPairs) C.textPairs(mapId, words);
+    if (!C) return null;
+    if (legend && legend.box) mark(legend.box, "key box");
+    if (C.textPairs) C.textPairs(mapId, words);
     pend.forEach(function (q) {
       /* SAME HOLD, SAME TEST, ANOTHER COUNTER: an optional name is forgiven or
          filed by dossier_map_drop.js, which owns the words and `labels_dropped`
@@ -430,30 +428,31 @@ var DossierMapInk = (function () {
     return out;
   }
 
+  /* The fighting zones' diamonds, on every map that draws them - not on a
+     clean map, nor on `fronts: false` (2026-09-22: `west_plain` walked its
+     names round twelve diamonds nobody could see). Exported so the axis
+     labels, placed before this reservation, can walk round them too. */
+  function diamonds(p, R, u, map) {
+    var G = (typeof GEO !== "undefined" && GEO) ? GEO : null, out = [];
+    if (!G || !G.fronts || map.clean || map.fronts === false) return out;
+    var dr = window.DossierMapLegend ? DossierMapLegend.markR(u) : 11 * u;
+    R.eachFeature(G.fronts, function (f) {
+      var c = frontCentre(p, f.geometry || {}), BW = window.DossierMapBeltWords; if (c && BW) c = BW.slide(c, f);
+      if (!c) return;
+      var tag = "diamond " + ((f.properties || {}).id || "?");
+      diamondBoxes(c[0], c[1], dr, u).forEach(function (b) { b.tag = tag; out.push(b); });
+    });
+    return out;
+  }
   function reserve(p, R, u, map, o) {
-    var G = (typeof GEO !== "undefined" && GEO) ? GEO : null;
     var rows = rowsOf(map);
     begin();
-    /* The fighting zones' diamonds, on every map that draws them - a clean map
-       draws none, which is why the flag is read and not guessed at. AND A MAP
-       SAYING `fronts: false` DRAWS NONE EITHER (2026-09-22): the flag reached
-       the ground painter and the belt painter when it arrived, and not this
-       reservation, so `west_plain` - the same frame WITHOUT the fighting belts
-       - was still walking its names round twelve diamonds nobody can see. It
-       cost that picture four region names and the Marib capital's dot on the
-       16:9 export. Same one token as the other two files read. */
-    if (G && G.fronts && !map.clean && map.fronts !== false) {
-      var dr = window.DossierMapLegend ? DossierMapLegend.markR(u) : 11 * u;
-      R.eachFeature(G.fronts, function (f) {
-        var c = frontCentre(p, f.geometry || {});
-        if (!c) return;
-        var tag = "diamond " + ((f.properties || {}).id || "?");
-        diamondBoxes(c[0], c[1], dr, u).forEach(function (b) {
-          o.taken.push(b);
-          mark(b, tag);
-        });
-      });
-    }
+    /* Boxes reserved BEFORE this call and tagged: a mark (`ink`, an
+       arrowhead) or a word (`inkWord`, an axis label) - dossier_map_pins.js. */
+    (o.taken || []).forEach(function (b) {
+      if (b && b.ink) mark(b, b.ink); else if (b && b.inkWord) word(b, b.inkWord);
+    });
+    diamonds(p, R, u, map).forEach(function (b) { o.taken.push(b); mark(b, b.tag); });
     (map.labels || []).forEach(function (l) {
       if (!marked(l, o, p)) return;
       var q = p(l.lon, l.lat);
@@ -493,7 +492,7 @@ var DossierMapInk = (function () {
   return { begin: begin, reserve: reserve, mark: mark, word: word,
            covered: covered, report: report, adjacent: adjacent,
            painted: painted, numbered: numbered, pending: pending,
-           audit: audit, own: own };
+           audit: audit, own: own, diamonds: diamonds };
 })();
 
 window.DossierMapInk = DossierMapInk;

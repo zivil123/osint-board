@@ -205,7 +205,8 @@
      the two views can never draw a picture differently. */
   function mapsHtml() {
     if (!window.DossierMapBlock) return "";
-    return DossierMapBlock.html((DOSSIER.maps || []).filter((m) => m.tab !== "maps"));
+    // "report" maps are the Word report's pictures and sit on no tab (2026-09-25).
+    return DossierMapBlock.html((DOSSIER.maps || []).filter((m) => m.tab !== "maps" && m.tab !== "report"));
   }
 
 

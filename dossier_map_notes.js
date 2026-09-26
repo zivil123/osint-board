@@ -126,6 +126,14 @@ var DossierMapNotes = (function () {
      panel uses, and for the same reason. */
   var READ_MIN = 11;
   var REPORT = null;       /* what the last draw() measured - read in console */
+  /* THE NOTE'S SIZE AND ITS KEEP-OUT, per draw. On a STORY map (`pins`) the
+     note is read in print beside 1.3x pin names and 0.9x context names, so it
+     is set at 1.1x the map size and may not step under 0.9 of that - never
+     below 1.1x the context names (2026-09-26). Elsewhere it is as it was. */
+  var CUR = { f: 0.8, min: 0, belt: [], lines: { hard: [], soft: [] }, pins: [] };
+  /* A spot clear of the quiet roads wins unless it stands this much (in u)
+     further off than the nearest; past that the road passes under the halo. */
+  var REACH = 40, OTHER = 30;
 
   function shapeAt(q, u) {
     var m = MARK * u;
@@ -148,20 +156,46 @@ var DossierMapNotes = (function () {
     path(); R.paintShape(ctx, { stroke: P.halo, width: Math.max(3, 3.5 * u) });
     path(); R.paintShape(ctx, { stroke: P.ink, width: Math.max(1.5, 1.8 * u) });
   }
+  /* A LEADER STOPS AT A PIN'S EDGE (2026-09-26): where it enters pins.js geom() (mirrored) - head circle + edge +
+     keyline, stem triangle, from below the tip; a CLASH DOT (story_marks dotGeom) is a circle round the point. */
+  function atPin(rt, u, ts) {
+    var g = K().tip(rt), pin = g && CUR.pins.filter(function (o) { return Math.hypot(o[0] - g[2], o[1] - g[3]) <= 2 * u; })[0];
+    if (!pin) return rt;
+    var sz = Math.max(17, 17 * u * (ts || 1)), rh = sz * (pin.dot ? 0.36 : 0.55), d = pin.dot ? 0 : rh * 2.35, cy = pin[1] - d;
+    var out = Math.max(pin.dot ? 1.3 : 1.5, (pin.dot ? 1.4 : 1.6) * u) + Math.max(0.8, 0.9 * u) + (pin.dot ? 2.5 : 1) * u, r = rh + out;   /* + ink half-width */
+    var dx = g[2] - g[0], dy = g[3] - g[1], L = Math.hypot(dx, dy) || 1, t = 1;
+    var fx = g[0] - pin[0], fy = g[1] - cy, b = fx * dx + fy * dy, a = L * L;
+    var disc = b * b - a * (fx * fx + fy * fy - r * r), t0 = (-b - Math.sqrt(disc)) / a;
+    if (disc >= 0 && t0 >= 0 && t0 < 1) t = t0;   /* first entry into the head circle */
+    var hw = rh * Math.sqrt(1 - rh * rh / (d * d)), ty = cy + rh * rh / d;
+    (pin.dot ? [] : [-hw, hw]).forEach(function (ex) {   /* each stem edge, tip -> tangent point */
+      var qx = pin[0] - g[0], qy = pin[1] - g[1], ey = ty - pin[1], den = dx * ey - dy * ex;
+      var tt = (qx * ey - qy * ex) / (den || 1e-9), s = (qx * dy - qy * dx) / (den || 1e-9);
+      if (den && s > 0.02 && s <= 1 && tt >= 0 && tt < t) t = Math.max(0, tt - out / L);
+    });
+    var e = [g[0] + dx * t, g[1] + dy * t];
+    return { pts: rt.pts.slice(0, -1).concat([e]), segs: rt.segs.slice(0, -1).concat([[g[0], g[1], e[0], e[1]]]) };
+  }
 
   /* One placement pass at one text size. Returns what it placed and how many
      pairs of boxes overlap, so draw() can decide to try again smaller. Nothing
      is painted here: a pass that loses must leave no ink. */
   function pass(ctx, p, P, u, ts, list, taken, W, H, size, scale, dir) {
     var R = D(), kit = K();
-    var noteSize = size * 0.8 * scale;
-    var maxW = kit.NOTE_W * u * ts * scale;
+    var noteSize = size * CUR.f * scale;
+    var maxW = kit.NOTE_W * u * ts * scale * CUR.f / 0.8;
     var leaders = [], mine = [], queue = [], cut = 0;
-    /* `kit.words(taken)`: `taken` also carries every MARK's rectangle, reserved
-       before the names (dossier_map_ink.js) so that a NAME never lands on a
-       pin. A callout box is placed exactly as it was: making twelve 650px
-       boxes dodge the marks as well only moved them onto each other. */
-    var bars = kit.words(taken).concat(kit.rimBars(W, H, u, RIM));
+    /* A NOTE STANDS ON CLEAR GROUND (2026-09-26, MAP_CHECK.md `note_clash`):
+       never on a mark - pin, diamond, square, arrowhead, the key box - never on
+       a belt's hatching, and never within a space of another word on its line
+       (the gap `DossierMapCheck.apart` demands), so every word is widened by
+       that space. Until then marks were left out here and a note sat on a pin. */
+    /* AND NEVER ON A DRAWN LINE (2026-09-26): the story road, the arrows, the
+       line of contact and seam, belt outlines and the coast are hard bars; the
+       quiet main roads and governorate borders are SOFT - held while a clear
+       spot is within reach (REACH), let under the halo when none is. */
+    var bars = kit.rimBars(W, H, u, RIM).concat(CUR.belt, CUR.lines.hard, clear(taken, u));
+    var soft = CUR.lines.soft;
     list.forEach(function (n) { bars.push(shapeAt(n.q, u)); });
     list.slice().sort(function (a, b) {
       var d = kit.edgeness(shapeAt(b.q, u), W, H) -
@@ -192,14 +226,25 @@ var DossierMapNotes = (function () {
       });
       var w = tw + 2 * r + (NUM_GAP + PAD) * u;
       var h = Math.max(lines.length * lineH + noteSize * 0.5, 2 * r + 4 * u);
-      var box = kit.findSpot(s, "n", w, h, u, bars, taken, mine, leaders, W, H);
+      /* NOT ON ANOTHER PLACE'S DOORSTEP (2026-09-26): clearing the lines
+         put a Marib note right under the next town's pin, where it read as
+         that town's. Every other pin or note place keeps OTHER u clear. */
+      var own = bars.concat(others(n.q, list, u));
+      var box = kit.findSpot(s, "n", w, h, u, own, taken, mine, leaders, W, H);
+      if (soft.length && soft.some(function (t) { return R.overlaps(box, t); })) {
+        var calm = kit.findSpot(s, "n", w, h, u, own.concat(soft), taken, mine, leaders, W, H);
+        /* Never a worse search pass: a grid fallback that clears a quiet road
+           took a Marib note round the far side of another town's pin. */
+        var far = reach(box, s);
+        if (calm.pass >= box.pass && reach(calm, s) <= far + REACH * u) box = calm;
+      }
       /* THE ROUTE THE SEARCH TESTED IS THE ROUTE THAT GETS PAINTED - straight,
          or with the one bend that got it round somebody's sentence. A box the
          search could only place dirty comes back with none, and the straight
          line is then drawn and COUNTED rather than hidden under a clip. */
       var rt = box.route || kit.straight(box, s);
       if (rt.len >= 4 * u) leaders.push(rt);
-      bars.push(box); mine.push(box);
+      bars.push(clear([box], u)[0]); mine.push(box);   /* a space round a note too */
       queue.push({ box: box, g: kit.leaderSeg(box, s), rt: rt, lines: lines,
                    lineH: lineH, size: noteSize, n: n.n, r: r });
     });
@@ -225,8 +270,57 @@ var DossierMapNotes = (function () {
     var stuck = queue.filter(function (q) { return q.box.pass === 0; }).length;
     return { queue: queue, over: over, cross: cross, cut: cut, stuck: stuck };
   }
+  function others(q, list, u) {
+    var r = OTHER * u;
+    return list.map(function (n) { return n.q; }).concat(CUR.pins).filter(function (o) {
+      return Math.hypot(o[0] - q[0], o[1] - q[1]) > 2 * u;
+    }).map(function (o) { return { x0: o[0] - r, y0: o[1] - r, x1: o[0] + r, y1: o[1] + r }; });
+  }
+  /* How far a box stands from its place, centre to centre. */
+  function reach(b, s) {
+    return Math.hypot((b.x0 + b.x1) / 2 - s.cx, (b.y0 + b.y1) / 2 - s.cy);
+  }
   function boxesOf(queue) {
     return queue.map(function (q) { return q.box; });
+  }
+  /* What a note may not stand on, out of `taken`: a mark as it is, a word
+     widened by a space each side and a little above and below. */
+  function clear(taken, u) {
+    var sp = (window.DossierMapCheck && DossierMapCheck.space) || 0.16;
+    return (taken || []).filter(Boolean).map(function (b) {
+      if (b.mark || b.belt) return b;
+      var dx = sp * (b.y1 - b.y0) + u, dy = 2 * u;
+      return { x0: b.x0 - dx, y0: b.y0 - dy, x1: b.x1 + dx, y1: b.y1 + dy };
+    });
+  }
+  /* THE COUNTER: each painted note whose box lies on a belt's hatching or on
+     anything else already on the picture (a mark, a word, the key box). Filed
+     at zero on every callouts picture, so the line shows the rule ran. */
+  function clashes(queue, taken, belt, mapId) {
+    var mine = boxesOf(queue), bad = [];
+    function on(a, b) {
+      return Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 1 &&
+             Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 1;
+    }
+    queue.forEach(function (q) {
+      var what = belt.some(function (b) { return on(q.box, b); }) ? ["belt"] : [];
+      /* A note on a story road, an arrow, the line of contact or the seam. */
+      (CUR.lines.hits ? CUR.lines.hits(q.box) : []).forEach(function (k) {
+        if (DossierMapNoteLines.FAIL[k]) what.push(k);
+      });
+      taken.forEach(function (b) {
+        if (b && b !== q.box && on(q.box, b)) {
+          what.push(mine.indexOf(b) >= 0 ? "note" : b.mark ? "mark" : "word");
+        }
+      });
+      if (what.length) bad.push(q.n + " on " + what.join("+"));
+    });
+    if (window.DossierMapCheck) DossierMapCheck.add("note_clash", bad.length);
+    if (bad.length) {
+      console.error("dossier map notes: " + (mapId || "?") + " note " +
+        bad.join(", ") + " - a note must stand on clear ground");
+    }
+    return bad.length;
   }
 
   /* Painted AFTER the map's own labels, so `taken` already holds every name,
@@ -248,6 +342,14 @@ var DossierMapNotes = (function () {
       return { text: n.short_he || n.note_he, q: p(n.lon, n.lat), n: i + 1 };
     });
     if (!list.length) return null;
+    CUR = { f: map.pins ? 1.1 : 0.8, min: map.pins ? 0.9 : 0,
+      belt: window.DossierMapFocus && DossierMapFocus.beltBars && typeof GEO !== "undefined"
+        ? DossierMapFocus.beltBars(p, u, GEO, map) : [],
+      lines: window.DossierMapNoteLines
+        ? DossierMapNoteLines.build(p, u, typeof GEO !== "undefined" ? GEO : null, map, W, H)
+        : { hard: [], soft: [] },
+      pins: (map.pins || []).filter(function (q) { return q && q.lon != null; }).map(function (q) {
+        var o = p(q.lon, q.lat), S = window.DossierMapStoryMarks; o.dot = !!(S && S.isDot(map, q.place)); return o; }) };
     /* The step is chosen on OVERLAPS AND CUT SENTENCES, and the first clean one
        wins: which text size the set settles at is a measured decision (STEPS
        above), a leader is not a reason to shrink nine sentences - and a step
@@ -256,7 +358,7 @@ var DossierMapNotes = (function () {
        step that still leaves TEXT_MIN CSS pixels on a 1280-wide canvas, and
        the first step is always tried so a canvas too narrow for even that
        still gets a picture - reported, not silently shrunk. */
-    var floor = TEXT_MIN * W / (1280 * size * 0.8);
+    var floor = Math.max(CUR.min, TEXT_MIN * W / (1280 * size * CUR.f));
     var best = null, i, d, try_, cost, low = Infinity;
     for (i = 0; i < STEPS.length && low; i++) {
       if (i && STEPS[i] < floor) break;
@@ -274,7 +376,7 @@ var DossierMapNotes = (function () {
            costs the size - measured on the twelve heat callouts at a 325px
            canvas, where chasing the cuts took the note from 13px to 6px. */
         cost = try_.over * 1000 + try_.stuck * 100 + try_.cross * 10 +
-          (size * 0.8 * STEPS[i] >= READ_MIN ? try_.cut : 0);
+          (size * CUR.f * STEPS[i] >= READ_MIN ? try_.cut : 0);
         if (cost < low) { low = cost; best = try_; }
       }
     }
@@ -312,8 +414,9 @@ var DossierMapNotes = (function () {
          a name, a number nor an arrow reached. */
       if (window.DossierMapInk) DossierMapInk.numbered(q.g[2], q.g[3]);
       if (!kitLen(q.g, u)) return;
-      K().paint(ctx, P, u, q.rt);
-      head(ctx, P, u, K().tip ? K().tip(q.rt) : q.g);
+      var rt = K().tip ? atPin(q.rt, u, ts) : q.rt;
+      K().paint(ctx, P, u, rt);
+      head(ctx, P, u, K().tip ? K().tip(rt) : q.g);
     });
     /* THE DATE MUST READ FIRST (2026-09-17). A note opening "15.9 — " is laid
        out in the canvas's base direction; set it here rather than trusting
@@ -337,8 +440,13 @@ var DossierMapNotes = (function () {
             align: "right" });
       });
       taken.push(q.box);
+      /* A NOTE IS A WORD on the picture: registered, so the ink audit's
+         `text_over_text` and `mark_over_text` see it like any name. The tag
+         carries no Hebrew, so it can never "print" a required place's name. */
+      if (window.DossierMapInk) DossierMapInk.word(q.box, "note " + q.n);
     });
     ctx.direction = dir0;
+    clashes(best.queue, taken, CUR.belt, (map || {}).id);
     /* The words are on the picture, so the page must not repeat them. */
     N().mark(ctx, "painted");
     /* What this paint achieved, MEASURED OFF THE FINISHED PICTURE: every route

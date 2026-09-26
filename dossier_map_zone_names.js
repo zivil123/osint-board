@@ -378,7 +378,7 @@ var DossierMapZoneNames = (function () {
        beside another WORD and the old strict test round a MARK (gap.js). */
     (((required || W >= 700) && !quiet) ? rings : [0]).some(function (extra) {
       return (quiet ? ["c"] : sides(l, required)).some(function (a) {
-        var s = R.place(ctx, l.he, q[0], q[1], a, lSize, clear + extra * u,
+        var s = (l.style && window.DossierMapPins ? DossierMapPins : R).place(ctx, l.he, q[0], q[1], a, lSize, clear + extra * u,
           u, W, H, lSpace);
         var b = s.box, free = !o.taken.some(function (t) {
           return DossierMapGap.clash(R, b, t === own ? ownClear : t);
@@ -391,7 +391,7 @@ var DossierMapZoneNames = (function () {
       });
     });
     /* AND AN OPTIONAL ONE THAT LOSES IS SAID OUT LOUD, AND KEEPS ITS DOT. */
-    if (!spec) return required ? false : !D || D.lost(l, out, [ctx, p, P, R, u, o]);
+    if (!spec && !(spec = window.DossierMapBeltWords && DossierMapBeltWords.lead(ctx, P, R, l, q, lSize, clear, o))) return required ? false : !D || D.lost(l, out, [ctx, p, P, R, u, o]);
       /* A PIN under every town and port, the GAINS INCLUDED - a disc of the
        ground colour under a dot of the ink, so it reads over violet, over
        either side's territory and over the sea and adds no hue. ONLY on real
@@ -401,7 +401,7 @@ var DossierMapZoneNames = (function () {
     if (!quiet && l.pin !== false) R.mark(ctx, P, q[0], q[1], markR, u, l.kind);
     o.taken.push(spec.box);
     out.push({ pt: q, spec: spec, quiet: quiet, place: l.place || l.he,
-               markRect: own });
+               markRect: own, style: l.style });
     if (window.DossierMapCheck) {
       DossierMapCheck.add(required ? "req_labels" : "labels", 1);
     }
@@ -466,9 +466,9 @@ var DossierMapZoneNames = (function () {
     var I = window.DossierMapInk;
     labels.forEach(function (l) {
       var s = l.spec;
-      R.text(ctx, P, s.str, s.x, s.y, { size: s.size, weight: l.quiet ? 500 : 600,
+      R.text(ctx, P, s.str, s.x, s.y, Object.assign({ size: s.size, weight: l.quiet ? 500 : 600,
         halo: 3 * u, align: s.align, baseline: s.baseline, spacing: s.spacing,
-        color: l.quiet ? P.govLabel : null });
+        color: l.quiet ? P.govLabel : null }, l.style));
       if (I) I.word(s.box, l.place || s.str, l.markRect);
     });
     /* AND THE DOT IS STILL THERE TO BE SEEN. This is the last name a map

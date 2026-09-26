@@ -94,7 +94,7 @@ var DossierMapLegend = (function () {
   function frontMarks(ctx, p, P, u, G) {
     var r = markR(u);
     D().eachFeature(G.fronts, function (f) {
-      var best = centre(p, f.geometry || {});
+      var best = centre(p, f.geometry || {}), BW = window.DossierMapBeltWords; if (best && BW) best = BW.slide(best, f);
       if (!best) return;
       diamond(ctx, best[0], best[1], r + Math.max(2, 2 * u), { fill: P.halo });
       diamond(ctx, best[0], best[1], r, { fill: P.frontMark,
@@ -324,8 +324,9 @@ var DossierMapLegend = (function () {
     if (opt.map && opt.map.strikes && window.DossierMapStrikes) {
       L.rows = L.rows.concat(DossierMapStrikes.keyRows(opt.map, ctx, P, u));
     }
-    /* No rows, no box. Only a clean map can reach this, and an empty key drawn
-       anyway would be a white rectangle floating in a corner. */
+    /* The story marks' rows: the clash dot, a peak's triangle (dossier_map_story_marks.js).
+       No rows, no box: an empty key would be a white rectangle floating in a corner. */
+    if (window.DossierMapStoryMarks) L.rows = DossierMapStoryMarks.keyRows(opt.map, L.rows, u, opt.p);
     if (!L.rows.length) return null;
     function widest(S) {
       return Math.max.apply(null, L.rows.map(function (r) {

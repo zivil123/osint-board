@@ -361,8 +361,13 @@ var DossierMapGov = (function () {
          not split, where rule 7 already trades names for numbers and the word
          is on the canvas once as the town. Measured at 340px: the region name
          took the last free anchor and a REQUIRED town label was dropped. */
-      var twice = (!names || narrow) &&
-        points.some(function (pt) { return sameName(pt.he, m.name); });
+      /* A PIN'S NAME OUTRANKS THE WHITELIST (2026-09-26): on a story map the
+         bold pin already prints the word, so a same-text region name is the
+         word twice beside one mark (dossier_map_pins.js, `named`). */
+      var twice = ((!names || narrow) &&
+        points.some(function (pt) { return sameName(pt.he, m.name); })) ||
+        !!(window.DossierMapPins && DossierMapPins.named &&
+           DossierMapPins.named(m.name, opt.mapId));
       if (twice) return;
       /* EVERY SIZE AT EVERY SPOT, biggest first: the name keeps the size the
          frame asked for wherever it can, and steps down the ladder only when
