@@ -13,7 +13,7 @@
    NO ES modules - the page runs from file://. One global:
 
      window.DossierMapFrames = { mapOf, frameOf, frameAspect, aspect,
-                                 variantsOf, SHAPES }
+                                 variantsOf, SHAPES, adopt }
 
    dossier_map.js reaches it BY NAME at call time, the way it reaches
    DossierMapGains and DossierMapKey, so the two files may load in any order.
@@ -69,8 +69,22 @@ var DossierMapFrames = (function () {
     return ["plain"].concat(Object.keys((m && m.variants) || {}));
   }
 
+  /* THE MAP MAKER'S SEAM (2026-10-02): one record and its frame, put into the
+     page's DOSSIER IN MEMORY so the painters above draw it like any other map.
+     Only an id starting "__" is taken, so an authored map or frame can never be
+     overwritten; nothing is written to disk and nothing on the board calls it. */
+  function adopt(record, frame) {
+    var D = dossier(), id = record && String(record.id || "");
+    if (!D || !frame || id.indexOf("__") !== 0) return null;
+    record.frame = id;
+    (D.frames = D.frames || {})[id] = frame;
+    D.maps = (D.maps || []).filter(function (m) { return m.id !== id; });
+    D.maps.push(record);
+    return id;
+  }
+
   return { mapOf: mapOf, frameOf: frameOf, frameAspect: frameAspect,
-           aspect: aspect, variantsOf: variantsOf, SHAPES: SHAPES };
+           aspect: aspect, variantsOf: variantsOf, SHAPES: SHAPES, adopt: adopt };
 })();
 
 window.DossierMapFrames = DossierMapFrames;

@@ -168,6 +168,84 @@
       esc(d.text_he) + "</p></div>").join("");
   }
 
+  /* The day's notable NON-attack items (2026-10-03). Read only, never built
+     here: window.OSINT_ITEMS comes from items.js, which may be missing or an
+     empty object, and `also` rides on the day's brief record. Either one absent
+     writes NOTHING - no heading, no empty box. Read at render time, so a late
+     or failed items.js cannot break the view. An unknown kind renders untagged
+     rather than mislabelled, the same answer DEVEL_HE gives. The colours live
+     in daily.css, keyed on data-kind; the WORD is what says the kind. */
+  const KIND_HE = {
+    strike_on_yemen: "תקיפה בתימן",
+    threat: "איום",
+    forces: "כוחות",
+    political: "מדיני",
+  };
+  const ALSO_HEAD_HE = "עוד חשוב היום";
+  const NOTES_HEAD_HE = "ידיעות בולטות";
+  const MAX_ITEMS = 8;   /* the contract's ceiling per day */
+
+  function boxHeadHtml(label) {
+    return '<h3 class="arena-h"><span class="kbadge">' + label + "</span></h3>";
+  }
+
+  /* The report's closing part: one line per item, the kind named inline the
+     way a development is. */
+  function closingHtml(day) {
+    const rows = (Array.isArray(day.also) ? day.also : [])
+      .filter((a) => a && a.line_he);
+    if (!rows.length) return "";
+    return '<section class="arena also-box">' + boxHeadHtml(ALSO_HEAD_HE) +
+      rows.map((a) =>
+        '<div class="dv-row"><p class="dv-text">' +
+        (KIND_HE[a.kind]
+          ? '<strong class="dv-tag">' + KIND_HE[a.kind] + ":</strong> " : "") +
+        esc(a.line_he) + "</p></div>").join("") +
+      "</section>";
+  }
+
+  /* One item card: the board's own .item, but READ and not opened - the kind
+     tag leads, the text is always on show, nothing folds. A source is named
+     by its channel where the board knows it; the raw id never reaches the
+     screen. Only an http(s) address becomes a link. */
+  function noteHtml(it) {
+    const links = (Array.isArray(it.sources) ? it.sources : [])
+      .filter((s) => s && /^https?:\/\//i.test(String(s.url || "")));
+    const names = links.map((s) => sourceHe(String(s.id || "").replace(/-\d+$/, "")));
+    const tag = KIND_HE[it.kind]
+      ? '<div class="item-meta"><span class="badge ktag" data-kind="' + it.kind +
+        '">' + KIND_HE[it.kind] + "</span></div>" : "";
+    return '<li class="item note">' + tag +
+      "<h3>" + esc(it.title_he) + "</h3>" +
+      (it.he ? '<p class="he">' + esc(it.he) + "</p>" : "") +
+      (links.length
+        ? '<div class="item-links">' +
+          (links.length > 1
+            ? '<span class="src-count">' + links.length + " מקורות</span>" : "") +
+          links.map((s, i) =>
+            '<a href="' + esc(s.url) + '" target="_blank" rel="noopener">' +
+            esc(names[i] === "מקור" && links.length > 1
+              ? "מקור " + (i + 1) : names[i]) + "</a>").join("") +
+          "</div>"
+        : "") +
+      "</li>";
+  }
+
+  /* Heavier weight first; the sort is stable, so equal weights keep the
+     order items.js gave them. */
+  function notesHtml(day) {
+    const all = window.OSINT_ITEMS;
+    const items = (all && Array.isArray(all[day.date]) ? all[day.date] : [])
+      .filter((it) => it && it.title_he)
+      .sort((a, b) => (Number(b.weight) || 0) - (Number(a.weight) || 0))
+      .slice(0, MAX_ITEMS);
+    if (!items.length) return "";
+    return '<section class="arena notes-box">' +
+      boxHeadHtml(NOTES_HEAD_HE) +
+      '<ol class="list note-list">' + items.map(noteHtml).join("") + "</ol>" +
+      "</section>";
+  }
+
   /* One arena section, in Ziv's order: developments first, extras next,
      attacks LAST — and a quiet arena is not written at all. The תקיפות
      heading appears only when something sits above it; the quiet line
@@ -276,9 +354,9 @@
       "</div></div>" +
       partialHtml(day) +
       (day.checked_web === false
-        ? '<p class="day-note">ליום זה לא נבדקו מקורות מעבר לערוצים שהלוח עוקב אחריהם.</p>'
+        ? '<p class="day-note">ליום זה לא נבדקו מקורות מעבר לערוצים שהדשבורד עוקב אחריהם.</p>'
         : "") +
-      sections;
+      sections + closingHtml(day) + notesHtml(day);
 
     /* The day list, newest first, plain digit dates — an <option> cannot hold
        the <bdi> wrapper, so the select itself is dir="ltr". */
@@ -343,7 +421,7 @@
       (weekIndex <= 0 ? " disabled" : "") + ">השבוע הבא</button>" +
       "</div></div>" +
       (week.checked_web === false
-        ? '<p class="day-note">לשבוע זה לא נבדקו מקורות מעבר לערוצים שהלוח עוקב אחריהם.</p>'
+        ? '<p class="day-note">לשבוע זה לא נבדקו מקורות מעבר לערוצים שהדשבורד עוקב אחריהם.</p>'
         : "") +
       sections;
 

@@ -70,7 +70,7 @@ var DossierMapCorner = (function () {
      the chevron of a height, the anchor of a port, the ringed dot of a regional
      capital (scripts\dossier_maps.py, KEYED_KINDS). A plain town or country
      name paints only words, and words can still move. */
-  var MARK_KINDS = { objective: 1, heights: 1, port: 1, capital: 1 };
+  var MARK_KINDS = { objective: 1, heights: 1, port: 1, capital: 1, airport: 1, oil: 1 };
 
   function inBox(b, q) {
     return q[0] >= b.x0 && q[0] <= b.x1 && q[1] >= b.y0 && q[1] <= b.y1;

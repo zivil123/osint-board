@@ -94,7 +94,7 @@
     overlay.setAttribute("aria-labelledby", "unlock-title");
     overlay.innerHTML =
       '<form class="unlock-card" id="unlock-form">' +
-      '<h2 id="unlock-title">הלוח מוגן בסיסמה</h2>' +
+      '<h2 id="unlock-title">הדשבורד מוגן בסיסמה</h2>' +
       '<label class="unlock-label" for="unlock-pw">סיסמה</label>' +
       '<input class="unlock-input" id="unlock-pw" type="password"' +
       ' autocomplete="current-password" autocapitalize="off" spellcheck="false" required>' +

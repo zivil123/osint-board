@@ -161,6 +161,42 @@ body.view-daily .wrap { display: none; }
 .arena-events { list-style: none; margin-block-start: 10px; }
 .arena-events .item:last-child { border-block-end: none; }
 
+/* The day's notable NON-attack items (2026-10-03): the report's closing part
+   (.also-box, development rows as above) and the item cards (.notes-box).
+
+   The kind tag is the board's own .badge with four colours of its own. None of
+   the board's existing hues is free for it: the four front hues and the four
+   verdict hues each already mean something on this very view, and the accent
+   blue is what a link looks like. So the four sit in the gaps BETWEEN the taken
+   hues, scoped to this pane, and the word in the tag is what names the kind.
+   Contrast, text on the tinted fill / on --bg (measured on the rendered tag):
+     --k-strike 8.86 / 11.49   --k-threat 7.26 / 9.08
+     --k-forces 8.09 / 10.32   --k-political 8.16 / 10.57 */
+.daily-pane {
+  --k-strike: #BFDD6C;    --k-strike-tint: rgba(191, 221, 108, 0.12);
+  --k-threat: #E3A4F4;    --k-threat-tint: rgba(227, 164, 244, 0.12);
+  --k-forces: #D9C4A3;    --k-forces-tint: rgba(217, 196, 163, 0.12);
+  --k-political: #86D3F7; --k-political-tint: rgba(134, 211, 247, 0.12);
+}
+.ktag { font-size: 16px; padding: 2px 11px; }
+.ktag[data-kind="strike_on_yemen"] { --chip-c: var(--k-strike); --chip-t: var(--k-strike-tint); }
+.ktag[data-kind="threat"] { --chip-c: var(--k-threat); --chip-t: var(--k-threat-tint); }
+.ktag[data-kind="forces"] { --chip-c: var(--k-forces); --chip-t: var(--k-forces-tint); }
+.ktag[data-kind="political"] { --chip-c: var(--k-political); --chip-t: var(--k-political-tint); }
+
+/* An item card is the board's .item, calmer: it is READ, not opened - no
+   pointer, no fold, a lighter title - and its kind tag leads where an attack
+   card leads with its date. Source links keep a 44px touch height. */
+.note-list { list-style: none; }
+.note-list .item:last-child { border-block-end: none; }
+.item.note { cursor: default; padding-block: 14px 6px; }
+.item.note:first-child { padding-block-start: 6px; }
+.item.note .item-meta { margin-block-start: 0; }
+.item.note h3 { font-weight: 500; margin-block: 8px 2px; overflow-wrap: anywhere; }
+.item.note .he { line-height: 1.6; overflow-wrap: anywhere; }
+.item.note .item-links { margin-block-start: 2px; gap: 4px 16px; }
+.item.note .item-links a { display: inline-flex; align-items: center; min-height: 44px; }
+
 @media (max-width: 480px) {
   .day-title { font-size: 24px; }
   .arena-text { font-size: 19px; }

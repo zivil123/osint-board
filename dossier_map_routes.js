@@ -39,7 +39,7 @@ var DossierMapRoutes = (function () {
      they name, the way dossier_map.js keeps its own words beside the palette. */
   var HE = {
     km: 'ק"מ', nm: "מייל ימי", objective: "יעד שהוכרז", heights: "רכס הררי",
-    port: "נמל", capital: "בירת מחוז", lane: "נתיב שיט ראשי",
+    port: "נמל", airport: "שדה תעופה", oil: "מתקן נפט", capital: "בירת מחוז", lane: "נתיב שיט ראשי",
     coastal: "נתיב חופי", measure: "מרחק בקו ישר", claim: "טענה, ללא אימות עצמאי"
   };
 
@@ -85,7 +85,7 @@ var DossierMapRoutes = (function () {
      ink over a halo disc and the legend says in words which is which (design-
      law: colour and shape never carry meaning alone). A dark plate behind the
      NAME was refused: nine filled boxes over terrain is a painted field. */
-  var SCALE = { objective: 1.7, heights: 1.9, port: 1.7, capital: 1.7 };
+  var SCALE = { objective: 1.7, heights: 1.9, port: 1.7, capital: 1.7, airport: 2.6, oil: 2.6 };
 
   function markClear(pinR, kind) { return pinR * (SCALE[kind] || 1); }
 
@@ -110,6 +110,7 @@ var DossierMapRoutes = (function () {
   function mark(ctx, P, x, y, r, u, kind, swatch) {
     var R = D(), lift = Math.max(1, 1.2 * u);
     if (!swatch && window.DossierMapInk) DossierMapInk.painted(x, y, kind);
+    if (window.DossierMapSites && DossierMapSites.paint(ctx, P, x, y, r, u, kind, swatch)) return;
     if (kind === "heights") {
       triangle(ctx, x, y, r + lift, { fill: P.halo });
       triangle(ctx, x, y, r, { fill: P.ink });
@@ -445,7 +446,7 @@ var DossierMapRoutes = (function () {
        picture, and `legend_orphan` counts it when there is none (2026-09-19).
        Ziv, of the heat map: the key still carried the black-triangle row for a
        mountain ridge after Jabal Habashi's triangle had gone off the map. */
-    ["objective", "capital", "heights", "port"].forEach(function (k) {
+    ["objective", "capital", "heights", "port", "airport", "oil"].forEach(function (k) {
       if (kinds[k]) rows.push({ draw: glyph(k), label: HE[k], kind: k });
     });
     /* The zones' own rows - one per TYPE plus the dotted-edge line - are built

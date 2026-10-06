@@ -178,5 +178,8 @@
     };
   }
 
-  window.DossierMapCities = { load: load, loaded: function () { return Object.keys(img); } };
+  /* `put`: the map maker's own page hands in the patch picture of its frame
+     (maker\maker_cities.js); nothing on the board calls it. */
+  window.DossierMapCities = { load: load, loaded: function () { return Object.keys(img); },
+    put: function (map, pic) { img[map.frame + "|" + lookOf(map)] = pic; baked = {}; } };
 }());

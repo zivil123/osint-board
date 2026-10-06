@@ -133,7 +133,10 @@ var Battlefronts = (function () {
       return false;
     }
     var fronts = bf.fronts;
-    root.innerHTML = BfMarks.stripHtml(bf) +
+    /* The Word report's door, first in the pane; battlefronts_report.js fills
+       the box, and with no report files there is no box at all. */
+    root.innerHTML = (window.BfReport ? BfReport.slotHtml() : "") +
+      BfMarks.stripHtml(bf) +
       '<div class="list-head"><h2>חזיתות <span class="count">' +
       fronts.length + "</span></h2></div>" + introHtml(bf) + overallHtml(bf) +
       '<ol class="bf-cards"></ol>';
